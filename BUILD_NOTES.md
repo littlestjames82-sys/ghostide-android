@@ -548,3 +548,25 @@ with a two-client simulation against the live server:
 decision table 5/5, presence, no-clobber conflict, clean
 reload. Two-device session is Ryan's proof. APK 19214341
 bytes md5 12b9b30f376d3d5e45f805d2ddf02ff7, versionCode 30, same signer.
+
+## v1.27.0 (Oct 19, 2026) - Roadmap G17: encrypted backup
+Optional and off by default. Tools -> Encrypted backup:
+create zips the workspace (same file set as zip export;
+the backups/ folder and .ghostbak files are excluded)
+and encrypts it with a passphrase the app never stores:
+PBKDF2-HMAC-SHA256 (200k rounds) derives an encryption
+key + MAC key, the zip is XORed with an HMAC-SHA256
+keystream under a random nonce, and the MAC covers
+salt || nonce || ciphertext (encrypt-then-MAC), so a
+wrong passphrase fails integrity before decrypting. One
+format on both builds - server.py functions and
+BackupCrypto.java mirror each other - proven compatible
+BOTH directions: the real Java class on a desktop JVM
+decrypted the Python-made backup (content hash matched),
+and the Python server restored the Java-made backup
+byte-exact. Desktop round trip wiped + restored
+byte-identical (recursive SHA-256), tamper rejected.
+The .ghostbak lands in backups/ for Ryan to move to
+Drive/WebDAV/USB. APK 19218437 bytes md5 081e6d507c124db552e568a1f9dcd7f2,
+versionCode 31, same signer. Arc D complete pending
+device proofs for G15-G17.

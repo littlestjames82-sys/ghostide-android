@@ -828,6 +828,136 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/backup/create")
+                && method.equals("POST")) {
+            try {
+                Map<String, Object> bkD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String bkPw = Json.str(bkD, "passphrase", "");
+                if (bkPw.length() < 8)
+                    throw new IOException(
+                        "passphrase needs at least 8 characters");
+                java.io.ByteArrayOutputStream bkBuf =
+                    new java.io.ByteArrayOutputStream();
+                java.util.zip.ZipOutputStream bkZ =
+                    new java.util.zip.ZipOutputStream(bkBuf);
+                List<File> bkFiles = new ArrayList<>();
+                bkCollect(workspace, bkFiles);
+                long bkTotal = 0;
+                int bkCount = 0;
+                for (File bf : bkFiles) {
+                    String bkRel = workspace.toURI()
+                        .relativize(bf.toURI()).getPath();
+                    bkTotal += bf.length();
+                    bkCount++;
+                    if (bkTotal > 50L * 1024 * 1024)
+                        throw new IOException(
+                            "workspace is over the 50 MB "
+                            + "backup cap");
+                    bkZ.putNextEntry(
+                        new java.util.zip.ZipEntry(bkRel));
+                    java.io.FileInputStream bkIn =
+                        new java.io.FileInputStream(bf);
+                    byte[] bkChunk = new byte[8192];
+                    int bkN;
+                    while ((bkN = bkIn.read(bkChunk)) > 0)
+                        bkZ.write(bkChunk, 0, bkN);
+                    bkIn.close();
+                    bkZ.closeEntry();
+                }
+                bkZ.close();
+                String bkCreated =
+                    new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd'T'HH:mm:ss",
+                        java.util.Locale.US)
+                        .format(new java.util.Date());
+                String bkEnv = BackupCrypto.encrypt(
+                    bkPw, bkBuf.toByteArray(), bkCount,
+                    bkTotal, bkCreated);
+                File bkDir = new File(workspace, "backups");
+                bkDir.mkdirs();
+                String bkName = "ghostide-backup-"
+                    + new java.text.SimpleDateFormat(
+                        "yyyyMMdd-HHmmss", java.util.Locale.US)
+                        .format(new java.util.Date())
+                    + ".ghostbak";
+                writeFile(new File(bkDir, bkName), bkEnv);
+                sendJson(out, "{\"ok\":true,\"path\":"
+                    + Json.quote("backups/" + bkName)
+                    + ",\"files\":" + bkCount
+                    + ",\"bytes\":" + bkTotal
+                    + ",\"size\":" + bkEnv.length() + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/backup/restore")
+                && method.equals("POST")) {
+            try {
+                Map<String, Object> bkD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String bkPw = Json.str(bkD, "passphrase", "");
+                File bkFile = safe(
+                    Json.str(bkD, "path", ""));
+                if (!bkFile.isFile())
+                    throw new IOException(
+                        "backup file not found");
+                byte[] bkRaw = BackupCrypto.decrypt(bkPw,
+                    readFile(bkFile));
+                java.util.zip.ZipInputStream bkZ =
+                    new java.util.zip.ZipInputStream(
+                        new java.io.ByteArrayInputStream(bkRaw));
+                int bkCount = 0;
+                long bkTotal = 0;
+                java.util.zip.ZipEntry bkE;
+                byte[] bkChunk = new byte[8192];
+                while ((bkE = bkZ.getNextEntry()) != null) {
+                    String[] bkParts = bkE.getName()
+                        .replace('\\', '/').split("/");
+                    List<String> bkKeep = new ArrayList<>();
+                    boolean bkBad = false;
+                    for (String bkPart : bkParts) {
+                        if (bkPart.isEmpty()
+                                || bkPart.equals(".")
+                                || bkPart.equals("..")) {
+                            continue;
+                        }
+                        if (bkPart.startsWith(".")) bkBad = true;
+                        bkKeep.add(bkPart);
+                    }
+                    if (bkBad || bkKeep.isEmpty()) continue;
+                    if (bkKeep.get(0).equals("backups"))
+                        continue;
+                    File bkDst = workspace;
+                    for (String bkPart : bkKeep)
+                        bkDst = new File(bkDst, bkPart);
+                    if (bkE.isDirectory()) {
+                        bkDst.mkdirs();
+                        continue;
+                    }
+                    if (bkDst.getParentFile() != null)
+                        bkDst.getParentFile().mkdirs();
+                    java.io.FileOutputStream bkOut =
+                        new java.io.FileOutputStream(bkDst);
+                    int bkN;
+                    while ((bkN = bkZ.read(bkChunk)) > 0) {
+                        bkOut.write(bkChunk, 0, bkN);
+                        bkTotal += bkN;
+                    }
+                    bkOut.close();
+                    bkCount++;
+                }
+                bkZ.close();
+                sendJson(out, "{\"ok\":true,\"files\":"
+                    + bkCount + ",\"bytes\":" + bkTotal + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/pair/heartbeat")
                 && method.equals("POST")) {
             try {
@@ -2195,6 +2325,22 @@ public final class IdeServer {
         while ((n = in.read(buf)) >= 0) b.write(buf, 0, n);
         in.close();
         return b.toByteArray();
+    }
+
+    // Backup walk (Roadmap G17): same skip rules as the
+    // desktop build - dot paths, the backups folder, and
+    // backup files themselves stay out of the archive.
+    private void bkCollect(File dir, List<File> out) {
+        File[] kids = dir.listFiles();
+        if (kids == null) return;
+        for (File k : kids) {
+            if (k.getName().startsWith(".")) continue;
+            if (dir == workspace && k.getName().equals("backups")
+                    && k.isDirectory()) continue;
+            if (k.isDirectory()) bkCollect(k, out);
+            else if (!k.getName().endsWith(".ghostbak"))
+                out.add(k);
+        }
     }
 
     private void collectTextFiles(File dir, List<File> out) {

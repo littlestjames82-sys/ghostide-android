@@ -33944,6 +33944,7 @@
     { title: "Fix my tests (AI)", run: () => $("toolFix").click() },
     { title: "New project from template", run: () => $("toolTemplates").click() },
     { title: "Pair mode", run: () => $("toolPair").click() },
+    { title: "Encrypted backup", run: () => $("toolBackup").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {
@@ -35649,6 +35650,80 @@
     }
   }
   $("toolPair").onclick = openPair;
+  async function openBackup() {
+    hideTools();
+    $("todoTitle").textContent = "Encrypted backup";
+    const box = $("todoResults");
+    box.innerHTML = "";
+    $("todoPanel").classList.remove("hidden");
+    const note = document.createElement("div");
+    note.className = "dim";
+    note.textContent = "Backups are encrypted with a passphrase only you know (it is never saved). The .ghostbak file lands in the workspace's backups/ folder - move it somewhere safe (Drive, WebDAV, USB). Restore overwrites files with the same names.";
+    box.appendChild(note);
+    const mk = document.createElement("div");
+    mk.className = "findRow";
+    mk.textContent = "\u{1F510} Create encrypted backup\u2026";
+    mk.onclick = async () => {
+      const pw = prompt("Passphrase for this backup (at least 8 characters):");
+      if (!pw) return;
+      if (pw.length < 8) {
+        alert("That passphrase is too short (8+ characters).");
+        return;
+      }
+      const pw2 = prompt("Type the passphrase again:");
+      if (pw2 !== pw) {
+        alert("The passphrases did not match. Nothing made.");
+        return;
+      }
+      const d = await postJson(
+        "/api/backup/create",
+        { passphrase: pw }
+      );
+      if (d.error) {
+        alert(d.error);
+        return;
+      }
+      addMsg("SYSTEM", "\u{1F510} Backup created: " + d.path + " (" + d.files + " files, " + Math.round(d.size / 1024) + " KB). Move it off this device to finish the job.");
+      openBackup();
+    };
+    box.appendChild(mk);
+    let files = [];
+    try {
+      const fr = await fetch("/api/files");
+      const fd = await fr.json();
+      files = (fd.files || []).map((f) => f.path).filter((p) => p.startsWith("backups/") && p.endsWith(".ghostbak"));
+    } catch (e) {
+    }
+    if (!files.length) {
+      const none5 = document.createElement("div");
+      none5.className = "dim";
+      none5.textContent = "No backups in this workspace yet. To restore one from elsewhere, put its .ghostbak file in the backups/ folder first.";
+      box.appendChild(none5);
+    }
+    for (const p of files) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = "\u21A9 Restore " + p;
+      row.onclick = async () => {
+        if (!confirm("Restore " + p + "? Files with the same names are overwritten.")) return;
+        const pw = prompt("Passphrase for this backup:");
+        if (!pw) return;
+        const d = await postJson(
+          "/api/backup/restore",
+          { path: p, passphrase: pw }
+        );
+        if (d.error) {
+          alert(d.error);
+          return;
+        }
+        addMsg("SYSTEM", "\u{1F510} Restored " + d.files + " files (" + d.bytes + " bytes) from " + p + ".");
+        $("todoPanel").classList.add("hidden");
+        await loadFiles();
+      };
+      box.appendChild(row);
+    }
+  }
+  $("toolBackup").onclick = openBackup;
   var PLUGIN_DIR = "plugins";
   var plugins = [];
   var pluginCommands = [];
