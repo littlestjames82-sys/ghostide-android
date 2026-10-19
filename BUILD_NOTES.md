@@ -276,3 +276,24 @@ panel, inserts under the comment).
 Gates: parse, 150 IDs, DOM-stub evaluation PASS.
 APK 3,217,520 bytes, md5 178cab89375f51eb76c071ae166d0238,
 versionCode 13, same signer. Not device-tested.
+
+## v1.10.0 (Oct 19, 2026) - Phase 11 round
+Local History (Timeline) on BOTH servers: every save snapshots the
+previous on-disk content to .ghostide-history/<rel>/<name>.<ts>.snap
+(newest 20 kept; dot folder - verified invisible to file lists,
+search, replace, todos, stats on both builds). GET /api/history +
+/api/history/file on both; UI loads a snapshot into the buffer
+(nothing written until Save - and that save snapshots the
+pre-restore version too, so restores are self-undoing).
+Desktop: /api/check-all (project Problems, UI lists + jumps);
+git blame for the cursor line in the breadcrumbs bar (debounced,
+line-change only); per-file Revert in the Git panel
+(/api/git/checkout HEAD); branch chip in the status bar.
+Snippets: bodies containing ${1:...} insert as real CM tabstop
+snippets; plain bodies unchanged.
+All four new desktop endpoints live-verified (history roundtrip,
+check-all caught a planted syntax error, blame, revert restored
+HEAD content). Gates: parse, 154 IDs, DOM-stub PASS. One javac
+fix during build (loop var collision in route()).
+APK 3,217,518 bytes, md5 39725cf99e908f48ba15a026b3618838,
+versionCode 14, same signer. Not device-tested.

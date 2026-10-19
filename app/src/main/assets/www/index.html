@@ -80,7 +80,7 @@ setTimeout(function () {
   </aside>
   <section id="editorWrap">
     <div id="tabBar"></div>
-    <div id="crumbs" class="dim"></div>
+    <div id="crumbs" class="dim"><span id="crumbPath"></span><span id="crumbBlame"></span></div>
     <div id="editorRow">
       <div id="editor"></div>
       <div id="splitCol" class="hidden">
@@ -120,6 +120,7 @@ setTimeout(function () {
     </div>
     <div id="statusBar">
       <span id="cursorPos">Ln 1, Col 1</span>
+      <span id="branchChip" class="hidden"></span>
       <button id="todoChip" class="hidden" title="Open TODO / FIXME scan">TODO 0</button>
       <button id="probChip" class="hidden" title="Open Problems">⚠ problem</button>
       <button id="acceptChip" class="hidden">✓ Accept suggestion</button>
@@ -217,6 +218,8 @@ setTimeout(function () {
     <button id="toolTodos">TODO / FIXME scan</button>
     <button id="toolStats">Project stats</button>
     <button id="toolSlice">Save slice as file</button>
+    <button id="toolHistory">Local history</button>
+    <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolZip">Download workspace (.zip)</button>
   </div>

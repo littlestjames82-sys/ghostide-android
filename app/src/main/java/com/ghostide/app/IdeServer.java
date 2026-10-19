@@ -154,6 +154,72 @@ public final class IdeServer {
             sendJson(out, b.toString());
             return;
         }
+        if (path.equals("/api/history")) {
+            try {
+                String rel = queryParam(query, "path");
+                safe(rel);
+                File parent = new File(rel).getParentFile();
+                File hdir = new File(new File(workspace,
+                    ".ghostide-history"),
+                    parent == null ? "." : parent.getPath());
+                String base = new File(rel).getName() + ".";
+                List<String> names = new ArrayList<>();
+                File[] all = hdir.listFiles();
+                if (all != null) {
+                    for (File snapF : all) {
+                        if (snapF.getName().startsWith(base)
+                                && snapF.getName().endsWith(".snap"))
+                            names.add(snapF.getName());
+                    }
+                }
+                Collections.sort(names, Collections.reverseOrder());
+                StringBuilder b = new StringBuilder("{\"entries\":[");
+                for (int i = 0; i < names.size(); i++) {
+                    String nm = names.get(i);
+                    String ts = nm.substring(base.length(),
+                        nm.length() - 5);
+                    if (i > 0) b.append(',');
+                    b.append("{\"ts\":").append(Json.quote(ts))
+                     .append(",\"size\":")
+                     .append(new File(hdir, nm).length())
+                     .append('}');
+                }
+                b.append("]}");
+                sendJson(out, b.toString());
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/history/file")) {
+            try {
+                String rel = queryParam(query, "path");
+                String ts = queryParam(query, "ts");
+                safe(rel);
+                if (ts == null || !ts.matches("[0-9-]+"))
+                    throw new IOException("bad snapshot id");
+                File parent = new File(rel).getParentFile();
+                File hdir = new File(new File(workspace,
+                    ".ghostide-history"),
+                    parent == null ? "." : parent.getPath());
+                File snap = new File(hdir,
+                    new File(rel).getName() + "." + ts + ".snap");
+                if (!snap.isFile())
+                    throw new IOException("snapshot not found");
+                sendJson(out, "{\"content\":"
+                    + Json.quote(readFile(snap)) + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/check-all")) {
+            sendJson(out, 400, "{\"error\":\"Project-wide checking "
+                + "runs on the desktop build.\"}");
+            return;
+        }
         if (path.equals("/api/file") && method.equals("GET")) {
             String rel = queryParam(query, "path");
             try {
@@ -172,7 +238,9 @@ public final class IdeServer {
                 String rel = Json.str(d, "path", "");
                 File f = safe(rel);
                 if (f.getParentFile() != null) f.getParentFile().mkdirs();
-                writeFile(f, Json.str(d, "content", ""));
+                String content = Json.str(d, "content", "");
+                snapshotHistory(f, content);
+                writeFile(f, content);
                 sendJson(out, "{\"ok\":true,\"path\":" + Json.quote(rel) + "}");
             } catch (Exception e) {
                 sendJson(out, 400, "{\"error\":" + Json.quote(msg(e)) + "}");
@@ -665,6 +733,56 @@ public final class IdeServer {
                 out.add(rel);
             }
         }
+    }
+
+    /**
+     * Local History (Phase 11): before a save overwrites a file,
+     * stash the previous content under .ghostide-history/<rel>/
+     * (dot folder - the file walkers all skip dot names). Keeps
+     * the newest 20 per file. Best-effort by design.
+     */
+    private void snapshotHistory(File f, String newContent) {
+        try {
+            if (!f.isFile()) return;
+            String old = readFile(f);
+            if (old.equals(newContent)) return;
+            String rel = workspace.toURI().relativize(
+                f.toURI()).getPath();
+            File parent = new File(rel).getParentFile();
+            File hdir = new File(new File(workspace,
+                ".ghostide-history"),
+                parent == null ? "." : parent.getPath());
+            hdir.mkdirs();
+            String ts = new java.text.SimpleDateFormat(
+                "yyyyMMdd-HHmmss", java.util.Locale.US)
+                .format(new java.util.Date());
+            String base = f.getName() + "." + ts;
+            File snap = new File(hdir, base + ".snap");
+            int n = 1;
+            while (snap.exists()) {
+                snap = new File(hdir, base + "-" + (n++) + ".snap");
+            }
+            writeFile(snap, old);
+            final String prefix = f.getName() + ".";
+            File[] snaps = hdir.listFiles(
+                new java.io.FilenameFilter() {
+                    @Override public boolean accept(File dir,
+                            String name) {
+                        return name.startsWith(prefix)
+                            && name.endsWith(".snap");
+                    }
+                });
+            if (snaps != null && snaps.length > 20) {
+                java.util.Arrays.sort(snaps,
+                    new java.util.Comparator<File>() {
+                        @Override public int compare(File a, File b) {
+                            return a.getName().compareTo(b.getName());
+                        }
+                    });
+                for (int i = 0; i < snaps.length - 20; i++)
+                    snaps[i].delete();
+            }
+        } catch (Exception e) { /* history never breaks a save */ }
     }
 
     private static String readFile(File f) throws IOException {
