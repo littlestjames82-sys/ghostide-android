@@ -31433,7 +31433,9 @@
       wrap: false,
       shortAnswers: false,
       fontSize: "14px",
-      infillDelay: 750
+      infillDelay: 750,
+      autosave: "off",
+      trimOnSave: false
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -31482,6 +31484,17 @@
           return true;
         } }
       ])),
+      /* VS Code keymap pack (Phase 8): comment toggle, move/copy/
+         delete line, select next occurrence. Commands are imported
+         at the top of the module - safe to reference here. */
+      keymap.of([
+        { key: "Mod-/", run: toggleComment },
+        { key: "Alt-ArrowUp", run: moveLineUp },
+        { key: "Alt-ArrowDown", run: moveLineDown },
+        { key: "Shift-Alt-ArrowDown", run: copyLineDown },
+        { key: "Mod-Shift-k", run: deleteLine },
+        { key: "Mod-d", run: selectNextOccurrence }
+      ]),
       wrapComp.of(wrapExt()),
       EditorView.updateListener.of((u) => {
         if (u.selectionSet || u.docChanged) {
@@ -31504,6 +31517,7 @@
             renderTabs();
           }
           if (currentFile) queueDraftSave();
+          if (currentFile) queueAutosave();
         }
       })
     ];
@@ -31587,6 +31601,14 @@
       } catch (e) {
       }
     }, 3e3);
+  }
+  var autosaveTimer = null;
+  function queueAutosave() {
+    if (settings.autosave !== "delay") return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      if (currentFile && dirty) saveFile();
+    }, 2e3);
   }
   function checkDraft(path, diskContent) {
     pendingDraft = null;
@@ -31847,6 +31869,19 @@
   }
   async function saveFile() {
     if (!currentFile) return;
+    if (settings.trimOnSave) {
+      const doc2 = view.state.doc.toString();
+      const trimmed = doc2.split("\n").map((l) => l.replace(/\s+$/, "")).join("\n").replace(/\n*$/, "\n");
+      if (trimmed !== doc2) {
+        accepting = true;
+        view.dispatch({ changes: {
+          from: 0,
+          to: view.state.doc.length,
+          insert: trimmed
+        } });
+        accepting = false;
+      }
+    }
     await fetch("/api/file", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -31895,6 +31930,7 @@
         setSaveState("saved + formatted \u2713 " + (/* @__PURE__ */ new Date()).toLocaleTimeString());
       }
     }
+    refreshTodoChip();
   }
   $("saveBtn").onclick = saveFile;
   $("newFileBtn").onclick = async () => {
@@ -32235,10 +32271,12 @@
       if (!d.repo) {
         $("gitBranch").textContent = "";
         $("gitLog").textContent = "";
+        $("gitAiMsg").disabled = true;
         box.textContent = d.error || "Not a git repo.";
         return;
       }
       $("gitBranch").textContent = d.branch || "";
+      $("gitAiMsg").disabled = false;
       box.innerHTML = "";
       if (!d.changes.length) {
         box.textContent = "Clean - nothing changed.";
@@ -32576,6 +32614,15 @@
   var quickFiles = [];
   async function openQuick(mode) {
     quickMode = mode || "open";
+    if (quickMode === "command") {
+      $("quickInput").placeholder = "Type a command\u2026 (Enter runs, Esc closes)";
+      $("quickInput").value = "";
+      renderQuick("");
+      $("quickPanel").classList.remove("hidden");
+      $("quickInput").focus();
+      return;
+    }
+    $("quickInput").placeholder = "Open file by name\u2026 (Enter opens, Esc closes)";
     try {
       const r = await fetch("/api/files");
       const d = await r.json();
@@ -32605,6 +32652,22 @@
     const list = $("quickList");
     list.innerHTML = "";
     const needle = q.toLowerCase();
+    if (quickMode === "command") {
+      const matches2 = COMMANDS.filter((c) => c.title.toLowerCase().includes(needle)).slice(0, 30);
+      for (const c of matches2) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "\u2318 " + c.title;
+        row.onclick = () => {
+          closeQuick();
+          c.run();
+        };
+        list.appendChild(row);
+      }
+      if (!matches2.length)
+        list.innerHTML = '<div class="dim">No commands match.</div>';
+      return;
+    }
     let recents = [];
     try {
       recents = JSON.parse(
@@ -32651,6 +32714,14 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       if ($("quickPanel").classList.contains("hidden")) openQuick("open");
+      else closeQuick();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "p") {
+      e.preventDefault();
+      if ($("quickPanel").classList.contains("hidden"))
+        openQuick("command");
       else closeQuick();
     }
   });
@@ -32774,6 +32845,16 @@
       settings.infillDelay = n;
       saveSettings();
     }
+  };
+  $("setAutosave").value = settings.autosave || "off";
+  $("setAutosave").onchange = (e) => {
+    settings.autosave = e.target.value;
+    saveSettings();
+  };
+  $("setTrim").checked = !!settings.trimOnSave;
+  $("setTrim").onchange = (e) => {
+    settings.trimOnSave = e.target.checked;
+    saveSettings();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
@@ -33241,6 +33322,267 @@
       alert("Zip export failed: " + e);
     }
   };
+  async function collectChat(messages, maxTokens) {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages,
+        temperature: 0.3,
+        max_tokens: maxTokens || 1024
+      })
+    });
+    const text = await r.text();
+    let out = "";
+    for (const line of text.split("\n")) {
+      if (!line.startsWith("data:")) continue;
+      const data2 = line.slice(5).trim();
+      if (data2 === "[DONE]") break;
+      try {
+        const j = JSON.parse(data2);
+        out += j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content || "";
+      } catch (e) {
+      }
+    }
+    return out;
+  }
+  async function formatCurrentFile() {
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    if (dirty) {
+      alert("Save first - the formatter works on the saved file.");
+      return;
+    }
+    const d = await postJson("/api/format", { path: currentFile });
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    if (!d.formatted) {
+      alert(d.reason || "No formatter available for this file.");
+      return;
+    }
+    const r = await fetch("/api/file?path=" + encodeURIComponent(currentFile));
+    const fd = await r.json();
+    if (!fd.error && fd.content !== view.state.doc.toString()) {
+      accepting = true;
+      view.dispatch({ changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: fd.content
+      } });
+      accepting = false;
+      setSaveState("formatted \u2713 " + (/* @__PURE__ */ new Date()).toLocaleTimeString());
+    }
+  }
+  async function runProblems() {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    $("todoTitle").textContent = "Problems: " + currentFile;
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Checking\u2026</div>';
+    $("todoPanel").classList.remove("hidden");
+    const d = await postJson("/api/check", { path: currentFile });
+    box.innerHTML = "";
+    if (d.error) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = d.error;
+      box.appendChild(el);
+      return;
+    }
+    if (d.ok === null || d.ok === void 0) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = d.output || "No checker available.";
+      box.appendChild(el);
+      return;
+    }
+    if (d.ok) {
+      const el = document.createElement("div");
+      el.className = "findRow";
+      el.textContent = "\u2713 No problems found";
+      box.appendChild(el);
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "findRow";
+    row.textContent = "\u2716 " + (d.line ? "Line " + d.line + " \u2014 " : "") + (d.message || "syntax error");
+    row.onclick = () => {
+      if (d.line) jumpToLine(d.line);
+    };
+    box.appendChild(row);
+    if (d.output) {
+      const pre = document.createElement("pre");
+      pre.className = "dim";
+      pre.style.whiteSpace = "pre-wrap";
+      pre.textContent = d.output;
+      box.appendChild(pre);
+    }
+  }
+  $("toolCheck").onclick = runProblems;
+  async function refreshTodoChip() {
+    try {
+      const r = await fetch("/api/todos");
+      const d = await r.json();
+      const n = (d.todos || []).length;
+      const chip = $("todoChip");
+      chip.textContent = "TODO " + n;
+      chip.classList.toggle("hidden", n === 0);
+    } catch (e) {
+    }
+  }
+  $("todoChip").onclick = () => $("toolTodos").click();
+  $("gitAiMsg").onclick = async () => {
+    const btn = $("gitAiMsg");
+    if (!modelUp) {
+      alert("Start the model first.");
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = "\u2728 \u2026";
+    try {
+      const r = await fetch("/api/git/diff-all");
+      const d = await r.json();
+      if (d.error) {
+        alert(d.error);
+        return;
+      }
+      if (!d.diff || !d.diff.trim()) {
+        alert("No changes to describe yet.");
+        return;
+      }
+      const msg = await collectChat([
+        { role: "system", content: "You write git commit messages. Reply with ONE short commit message line only - no quotes, no explanation." },
+        { role: "user", content: "Write a commit message for this diff:\n\n" + d.diff.slice(0, 6e3) }
+      ], 60);
+      const clean = msg.trim().split("\n")[0].replace(/^["'`]+|["'`]+$/g, "");
+      if (clean) $("commitMsg").value = clean;
+      else alert("Ghost did not suggest a message.");
+    } catch (e) {
+      alert("AI message failed: " + e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "\u2728 AI";
+    }
+  };
+  var inlineTarget = null;
+  var inlineResult = "";
+  function startInlineAi() {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    if (!modelUp) {
+      alert("Start the model first.");
+      return;
+    }
+    const sel = view.state.selection.main;
+    inlineTarget = sel.empty ? { from: 0, to: view.state.doc.length } : { from: sel.from, to: sel.to };
+    $("inlineAiInput").value = "";
+    $("inlineAiReview").classList.add("hidden");
+    $("inlineAiBar").classList.remove("hidden");
+    $("inlineAiInput").focus();
+  }
+  $("aiInline").onclick = startInlineAi;
+  $("inlineAiClose").onclick = () => $("inlineAiBar").classList.add("hidden");
+  async function runInlineAi() {
+    const instr = $("inlineAiInput").value.trim();
+    if (!instr || !inlineTarget) return;
+    const code2 = view.state.doc.sliceString(
+      inlineTarget.from,
+      inlineTarget.to
+    );
+    $("inlineAiBar").classList.add("hidden");
+    $("inlineAiOut").textContent = "Ghost is rewriting\u2026";
+    $("inlineAiApply").disabled = true;
+    $("inlineAiReview").classList.remove("hidden");
+    try {
+      let out = await collectChat([
+        { role: "system", content: BEHAVIOR.systemPrompt },
+        { role: "user", content: "Rewrite the code below following this instruction. Reply with ONLY the rewritten code - no explanations, no markdown fences.\n\nInstruction: " + instr + "\n\nCode:\n" + code2 }
+      ], 1024);
+      out = (out || "").trim();
+      const fence = out.match(/^```\w*\n([\s\S]*?)```$/);
+      if (fence) out = fence[1];
+      inlineResult = out;
+      $("inlineAiOut").textContent = out || "(empty reply)";
+      $("inlineAiApply").disabled = !out;
+    } catch (e) {
+      $("inlineAiOut").textContent = "Failed: " + e;
+    }
+  }
+  $("inlineAiGo").onclick = runInlineAi;
+  $("inlineAiInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") runInlineAi();
+    if (e.key === "Escape") $("inlineAiBar").classList.add("hidden");
+  });
+  $("inlineAiApply").onclick = () => {
+    if (!inlineTarget) return;
+    const to = Math.min(inlineTarget.to, view.state.doc.length);
+    const from = Math.min(inlineTarget.from, to);
+    accepting = true;
+    view.dispatch({
+      changes: { from, to, insert: inlineResult },
+      selection: { anchor: from }
+    });
+    accepting = false;
+    $("inlineAiReview").classList.add("hidden");
+    inlineTarget = null;
+    view.focus();
+  };
+  $("inlineAiDiscard").onclick = () => {
+    $("inlineAiReview").classList.add("hidden");
+    inlineTarget = null;
+  };
+  var COMMANDS = [
+    { title: "Open file by name\u2026", run: () => openQuick("open") },
+    { title: "Open file in split pane\u2026", run: () => openQuick("split") },
+    { title: "Save file", run: () => saveFile() },
+    { title: "Format document", run: () => formatCurrentFile() },
+    { title: "AI: edit selection with a prompt\u2026", run: () => startInlineAi() },
+    { title: "AI: explain selection or file", run: () => $("aiExplain").click() },
+    { title: "AI: find + fix bugs", run: () => $("aiFix").click() },
+    { title: "AI: write tests", run: () => $("aiTests").click() },
+    { title: "AI: add docstrings", run: () => $("aiDoc").click() },
+    { title: "Check syntax (Problems)", run: () => runProblems() },
+    { title: "Preview file", run: () => $("toolPreview").click() },
+    { title: "Find in file", run: () => $("toolFindFile").click() },
+    { title: "Find in project", run: () => $("findBtn").click() },
+    { title: "Go to line", run: () => $("toolGoto").click() },
+    { title: "Outline (functions and classes)", run: () => $("toolOutline").click() },
+    { title: "TODO / FIXME scan", run: () => $("toolTodos").click() },
+    { title: "Project stats", run: () => $("toolStats").click() },
+    { title: "Terminal", run: () => $("toolTerminal").click() },
+    { title: "Snippets", run: () => $("toolSnippets").click() },
+    { title: "Regenerate chat answer", run: () => $("toolRegen").click() },
+    { title: "Export chat as file", run: () => $("toolExportChat").click() },
+    { title: "Download workspace (.zip)", run: () => $("toolZip").click() },
+    { title: "Close split pane", run: () => $("splitClose").click() },
+    { title: "Toggle word wrap", run: () => {
+      const c = $("setWrap");
+      c.checked = !c.checked;
+      c.onchange({ target: c });
+    } },
+    { title: "Toggle autocomplete", run: () => {
+      const c = $("setAuto");
+      c.checked = !c.checked;
+      c.onchange({ target: c });
+    } },
+    { title: "Settings", run: () => $("settingsBtn").click() },
+    { title: "Tools panel", run: () => $("toolsBtn").click() }
+  ];
+  $("toolPalette").onclick = () => {
+    hideTools();
+    openQuick("command");
+  };
+  refreshTodoChip();
   loadFiles();
   refreshWsLabel();
   window.__ghostBooted = true;

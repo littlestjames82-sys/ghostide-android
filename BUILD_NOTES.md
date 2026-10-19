@@ -214,3 +214,27 @@ onJsConfirm / onJsPrompt to native AlertDialogs (EditText for
 prompt). Verified present in the dex. Frontend unchanged.
 APK 3,209,328 bytes, md5 ca2e3cdd5fd30b1a819f9e35eed5bf3f,
 versionCode 10, same signer.
+
+## v1.7.0 (Oct 19, 2026) - Phase 8: VS Code / Cursor round
+Shared frontend + desktop endpoints, no native changes (native
+carries the v1.6.1 self-healing + v1.6.2 dialog bridge).
+- Command palette (Ctrl+Shift+P / Tools): 27 commands over every
+  existing action.
+- VS Code keymap pack in both panes: Mod-/ comment toggle,
+  Alt+arrows move line, Shift+Alt+Down copy line, Mod+Shift+K
+  delete line, Mod+D select next occurrence.
+- Autosave (off / after 2 s pause) + trim-trailing-spaces-on-save
+  settings.
+- Cursor-style inline AI edit: instruction bar over the selection
+  or whole file -> review panel -> Apply/Discard. One-shot replies
+  via a collectChat helper (also powers the commit writer).
+- Problems panel: /api/check now returns line + message (line =
+  LAST traceback match; verified line 4 on a planted error);
+  tap a problem to jump.
+- Status bar TODO chip (both builds).
+- AI commit message (desktop): /api/git/diff-all -> one-line
+  suggestion into the commit box; button disabled off-repo.
+Gates passed: esbuild + parse, 137 element IDs, DOM-stub
+evaluation, desktop endpoints live-tested.
+APK 3,213,424 bytes, md5 aff18926fb373879273e811c45091977,
+versionCode 11, same signer. Not device-tested.

@@ -70,6 +70,7 @@ setTimeout(function () {
       <div class="git-commit">
         <input id="commitMsg" placeholder="Commit message">
         <button id="commitBtn">Commit staged</button>
+        <button id="gitAiMsg" disabled title="Let Ghost write the commit message from the diff (desktop git)">✨ AI</button>
       </div>
       <div id="gitLog" class="dim"></div>
     </div>
@@ -99,6 +100,16 @@ setTimeout(function () {
         <input id="termCmd" type="text" placeholder="type a command, Enter to run (↑/↓ for history)">
       </div>
     </div>
+    <div id="inlineAiBar" class="hidden">
+      <input id="inlineAiInput" type="text" placeholder="Tell Ghost how to change the selection… (Enter = ask, Esc = close)">
+      <button id="inlineAiGo">Ask Ghost</button>
+      <button id="inlineAiClose">✕</button>
+    </div>
+    <div id="inlineAiReview" class="hidden">
+      <div class="run-head"><span>Ghost's rewrite — review before applying</span>
+        <span><button id="inlineAiApply">Apply</button><button id="inlineAiDiscard">Discard</button></span></div>
+      <pre id="inlineAiOut"></pre>
+    </div>
     <div id="draftBar" class="hidden">
       <span id="draftText"></span>
       <button id="draftRestore">Restore draft</button>
@@ -106,6 +117,7 @@ setTimeout(function () {
     </div>
     <div id="statusBar">
       <span id="cursorPos">Ln 1, Col 1</span>
+      <button id="todoChip" class="hidden" title="Open TODO / FIXME scan">TODO 0</button>
       <button id="acceptChip" class="hidden">✓ Accept suggestion</button>
       <span id="autocompleteState">autocomplete: idle (pause typing; tap a suggestion or press Tab to accept)</span>
     </div>
@@ -158,6 +170,7 @@ setTimeout(function () {
     <button id="aiFix">Find + fix bugs</button>
     <button id="aiTests">Write tests</button>
     <button id="aiDoc">Add docstrings</button>
+    <button id="aiInline">Edit selection with AI…</button>
   </div>
   <h4>Current file</h4>
   <div class="toolGrid">
@@ -184,6 +197,7 @@ setTimeout(function () {
   <h4>Go</h4>
   <div class="toolGrid">
     <button id="toolQuick">Quick open (Ctrl+K)</button>
+    <button id="toolPalette">Command palette (Ctrl+Shift+P)</button>
     <button id="toolOutline">Outline</button>
     <button id="toolGoto">Go to line</button>
   </div>
@@ -230,6 +244,12 @@ setTimeout(function () {
   <label>Autocomplete length (tokens)
     <input type="number" id="setTokens" min="16" max="256" step="8"></label>
   <label><input type="checkbox" id="setFormat"> Format on save (desktop, if a formatter is installed)</label>
+  <label>Autosave
+    <select id="setAutosave">
+      <option value="off">Off</option>
+      <option value="delay">After a short pause (2 s)</option>
+    </select></label>
+  <label><input type="checkbox" id="setTrim"> Trim trailing spaces on save</label>
   <label><input type="checkbox" id="setWrap"> Word wrap</label>
   <label><input type="checkbox" id="setShort"> Short answers (saves battery/heat)</label>
   <label>Editor text size

@@ -164,6 +164,18 @@ main { flex: 1; display: flex; min-height: 0; }
   font-size: 13px; line-height: 1.45; white-space: pre-wrap;
   word-break: break-word;
 }
+#todoChip { margin-left: 6px; }
+#inlineAiBar {
+  display: flex; gap: 6px; padding: 6px 8px;
+  background: #161b22; border-top: 1px solid #2a2f3a;
+}
+#inlineAiBar.hidden { display: none; }
+#inlineAiInput { flex: 1; }
+#inlineAiReview pre {
+  max-height: 240px; overflow: auto; margin: 0; padding: 8px;
+  white-space: pre-wrap; word-break: break-word;
+}
+#gitAiMsg { white-space: nowrap; }
 #gitLog {
   margin-top: 8px; font-family: ui-monospace, monospace; font-size: 11px;
   white-space: pre-wrap; word-break: break-word; max-height: 180px;
