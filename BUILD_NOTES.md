@@ -344,3 +344,16 @@ extract-function returns an honest desktop-only message.
 Gates passed. APK 3229806 bytes md5 3cef7368d4c5fc6bec06b5ad4fda542f,
 versionCode 17, same signer. Upload link still pending (see
 v1.12.0 note - the service itself is now timing out too).
+
+## v1.14.0 (Oct 19, 2026) - Roadmap G4: GhostSlice v2 smart context
+New chat context mode "smart" on BOTH builds (the phone's is a
+native port - slices were desktop-only before): seed = current
+file, then its imports, its tests, files that import it, and
+files defining symbols it uses, packed into the budget with a
+reason per file and a cut list. Benchmark on a 4-file shop
+fixture, same model + budget: current-file context scored 0/3
+on dependency questions; smart scored 3/3 substantively (the
+strict keyword scorer said 2/3 - one answer said "7%" instead
+of "0.07"). Gates passed. APK 3229807 bytes md5
+4f12745c7083c7cb1d7906a15c8c878f, versionCode 18, same signer.
+Upload links still pending the stuck upload service.

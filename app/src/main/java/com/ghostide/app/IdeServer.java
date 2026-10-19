@@ -56,6 +56,7 @@ public final class IdeServer {
     private String symCacheFp = null;
     private List<String[]> symCacheDefs = null;
     private Map<String, List<String[]>> symCacheRefs = null;
+    private Map<String, String> symCacheTexts = new LinkedHashMap<>();
     private int symCacheFiles = 0;
     private static final java.util.regex.Pattern SYM_PY_DEF =
         java.util.regex.Pattern.compile(
@@ -175,6 +176,7 @@ public final class IdeServer {
         }
         symCacheDefs = defs;
         symCacheRefs = refs;
+        symCacheTexts = texts;
         symCacheFiles = texts.size();
         symCacheFp = fp;
     }
@@ -246,6 +248,252 @@ public final class IdeServer {
         int total = 0;
         for (String[] s : e.getValue()) total += refCount(s[0]);
         return total;
+    }
+
+    // ---- Smart context (Roadmap G4): dependency-aware slice,
+    // native port of the desktop builder. ----
+    private static String normPath(String p) {
+        String[] parts = p.split("/");
+        List<String> out = new ArrayList<>();
+        for (String part : parts) {
+            if (part.isEmpty() || part.equals(".")) continue;
+            if (part.equals("..")) {
+                if (!out.isEmpty())
+                    out.remove(out.size() - 1);
+                continue;
+            }
+            out.add(part);
+        }
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < out.size(); i++) {
+            if (i > 0) b.append('/');
+            b.append(out.get(i));
+        }
+        return b.toString();
+    }
+
+    private static String dirOf(String rel) {
+        int i = rel.lastIndexOf('/');
+        return i < 0 ? "" : rel.substring(0, i);
+    }
+
+    private Set<String> importsOf(String rel, String text,
+            Set<String> allFiles) {
+        Set<String> deps = new HashSet<>();
+        if (rel.endsWith(".py")) {
+            java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile(
+                    "^\\s*(?:from|import)\\s+([\\w.]+)",
+                    java.util.regex.Pattern.MULTILINE)
+                    .matcher(text);
+            while (m.find()) {
+                String[] parts = m.group(1).split("\\.");
+                for (int k = parts.length; k >= 1; k--) {
+                    StringBuilder cand = new StringBuilder();
+                    for (int j = 0; j < k; j++) {
+                        if (j > 0) cand.append('/');
+                        cand.append(parts[j]);
+                    }
+                    if (allFiles.contains(cand + ".py")) {
+                        deps.add(cand + ".py");
+                        break;
+                    }
+                    if (allFiles.contains(cand + "/__init__.py")) {
+                        deps.add(cand + "/__init__.py");
+                        break;
+                    }
+                }
+            }
+            String baseDir = dirOf(rel);
+            java.util.regex.Matcher rm =
+                java.util.regex.Pattern.compile(
+                    "^\\s*from\\s*\\.([\\w.]*)\\s+import\\s+([\\w,\\s]+)",
+                    java.util.regex.Pattern.MULTILINE)
+                    .matcher(text);
+            while (rm.find()) {
+                String sub = rm.group(1);
+                for (String nm : rm.group(2).split(",")) {
+                    nm = nm.trim();
+                    if (nm.isEmpty()) continue;
+                    String cand = normPath(baseDir + "/"
+                        + sub.replace('.', '/') + "/" + nm + ".py");
+                    if (allFiles.contains(cand)) deps.add(cand);
+                }
+                if (!sub.isEmpty()) {
+                    String cand = normPath(baseDir + "/"
+                        + sub.replace('.', '/') + ".py");
+                    if (allFiles.contains(cand)) deps.add(cand);
+                }
+            }
+        } else {
+            String baseDir = dirOf(rel);
+            java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile(
+                    "(?:from\\s+|require\\(\\s*)['\"](\\.[^'\"]+)['\"]")
+                    .matcher(text);
+            while (m.find()) {
+                String target = normPath(baseDir + "/" + m.group(1));
+                for (String cand : new String[]{target,
+                        target + ".js", target + ".mjs",
+                        target + "/index.js"}) {
+                    if (allFiles.contains(cand)) {
+                        deps.add(cand);
+                        break;
+                    }
+                }
+            }
+        }
+        deps.remove(rel);
+        return deps;
+    }
+
+    private String smartContextJson(String seed, int budgetTokens)
+            throws IOException {
+        if (seed == null || seed.isEmpty())
+            throw new IOException("Smart context needs a seed: "
+                + "open the file you are working on first.");
+        ensureSymbolIndex();
+        Map<String, String> texts = symCacheTexts;
+        if (!texts.containsKey(seed))
+            throw new IOException("seed file not in the "
+                + "workspace: " + seed);
+        int budgetChars = Math.max(2000, budgetTokens * 4);
+        Set<String> allFiles = texts.keySet();
+        Map<String, Set<String>> importsMap = new HashMap<>();
+        Map<String, Set<String>> importedBy = new HashMap<>();
+        for (String rel : allFiles) {
+            Set<String> ds = importsOf(rel, texts.get(rel), allFiles);
+            importsMap.put(rel, ds);
+            for (String d : ds) {
+                Set<String> s = importedBy.get(d);
+                if (s == null) {
+                    s = new HashSet<>();
+                    importedBy.put(d, s);
+                }
+                s.add(rel);
+            }
+        }
+        Map<String, Set<String>> defsByName = new HashMap<>();
+        for (String[] s : symCacheDefs) {
+            Set<String> set = defsByName.get(s[0]);
+            if (set == null) {
+                set = new HashSet<>();
+                defsByName.put(s[0], set);
+            }
+            set.add(s[2]);
+        }
+        String seedText = texts.get(seed);
+        Set<String> usedNames = new HashSet<>();
+        java.util.regex.Matcher tm =
+            java.util.regex.Pattern.compile("[A-Za-z_]\\w+")
+                .matcher(seedText);
+        while (tm.find()) usedNames.add(tm.group());
+        final Map<String, Integer> nScore = new HashMap<>();
+        for (String nm : usedNames) {
+            Set<String> pf = defsByName.get(nm);
+            if (pf == null) continue;
+            for (String p : pf) {
+                if (!p.equals(seed))
+                    nScore.put(p, nScore.containsKey(p)
+                        ? nScore.get(p) + 1 : 1);
+            }
+        }
+        List<String> neighbors = new ArrayList<>(nScore.keySet());
+        Collections.sort(neighbors, new java.util.Comparator<String>() {
+            @Override public int compare(String a, String b) {
+                return nScore.get(b) - nScore.get(a);
+            }
+        });
+        String base = seed.substring(seed.lastIndexOf('/') + 1);
+        String stem = base.contains(".")
+            ? base.substring(0, base.lastIndexOf('.')) : base;
+        List<String> tests = new ArrayList<>();
+        for (String p : allFiles) {
+            if (p.equals(seed) || !p.contains(stem)) continue;
+            String bn = p.substring(p.lastIndexOf('/') + 1);
+            if (bn.startsWith("test_") || bn.contains("_test.")
+                    || bn.contains(".test.")
+                    || ("/" + p).contains("/tests/"))
+                tests.add(p);
+        }
+        Collections.sort(tests);
+        List<String[]> plan = new ArrayList<>();
+        plan.add(new String[]{seed, "the file you are editing",
+            "0.45"});
+        List<String> seedImports = new ArrayList<>(
+            importsMap.get(seed));
+        Collections.sort(seedImports);
+        for (String p : seedImports)
+            plan.add(new String[]{p, "imported by the seed", "0.25"});
+        for (String p : tests)
+            plan.add(new String[]{p, "test for the seed", "0.20"});
+        List<String> seedImporters = new ArrayList<>(
+            importedBy.containsKey(seed)
+                ? importedBy.get(seed) : new HashSet<String>());
+        Collections.sort(seedImporters);
+        for (String p : seedImporters)
+            plan.add(new String[]{p, "imports the seed", "0.25"});
+        for (String p : neighbors)
+            plan.add(new String[]{p,
+                "defines a symbol the seed uses", "0.20"});
+        Set<String> seen = new HashSet<>();
+        StringBuilder text = new StringBuilder();
+        StringBuilder included = new StringBuilder("[");
+        StringBuilder cut = new StringBuilder("[");
+        StringBuilder cutText = new StringBuilder();
+        int used = 0;
+        int incCount = 0;
+        boolean firstInc = true, firstCut = true;
+        for (String[] item : plan) {
+            String path = item[0];
+            if (!seen.add(path)) continue;
+            String content = texts.get(path);
+            int cap = (int) (budgetChars
+                * Double.parseDouble(item[2]));
+            String piece = content.length() > cap
+                ? content.substring(0, cap) : content;
+            boolean truncated = content.length() > cap;
+            int cost = piece.length() + path.length() + 60;
+            if (incCount > 0 && used + cost > budgetChars) {
+                if (!firstCut) cut.append(',');
+                firstCut = false;
+                cut.append("{\"path\":").append(Json.quote(path))
+                   .append(",\"reason\":").append(Json.quote(item[1]))
+                   .append('}');
+                if (cutText.length() > 0) cutText.append(", ");
+                cutText.append(path).append(" (").append(item[1])
+                    .append(')');
+                continue;
+            }
+            if (text.length() > 0) text.append("\n\n");
+            text.append("===== ").append(path).append(" (full")
+                .append(truncated ? ", truncated" : "")
+                .append(", ").append(item[1]).append(") =====\n")
+                .append(piece);
+            used += piece.length() + path.length() + 60;
+            incCount++;
+            if (!firstInc) included.append(',');
+            firstInc = false;
+            included.append("{\"path\":").append(Json.quote(path))
+                .append(",\"reason\":").append(Json.quote(item[1]))
+                .append('}');
+        }
+        if (!firstCut) {
+            if (text.length() > 0) text.append("\n\n");
+            text.append("===== Also related (not included, "
+                + "budget): ").append(cutText).append(" =====");
+        }
+        included.append(']');
+        cut.append(']');
+        int original = 0;
+        for (String t : texts.values()) original += t.length();
+        return "{\"text\":" + Json.quote(text.toString())
+            + ",\"tokens\":" + Math.max(1, text.length() / 4)
+            + ",\"originalTokens\":" + Math.max(1, original / 4)
+            + ",\"files\":" + incCount
+            + ",\"mode\":\"smart\",\"budget\":" + budgetTokens
+            + ",\"over\":false,\"included\":" + included
+            + ",\"cut\":" + cut + "}";
     }
 
     private String symbolsJson(List<String[]> defs) {
@@ -786,6 +1034,24 @@ public final class IdeServer {
             sendJson(out, "{\"repo\":false,\"error\":\"git isn't "
                 + "available in the phone build\"}");
             return;
+        }
+        if (path.equals("/api/context") && method.equals("POST")) {
+            // Smart context (G4) is native on the phone; the
+            // GhostSlice modes stay desktop-only (stub below).
+            try {
+                Map<String, Object> d = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                if ("smart".equals(Json.str(d, "mode", ""))) {
+                    sendJson(out, smartContextJson(
+                        Json.str(d, "seed", ""),
+                        Json.num(d, "budget", 6000)));
+                    return;
+                }
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+                return;
+            }
         }
         if (path.startsWith("/api/git/") || path.equals("/api/run")
                 || path.equals("/api/context")) {

@@ -32241,7 +32241,8 @@
       } else if (mode !== "file") {
         const d = await postJson("/api/context", {
           mode,
-          budget: BEHAVIOR.context.sliceBudget
+          budget: BEHAVIOR.context.sliceBudget,
+          seed: currentFile || void 0
         });
         if (d.error) {
           addMsg("SYSTEM", "Project slice unavailable: " + d.error + " - sending with no project context.");
@@ -32252,6 +32253,9 @@
         } else {
           sysContent = SYS + "\nProject context (" + d.mode + " slice, " + d.files + " files):\n" + d.text;
           $("ctxMeter").textContent = "context: " + d.mode + " slice \xB7 " + d.tokens.toLocaleString() + " / " + BEHAVIOR.context.sliceBudget.toLocaleString() + " tok \xB7 " + d.files + " files (full project ~" + d.originalTokens.toLocaleString() + " tok)";
+          if (d.mode === "smart" && d.included) {
+            $("ctxMeter").textContent += " \xB7 " + d.included.map((i2) => i2.path).join(", ");
+          }
         }
       }
     }
