@@ -159,6 +159,11 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 .dim { color: #9a9fb0; font-size: 12px; }
 #ctxMeter { margin-top: 4px; }
+#gitLog {
+  margin-top: 8px; font-family: ui-monospace, monospace; font-size: 11px;
+  white-space: pre-wrap; word-break: break-word; max-height: 180px;
+  overflow-y: auto;
+}
 
 /* Phase 2 UI */
 #wsPath { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }

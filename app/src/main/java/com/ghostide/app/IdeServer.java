@@ -448,6 +448,12 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/export-zip")) {
+            sendJson(out, 400, "{\"error\":\"On the phone, use the app "
+                + "menu: Export file for one file, or Share file to "
+                + "send one to another app.\"}");
+            return;
+        }
         if (path.equals("/api/terminal")) {
             sendJson(out, 400, "{\"error\":\"The terminal runs on the "
                 + "desktop build - the phone has no shell for the IDE.\"}");

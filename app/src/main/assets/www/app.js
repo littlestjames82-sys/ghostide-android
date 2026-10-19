@@ -31777,6 +31777,7 @@
     setSaveState(dirty ? "unsaved changes" : "saved");
     renderTabs();
     loadFiles();
+    noteRecentFile(path);
   }
   function closeTab(p) {
     const i2 = tabOrder.indexOf(p);
@@ -32233,6 +32234,7 @@
       const d = await r.json();
       if (!d.repo) {
         $("gitBranch").textContent = "";
+        $("gitLog").textContent = "";
         box.textContent = d.error || "Not a git repo.";
         return;
       }
@@ -32267,6 +32269,17 @@
         db.onclick = () => showDiff(c.path);
         row.appendChild(db);
         box.appendChild(row);
+      }
+      try {
+        const lr = await fetch("/api/git/log");
+        const ld = await lr.json();
+        if (ld.commits && ld.commits.length) {
+          $("gitLog").textContent = "Recent commits:\n" + ld.commits.map((c) => c.hash + "  " + c.subject).join("\n");
+        } else {
+          $("gitLog").textContent = "";
+        }
+      } catch (e) {
+        $("gitLog").textContent = "";
       }
     } catch (e) {
       box.textContent = "git unavailable";
@@ -32515,6 +32528,7 @@
     $("splitName").textContent = (splitDirty ? "\u25CF " : "") + path;
     $("splitCol").classList.remove("hidden");
     splitView.focus();
+    noteRecentFile(path);
   }
   function closeSplit() {
     syncSplitBack();
@@ -32577,15 +32591,41 @@
   function closeQuick() {
     $("quickPanel").classList.add("hidden");
   }
+  function noteRecentFile(p) {
+    try {
+      let arr = JSON.parse(
+        localStorage.getItem("ghostide-recent-files") || "[]"
+      );
+      arr = [p, ...arr.filter((x) => x !== p)].slice(0, 8);
+      localStorage.setItem("ghostide-recent-files", JSON.stringify(arr));
+    } catch (e) {
+    }
+  }
   function renderQuick(q) {
     const list = $("quickList");
     list.innerHTML = "";
     const needle = q.toLowerCase();
-    const matches = quickFiles.filter((f) => f.toLowerCase().includes(needle)).slice(0, 30);
+    let recents = [];
+    try {
+      recents = JSON.parse(
+        localStorage.getItem("ghostide-recent-files") || "[]"
+      );
+    } catch (e) {
+      recents = [];
+    }
+    let ordered = quickFiles.filter((f) => f.toLowerCase().includes(needle));
+    if (!needle) {
+      const recentSet = recents.filter((p) => ordered.includes(p));
+      ordered = [
+        ...recentSet,
+        ...ordered.filter((f) => !recentSet.includes(f))
+      ];
+    }
+    const matches = ordered.slice(0, 30);
     for (const f of matches) {
       const row = document.createElement("div");
       row.className = "findRow";
-      row.textContent = f;
+      row.textContent = (!needle && recents.includes(f) ? "\u{1F558} " : "") + f;
       row.onclick = () => {
         closeQuick();
         if (quickMode === "split") openSplit(f);
@@ -33082,6 +33122,125 @@
       $("termCmd").value = termIdx >= 0 ? termHistory[termIdx] : "";
     }
   });
+  $("toolFindFile").onclick = () => {
+    hideTools();
+    openSearchPanel(view);
+    view.focus();
+  };
+  $("toolFold").onclick = () => {
+    hideTools();
+    foldAll(view);
+  };
+  $("toolUnfold").onclick = () => {
+    hideTools();
+    unfoldAll(view);
+  };
+  function transformDoc(fn) {
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    hideTools();
+    const doc2 = view.state.doc.toString();
+    const out = fn(doc2);
+    if (out === doc2) {
+      alert("Nothing changed.");
+      return;
+    }
+    accepting = true;
+    view.dispatch({ changes: {
+      from: 0,
+      to: view.state.doc.length,
+      insert: out
+    } });
+    accepting = false;
+    view.focus();
+  }
+  $("toolSort").onclick = () => transformDoc((d) => d.split("\n").sort().join("\n"));
+  $("toolDedupe").onclick = () => transformDoc((d) => [...new Set(d.split("\n"))].join("\n"));
+  $("toolTrim").onclick = () => transformDoc((d) => d.split("\n").map((l) => l.replace(/\s+$/, "")).join("\n"));
+  $("toolCase").onclick = () => {
+    hideTools();
+    const sel = view.state.selection.main;
+    if (sel.empty) {
+      alert("Select some text first.");
+      return;
+    }
+    const text = view.state.doc.sliceString(sel.from, sel.to);
+    const out = text === text.toUpperCase() ? text.toLowerCase() : text.toUpperCase();
+    accepting = true;
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert: out },
+      selection: {
+        anchor: sel.from,
+        head: sel.from + out.length
+      }
+    });
+    accepting = false;
+    view.focus();
+  };
+  $("toolRegen").onclick = () => {
+    hideTools();
+    if (chatAbort) {
+      alert("Wait for the current answer to finish.");
+      return;
+    }
+    if (history2.length && history2[history2.length - 1].role === "assistant")
+      history2.pop();
+    let idx = -1;
+    for (let i2 = history2.length - 1; i2 >= 0; i2--) {
+      if (history2[i2].role === "user") {
+        idx = i2;
+        break;
+      }
+    }
+    if (idx < 0) {
+      alert("Nothing to regenerate yet.");
+      return;
+    }
+    const lastUser = history2[idx];
+    history2.splice(idx, 1);
+    saveHistory();
+    loadHistory();
+    $("chatText").value = lastUser.content;
+    sendChat();
+  };
+  $("toolExportChat").onclick = async () => {
+    hideTools();
+    if (!history2.length) {
+      alert("No chat to export yet.");
+      return;
+    }
+    const md = "# GhostIDE chat export\n\n" + history2.map((m) => (m.role === "user" ? "**You:** " : "**Ghost:** ") + m.content).join("\n\n---\n\n") + "\n";
+    const name2 = "chat-export-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".md";
+    const d = await postJson("/api/file", { path: name2, content: md });
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    await loadFiles();
+    alert("Chat saved to " + name2 + " in the workspace.");
+  };
+  $("toolZip").onclick = async () => {
+    hideTools();
+    try {
+      const r = await fetch("/api/export-zip");
+      const ct = r.headers.get("Content-Type") || "";
+      if (ct.includes("application/json")) {
+        const d = await r.json();
+        alert(d.error || "Zip export unavailable here.");
+        return;
+      }
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "ghostide-workspace.zip";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
+    } catch (e) {
+      alert("Zip export failed: " + e);
+    }
+  };
   loadFiles();
   refreshWsLabel();
 })();

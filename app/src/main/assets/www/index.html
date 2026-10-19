@@ -34,6 +34,7 @@
         <input id="commitMsg" placeholder="Commit message">
         <button id="commitBtn">Commit staged</button>
       </div>
+      <div id="gitLog" class="dim"></div>
     </div>
     <div class="hint">Files save for real, in the workspace folder.</div>
   </aside>
@@ -127,6 +128,21 @@
     <button id="toolCheck">Check syntax</button>
     <button id="toolDup">Duplicate file</button>
     <button id="toolSnippets">Snippets</button>
+    <button id="toolFindFile">Find in file</button>
+    <button id="toolFold">Fold all</button>
+    <button id="toolUnfold">Unfold all</button>
+  </div>
+  <h4>Text</h4>
+  <div class="toolGrid">
+    <button id="toolSort">Sort lines</button>
+    <button id="toolDedupe">Remove duplicate lines</button>
+    <button id="toolTrim">Trim trailing spaces</button>
+    <button id="toolCase">Toggle case (selection)</button>
+  </div>
+  <h4>Chat</h4>
+  <div class="toolGrid">
+    <button id="toolRegen">Regenerate answer</button>
+    <button id="toolExportChat">Export chat as file</button>
   </div>
   <h4>Go</h4>
   <div class="toolGrid">
@@ -140,6 +156,7 @@
     <button id="toolStats">Project stats</button>
     <button id="toolSlice">Save slice as file</button>
     <button id="toolTerminal">Terminal</button>
+    <button id="toolZip">Download workspace (.zip)</button>
   </div>
   <div id="statsOut" class="dim"></div>
 </div>

@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private static final int MENU_EXPORT = 5;
     private static final int MENU_SYNC_PULL = 6;
     private static final int MENU_SYNC_PUSH = 7;
+    private static final int MENU_SHARE = 8;
     private static final int REQ_IMPORT = 101;
     private static final int REQ_EXPORT = 102;
     private File pendingExport;
@@ -473,6 +474,7 @@ public class MainActivity extends Activity {
         menu.add(0, MENU_EXPORT, 0, "Export file…");
         menu.add(0, MENU_SYNC_PULL, 0, "Sync: pull from PC…");
         menu.add(0, MENU_SYNC_PUSH, 0, "Sync: push to PC…");
+        menu.add(0, MENU_SHARE, 0, "Share file…");
         menu.add(0, MENU_HELP, 0, "Help");
         menu.add(0, MENU_MODEL, 0, "Model");
         return true;
@@ -504,6 +506,9 @@ public class MainActivity extends Activity {
                 return true;
             case MENU_SYNC_PUSH:
                 askPcAddress(false);
+                return true;
+            case MENU_SHARE:
+                chooseShareFile();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -630,6 +635,66 @@ public class MainActivity extends Activity {
                     .show();
             }
         });
+    }
+
+    /* -------- share a workspace file to another app -------- */
+    private void chooseShareFile() {
+        if (server == null) {
+            Toast.makeText(this, "IDE not running yet",
+                Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final List<File> files = new ArrayList<>();
+        collectFiles(server.workspaceDir(), files);
+        if (files.isEmpty()) {
+            Toast.makeText(this, "No files in the workspace yet",
+                Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final File root = server.workspaceDir();
+        CharSequence[] labels = new CharSequence[files.size()];
+        for (int i = 0; i < files.size(); i++) {
+            labels[i] = root.toURI().relativize(
+                files.get(i).toURI()).getPath();
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Share which file?")
+            .setItems(labels, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface d, int which) {
+                    shareFile(root, files.get(which));
+                }
+            })
+            .show();
+    }
+
+    private void shareFile(File root, File f) {
+        String rel = root.toURI().relativize(f.toURI()).getPath();
+        Uri.Builder b = new Uri.Builder()
+            .scheme("content")
+            .authority(GhostShareProvider.AUTHORITY);
+        for (String seg : rel.split("/")) b.appendPath(seg);
+        Uri uri = b.build();
+        String n = f.getName().toLowerCase(java.util.Locale.US);
+        String type = "text/plain";
+        if (n.endsWith(".png")) type = "image/png";
+        else if (n.endsWith(".jpg") || n.endsWith(".jpeg"))
+            type = "image/jpeg";
+        else if (n.endsWith(".gif")) type = "image/gif";
+        else if (n.endsWith(".json")) type = "application/json";
+        else if (n.endsWith(".zip")) type = "application/zip";
+        else if (n.endsWith(".pdf")) type = "application/pdf";
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType(type);
+        send.putExtra(Intent.EXTRA_STREAM, uri);
+        send.putExtra(Intent.EXTRA_SUBJECT, f.getName());
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(Intent.createChooser(send, "Share file"));
+        } catch (Exception e) {
+            Toast.makeText(this, "No app can receive that share",
+                Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void reloadIdeOnUi() {

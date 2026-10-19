@@ -161,3 +161,19 @@ Shared frontend only - no new endpoints needed:
   Download file, Open in split pane.
 APK 3,205,231 bytes, md5 f850b47a8191f7db6310542a8e88e529,
 versionCode 7, same signer. Not device-tested.
+
+## v1.6.0 (Oct 19, 2026) - Phase 7 (editor + app)
+Editor (shared frontend): Find in file (CodeMirror search panel),
+Fold/Unfold all, text transforms (sort lines, dedupe lines, trim
+trailing spaces, toggle case on selection), Quick Open shows
+recent files first (🕘), git log in the Git panel, workspace .zip
+download (desktop), chat Regenerate + Export chat as .md file.
+Desktop server: GET /api/git/log, GET /api/export-zip (dot paths
+skipped, 50 MB cap) - live-tested.
+App (native): Share file - menu entry + file chooser sending via
+GhostShareProvider, a framework ContentProvider (exported=false,
+grantUriPermissions) with canonical-path containment, read-only.
+Zip tool on the phone explains Export/Share instead.
+APK 3,205,233 bytes, md5 0a291408f73be565ac66178375bdd6de,
+versionCode 8, same signer. Not device-tested - the share provider
+is the newest native surface; first real share is Ryan's test.
