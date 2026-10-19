@@ -570,3 +570,26 @@ The .ghostbak lands in backups/ for Ryan to move to
 Drive/WebDAV/USB. APK 19218437 bytes md5 081e6d507c124db552e568a1f9dcd7f2,
 versionCode 31, same signer. Arc D complete pending
 device proofs for G15-G17.
+
+## v1.28.0 (Oct 19, 2026) - Roadmap G18: desktop apps
+Desktop packaging lands. server.py gains APP_VERSION
+1.28.0, frozen-app support (bundled web/playground data,
+~/GhostIDE seeded workspace, llama resolved from a
+bundled llama/ folder), a verified in-app 7B download
+(Settings; resume + exact-size + SHA-256 gates, catalog
+values checked against the real GGUF on disk), an
+update check that only reports (VERSION.json on GitHub;
+never downloads or installs), and py_cmd() so spawned
+Python work uses a real interpreter in packaged builds.
+packaging/ holds the PyInstaller spec, per-OS build
+scripts (llama.cpp b11429 assets pinned by name),
+one-command installers and a manual GitHub Actions
+workflow for all three OSes. LINUX PROVEN END TO END:
+built GhostIDE-linux.tar.gz (26358544 bytes), installed with
+./install.sh into a clean HOME (env -i), the packaged
+binary served the IDE with a seeded workspace, started
+the bundled llama + 7B, and answered a chat ("packaged
+ok"). Windows/Mac packages are scripted and
+workflow-ready; their first builds run on those OSes.
+Phone: version parity + honest stubs. APK 19218438 bytes
+md5 588339521da3a39b1fa4a338b29b6532, versionCode 32, same signer.

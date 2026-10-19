@@ -32144,7 +32144,10 @@
     $("draftBar").classList.add("hidden");
   };
   $("acceptChip").onclick = () => acceptGhost(view);
-  $("settingsBtn").onclick = () => $("settingsPanel").classList.toggle("hidden");
+  $("settingsBtn").onclick = () => {
+    $("settingsPanel").classList.toggle("hidden");
+    refreshModelDl();
+  };
   $("settingsClose").onclick = () => $("settingsPanel").classList.add("hidden");
   {
     const tempEl = $("setTemp");
@@ -32194,11 +32197,91 @@
     alert("Model switched to " + d.modelName + " - use Start model to load it.");
     pollHealth();
   };
+  $("setUpdateBtn").onclick = async () => {
+    const out = $("setUpdateOut");
+    out.textContent = "checking\u2026";
+    try {
+      const r = await fetch("/api/update/check");
+      const d = await r.json();
+      if (d.current)
+        $("setVersion").textContent = "v" + d.current;
+      if (!d.ok) {
+        out.textContent = d.note || d.error || "check failed";
+        return;
+      }
+      out.innerHTML = "";
+      out.appendChild(document.createTextNode(
+        d.updateAvailable ? "Update available: v" + d.latest + ". " : "You are up to date. "
+      ));
+      if (d.updateAvailable && d.url) {
+        const a = document.createElement("a");
+        a.href = d.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = "Get it";
+        out.appendChild(a);
+        out.appendChild(document.createTextNode(
+          " (updates are never installed automatically)"
+        ));
+      }
+    } catch (e) {
+      out.textContent = "check failed (offline?)";
+    }
+  };
+  var modelDlTimer = null;
+  async function refreshModelDl() {
+    try {
+      const r = await fetch("/api/model/download");
+      const d = await r.json();
+      const out = $("setModelDlOut");
+      const btn = $("setModelDlBtn");
+      if (d.note) {
+        out.textContent = d.note;
+        btn.classList.add("hidden");
+        return;
+      }
+      btn.classList.remove("hidden");
+      if (d.downloaded) {
+        out.textContent = "downloaded \u2713 (" + d.path + ")";
+        btn.textContent = "Download again";
+      } else if (d.state === "downloading") {
+        out.textContent = "downloading\u2026 " + Math.round(100 * (d.done || 0) / (d.total || 1)) + "% of 4.7 GB";
+        btn.textContent = "Downloading\u2026";
+      } else if (d.state === "verifying") {
+        out.textContent = "verifying checksum\u2026";
+        btn.textContent = "Verifying\u2026";
+      } else if (d.state === "error") {
+        out.textContent = "error: " + d.error;
+        btn.textContent = "Retry download";
+      } else {
+        out.textContent = "not downloaded (goes to " + d.modelsDir + ")";
+        btn.textContent = "Download 7B model";
+      }
+      if (d.state === "downloading" || d.state === "verifying") {
+        if (!modelDlTimer)
+          modelDlTimer = setInterval(refreshModelDl, 2e3);
+      } else if (modelDlTimer) {
+        clearInterval(modelDlTimer);
+        modelDlTimer = null;
+      }
+    } catch (e) {
+    }
+  }
+  $("setModelDlBtn").onclick = async () => {
+    const d = await postJson("/api/model/download", { id: "7b" });
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    refreshModelDl();
+  };
   async function pollHealth() {
     try {
       const r = await fetch("/api/health");
       const d = await r.json();
       modelUp = d.model === "up";
+      if (d.version)
+        $("setVersion").textContent = "v" + d.version;
       $("modelInfo").textContent = "Model: " + d.modelName + " \xB7 status: " + d.model;
       const pill = $("modelPill");
       pill.textContent = "model: " + (modelUp ? "up \xB7 " + d.modelName : "down");

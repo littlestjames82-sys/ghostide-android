@@ -335,6 +335,12 @@ setTimeout(function () {
   <label>Model file (desktop)
     <input id="modelPath" type="text" placeholder="/path/to/model.gguf"></label>
   <button id="modelSwitch">Switch model</button>
+  <p class="dim">App version <span id="setVersion">…</span>
+    <button id="setUpdateBtn">Check for updates</button>
+    <span id="setUpdateOut"></span></p>
+  <p class="dim">Desktop AI model (Qwen2.5-Coder-7B, 4.7 GB, optional):
+    <span id="setModelDlOut"></span>
+    <button id="setModelDlBtn">Download 7B model</button></p>
   <button id="settingsClose">Close</button>
 </div>
 <script src="/app.js"></script>

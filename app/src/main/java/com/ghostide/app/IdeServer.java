@@ -620,7 +620,29 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
+                + ",\"version\":\"1.28.0\""
                 + ",\"workspace\":\"on-device\"}");
+            return;
+        }
+        if (path.equals("/api/update/check")) {
+            // Roadmap G18: on the phone, updates arrive as
+            // new APK builds; the check reports, never acts.
+            sendJson(out, "{\"ok\":false,\"current\":\"1.28.0\","
+                + "\"note\":\"On the phone, updates arrive as "
+                + "new APK builds.\"}");
+            return;
+        }
+        if (path.equals("/api/model/download")) {
+            if (method.equals("POST")) {
+                sendJson(out, 400, "{\"error\":\"On the phone, "
+                    + "models live in the native Models "
+                    + "store.\"}");
+            } else {
+                sendJson(out, "{\"state\":\"phone\","
+                    + "\"downloaded\":false,"
+                    + "\"note\":\"On the phone, models live "
+                    + "in the native Models store.\"}");
+            }
             return;
         }
         if (path.equals("/api/model/start")) {
