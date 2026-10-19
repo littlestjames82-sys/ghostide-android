@@ -915,6 +915,12 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.startsWith("/api/debug/")) {
+            sendJson(out, 400, "{\"error\":\"The debugger runs "
+                + "on the desktop build (it needs a Python "
+                + "runtime with pdb).\"}");
+            return;
+        }
         if (path.startsWith("/api/tests/")) {
             sendJson(out, 400, "{\"error\":\"Tests run on the "
                 + "desktop build (the phone has no Python/Node "

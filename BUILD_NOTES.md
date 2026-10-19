@@ -391,3 +391,17 @@ EXACTLY those - py 3 pass/2 fail with assert lines and
 messages, node 1/1 with the right line. Gates passed.
 APK 3233902 bytes md5 72e2f7469011cd607ce4fac926473e46, versionCode 20, same signer.
 Upload links still pending the stuck upload service.
+
+## v1.17.0 (Oct 19, 2026) - Roadmap G7: debugger (desktop)
+Breakpoints via a clickable editor gutter (persisted per
+file), a pdb/bdb bridge process (debug_bridge.py, JSON-lines
+protocol) owned by the desktop server per session, and a
+debug panel: continue / step over / step into / step out,
+live variables pane, captured program output. Phone shows
+an honest desktop-only message.
+Verified by a scripted session that finds a planted
+double-count bug BY STEPPING: breakpoint in a loop, variables
+prove total=20 after one 10-price; continue-through-exit
+returns the program's stdout. Gates passed. APK 3238001 bytes
+md5 f9c550457b3316932eddeccdaf8a04c8, versionCode 21, same signer. Upload links still
+pending the stuck upload service.

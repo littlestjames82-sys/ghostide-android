@@ -229,6 +229,7 @@ setTimeout(function () {
     <button id="toolHistory">Local history</button>
     <button id="toolRepoMap">Repo map</button>
     <button id="toolTests">Test runner</button>
+    <button id="toolDebug">Debug this file</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolZip">Download workspace (.zip)</button>
@@ -236,6 +237,22 @@ setTimeout(function () {
   <div id="statsOut" class="dim"></div>
 </div>
 
+<div id="debugPanel" class="hidden">
+  <div class="run-head">
+    <span id="debugTitle">🐛 Debug</span>
+    <span>
+      <button id="dbgContinue">▶ Continue</button>
+      <button id="dbgNext">⤵ Over</button>
+      <button id="dbgStep">↓ Into</button>
+      <button id="dbgReturn">⤴ Out</button>
+      <button id="dbgStop">⏹ Stop</button>
+      <button id="debugClose">✕</button>
+    </span>
+  </div>
+  <div id="debugStatus" class="dim"></div>
+  <pre id="debugVars"></pre>
+  <pre id="debugOut"></pre>
+</div>
 <div id="todoPanel" class="hidden">
   <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>
   <div id="todoResults"></div>

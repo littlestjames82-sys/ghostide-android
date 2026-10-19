@@ -241,6 +241,16 @@ body.zen #files, body.zen #chat { display: none; }
   margin: 0; padding: 8px 10px; overflow-y: auto; font-size: 12px;
   white-space: pre-wrap; word-break: break-word;
 }
+#debugPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#debugStatus { padding: 4px 10px; font-size: 12px; }
+#debugVars, #debugOut {
+  margin: 0; padding: 6px 10px; overflow-y: auto; font-size: 12px;
+  white-space: pre-wrap; word-break: break-word; max-height: 180px;
+  font-family: ui-monospace, monospace; color: #cfd3e0;
+}
+#debugOut { color: #9fe8bb; }
+.cm-bp-gutter { cursor: pointer; min-width: 14px; }
+.bpDot { color: #f25555; font-size: 11px; line-height: 1; }
 #gitPanel { margin-top: 10px; border-top: 1px solid #2e3038; padding-top: 8px; }
 .gitRow {
   display: flex; align-items: center; gap: 6px; font-size: 12px;
