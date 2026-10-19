@@ -14423,6 +14423,26 @@
   function highlightActiveLineGutter() {
     return activeLineGutterHighlighter;
   }
+  function matcher(decorator) {
+    return ViewPlugin.define((view2) => ({
+      decorations: decorator.createDeco(view2),
+      update(u) {
+        this.decorations = decorator.updateDeco(u, this.decorations);
+      }
+    }), {
+      decorations: (v) => v.decorations
+    });
+  }
+  var tabDeco = /* @__PURE__ */ Decoration.mark({ class: "cm-highlightTab" });
+  var spaceDeco = /* @__PURE__ */ Decoration.mark({ class: "cm-highlightSpace" });
+  var whitespaceHighlighter = /* @__PURE__ */ matcher(/* @__PURE__ */ new MatchDecorator({
+    regexp: /\t| /g,
+    decoration: (match) => match[0] == "	" ? tabDeco : spaceDeco,
+    boundary: /\S/
+  }));
+  function highlightWhitespace() {
+    return whitespaceHighlighter;
+  }
 
   // node_modules/@lezer/common/dist/index.js
   var DefaultBufferLength = 1024;
@@ -21722,9 +21742,9 @@
           }
         } else {
           let pattern = state.sliceDoc(a.from, a.to), match;
-          let matcher = conf.filterStrict ? new StrictMatcher(pattern) : new FuzzyMatcher(pattern);
+          let matcher2 = conf.filterStrict ? new StrictMatcher(pattern) : new FuzzyMatcher(pattern);
           for (let option of a.result.options)
-            if (match = matcher.match(option.label)) {
+            if (match = matcher2.match(option.label)) {
               let matched = !option.displayLabel ? match.matched : getMatch ? getMatch(option, match.matched) : [];
               let score2 = match.score + (option.boost || 0);
               addOption(new Option(option, a.source, matched, score2));
@@ -31435,7 +31455,9 @@
       fontSize: "14px",
       infillDelay: 750,
       autosave: "off",
-      trimOnSave: false
+      trimOnSave: false,
+      indent: 2,
+      whitespace: false
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -31458,6 +31480,14 @@
   var wrapComp = new Compartment();
   function wrapExt() {
     return settings.wrap ? EditorView.lineWrapping : [];
+  }
+  var indentComp = new Compartment();
+  function indentExt() {
+    return indentUnit.of(settings.indent === 4 ? "    " : "  ");
+  }
+  var wsComp = new Compartment();
+  function wsExt() {
+    return settings.whitespace ? highlightWhitespace() : [];
   }
   var view = new EditorView({
     parent: $("editor"),
@@ -31496,6 +31526,8 @@
         { key: "Mod-d", run: selectNextOccurrence }
       ]),
       wrapComp.of(wrapExt()),
+      indentComp.of(indentExt()),
+      wsComp.of(wsExt()),
       EditorView.updateListener.of((u) => {
         if (u.selectionSet || u.docChanged) {
           const head = u.state.selection.main.head;
@@ -31631,20 +31663,54 @@
     $("draftText").textContent = "Unsaved draft from " + new Date(d.ts).toLocaleTimeString() + " differs from the saved file.";
     $("draftBar").classList.remove("hidden");
   }
+  var collapsedDirs = /* @__PURE__ */ new Set();
+  try {
+    collapsedDirs = new Set(JSON.parse(
+      localStorage.getItem("ghostide-collapsed") || "[]"
+    ));
+  } catch (e) {
+  }
+  function saveCollapsed() {
+    try {
+      localStorage.setItem(
+        "ghostide-collapsed",
+        JSON.stringify([...collapsedDirs])
+      );
+    } catch (e) {
+    }
+  }
+  function isHiddenByCollapse(path) {
+    const parts = path.split("/");
+    for (let i2 = 1; i2 < parts.length; i2++) {
+      if (collapsedDirs.has(parts.slice(0, i2).join("/"))) return true;
+    }
+    return false;
+  }
   async function loadFiles() {
     const r = await fetch("/api/files");
     const d = await r.json();
     const tree = $("fileTree");
     tree.innerHTML = "";
     for (const f of d.files) {
+      if (isHiddenByCollapse(f.path)) continue;
       const row = document.createElement("div");
       row.className = "fileRow";
       const el = document.createElement("div");
       const depth = f.path.split("/").length - 1;
       el.style.paddingLeft = 6 + depth * 14 + "px";
       el.className = f.type;
-      el.textContent = (f.type === "dir" ? "\u{1F4C1} " : "\u{1F4C4} ") + f.path.split("/").pop();
-      if (f.type === "file") {
+      const baseName = f.path.split("/").pop();
+      if (f.type === "dir") {
+        const closed = collapsedDirs.has(f.path);
+        el.textContent = (closed ? "\u25B8 \u{1F4C1} " : "\u25BE \u{1F4C2} ") + baseName;
+        el.onclick = () => {
+          if (closed) collapsedDirs.delete(f.path);
+          else collapsedDirs.add(f.path);
+          saveCollapsed();
+          loadFiles();
+        };
+      } else {
+        el.textContent = "\u{1F4C4} " + baseName;
         if (f.path === currentFile) el.classList.add("active");
         el.onclick = () => openFile(f.path);
       }
@@ -31931,6 +31997,7 @@
       }
     }
     refreshTodoChip();
+    checkQuiet();
   }
   $("saveBtn").onclick = saveFile;
   $("newFileBtn").onclick = async () => {
@@ -32173,6 +32240,36 @@
         }
       }
     }
+    const attachedNames = [];
+    if (text.includes("@")) {
+      try {
+        const fr = await fetch("/api/files");
+        const fd = await fr.json();
+        const known = new Set((fd.files || []).filter((x) => x.type === "file").map((x) => x.path));
+        const mentioned = [...new Set(
+          [...text.matchAll(/@([\w.\-/]+)/g)].map((m) => m[1]).filter((p) => known.has(p))
+        )].slice(0, 2);
+        for (const p of mentioned) {
+          const r2 = await fetch("/api/file?path=" + encodeURIComponent(p));
+          const d2 = await r2.json();
+          if (!d2.error && d2.content != null) {
+            sysContent += "\nAttached file " + p + ":\n```\n" + d2.content.slice(0, BEHAVIOR.context.fileChars) + "\n```";
+            attachedNames.push(p);
+          }
+        }
+      } catch (e) {
+      }
+    }
+    const selNow = view.state.selection.main;
+    if (!selNow.empty && currentFile) {
+      const selText = view.state.doc.sliceString(selNow.from, selNow.to).slice(0, 3e3);
+      if (selText.trim()) {
+        sysContent += "\nSelected code from " + currentFile + ":\n```\n" + selText + "\n```";
+        attachedNames.push("selection");
+      }
+    }
+    if (attachedNames.length)
+      $("ctxMeter").textContent = "attached: " + attachedNames.join(", ");
     ta.value = "";
     addMsg("YOU", text);
     history2.push({ role: "user", content: text });
@@ -32497,6 +32594,8 @@
       basicSetup,
       oneDark,
       wrapComp.of(wrapExt()),
+      indentComp.of(indentExt()),
+      wsComp.of(wsExt()),
       langFor(path || ""),
       keymap.of([
         { key: "Mod-s", run: () => {
@@ -32612,6 +32711,7 @@
   $("splitSave").onclick = () => saveSplit();
   var quickMode = "open";
   var quickFiles = [];
+  var quickSymbols = [];
   async function openQuick(mode) {
     quickMode = mode || "open";
     if (quickMode === "command") {
@@ -32623,10 +32723,12 @@
       return;
     }
     $("quickInput").placeholder = "Open file by name\u2026 (Enter opens, Esc closes)";
+    if (quickMode === "mention")
+      $("quickInput").placeholder = "Mention a file\u2026 (tap to insert @file)";
     try {
       const r = await fetch("/api/files");
       const d = await r.json();
-      quickFiles = (d.files || []).filter((f) => !f.endsWith("/"));
+      quickFiles = (d.files || []).filter((f) => f.type === "file").map((f) => f.path);
     } catch (e) {
       quickFiles = [];
     }
@@ -32666,6 +32768,40 @@
       }
       if (!matches2.length)
         list.innerHTML = '<div class="dim">No commands match.</div>';
+      return;
+    }
+    if (quickMode === "symbol") {
+      const matches2 = quickSymbols.filter((s) => s.name.toLowerCase().includes(needle)).slice(0, 30);
+      for (const s of matches2) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "\u0192 " + s.name + "  \xB7 line " + s.line;
+        row.onclick = () => {
+          closeQuick();
+          jumpToLine(s.line);
+        };
+        list.appendChild(row);
+      }
+      if (!matches2.length)
+        list.innerHTML = '<div class="dim">No symbols in this file.</div>';
+      return;
+    }
+    if (quickMode === "mention") {
+      const matches2 = quickFiles.filter((f) => f.toLowerCase().includes(needle)).slice(0, 30);
+      for (const f of matches2) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "@ " + f;
+        row.onclick = () => {
+          closeQuick();
+          const ta = $("chatText");
+          ta.value += (ta.value && !ta.value.endsWith(" ") ? " " : "") + "@" + f + " ";
+          ta.focus();
+        };
+        list.appendChild(row);
+      }
+      if (!matches2.length)
+        list.innerHTML = '<div class="dim">No files match.</div>';
       return;
     }
     let recents = [];
@@ -32729,13 +32865,7 @@
     hideTools();
     openQuick("open");
   };
-  $("toolOutline").onclick = () => {
-    hideTools();
-    if (!currentFile) {
-      alert("Open a file first.");
-      return;
-    }
-    const lines = view.state.doc.toString().split("\n");
+  function extractSymbols(text) {
     const res = [
       /^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)/,
       /^\s*class\s+([A-Za-z_]\w*)/,
@@ -32743,7 +32873,7 @@
       /^\s*(?:const|let|var)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>/
     ];
     const syms = [];
-    lines.forEach((ln, i2) => {
+    text.split("\n").forEach((ln, i2) => {
       for (const re of res) {
         const m = ln.match(re);
         if (m) {
@@ -32752,6 +32882,15 @@
         }
       }
     });
+    return syms;
+  }
+  $("toolOutline").onclick = () => {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    const syms = extractSymbols(view.state.doc.toString());
     $("todoTitle").textContent = "Outline: " + currentFile;
     const box = $("todoResults");
     box.innerHTML = "";
@@ -32855,6 +32994,18 @@
   $("setTrim").onchange = (e) => {
     settings.trimOnSave = e.target.checked;
     saveSettings();
+  };
+  $("setIndent").value = String(settings.indent || 2);
+  $("setIndent").onchange = (e) => {
+    settings.indent = parseInt(e.target.value, 10) || 2;
+    saveSettings();
+    view.dispatch({ effects: indentComp.reconfigure(indentExt()) });
+  };
+  $("setWs").checked = !!settings.whitespace;
+  $("setWs").onchange = (e) => {
+    settings.whitespace = e.target.checked;
+    saveSettings();
+    view.dispatch({ effects: wsComp.reconfigure(wsExt()) });
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
@@ -33417,6 +33568,20 @@
       if (d.line) jumpToLine(d.line);
     };
     box.appendChild(row);
+    const fix = document.createElement("div");
+    fix.className = "findRow";
+    fix.textContent = "\u2728 Fix with AI";
+    fix.onclick = () => {
+      if (!modelUp) {
+        alert("Start the model first.");
+        return;
+      }
+      $("todoPanel").classList.add("hidden");
+      inlineTarget = { from: 0, to: view.state.doc.length };
+      $("inlineAiInput").value = "Fix this problem: " + (d.message || "syntax error") + (d.line ? " (line " + d.line + ")" : "");
+      runInlineAi();
+    };
+    box.appendChild(fix);
     if (d.output) {
       const pre = document.createElement("pre");
       pre.className = "dim";
@@ -33557,6 +33722,12 @@
     { title: "Find in project", run: () => $("findBtn").click() },
     { title: "Go to line", run: () => $("toolGoto").click() },
     { title: "Outline (functions and classes)", run: () => $("toolOutline").click() },
+    { title: "Go to symbol\u2026", run: () => openSymbols() },
+    { title: "Bookmarks", run: () => {
+      hideTools();
+      renderBookmarks();
+    } },
+    { title: "Toggle focus mode (hide side panels)", run: () => toggleZen() },
     { title: "TODO / FIXME scan", run: () => $("toolTodos").click() },
     { title: "Project stats", run: () => $("toolStats").click() },
     { title: "Terminal", run: () => $("toolTerminal").click() },
@@ -33583,6 +33754,120 @@
     openQuick("command");
   };
   refreshTodoChip();
+  function toggleZen() {
+    document.body.classList.toggle("zen");
+  }
+  $("zenBtn").onclick = toggleZen;
+  function openSymbols() {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    quickMode = "symbol";
+    quickSymbols = extractSymbols(view.state.doc.toString());
+    $("quickInput").placeholder = "Go to symbol in " + currentFile + "\u2026 (Esc closes)";
+    $("quickInput").value = "";
+    renderQuick("");
+    $("quickPanel").classList.remove("hidden");
+    $("quickInput").focus();
+  }
+  $("toolSymbols").onclick = openSymbols;
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+      e.preventDefault();
+      if ($("quickPanel").classList.contains("hidden")) openSymbols();
+      else closeQuick();
+    }
+  });
+  $("mentionBtn").onclick = () => openQuick("mention");
+  function loadBookmarks() {
+    try {
+      return JSON.parse(
+        localStorage.getItem("ghostide-bookmarks") || "{}"
+      );
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveBookmarks(b) {
+    try {
+      localStorage.setItem("ghostide-bookmarks", JSON.stringify(b));
+    } catch (e) {
+    }
+  }
+  function renderBookmarks() {
+    $("todoTitle").textContent = "Bookmarks";
+    const box = $("todoResults");
+    box.innerHTML = "";
+    $("todoPanel").classList.remove("hidden");
+    if (currentFile) {
+      const ln = view.state.doc.lineAt(
+        view.state.selection.main.head
+      ).number;
+      const has = (loadBookmarks()[currentFile] || []).includes(ln);
+      const t2 = document.createElement("div");
+      t2.className = "findRow";
+      t2.textContent = (has ? "\u2715 Remove bookmark at" : "\u{1F516} Bookmark") + " \u2014 " + currentFile + " line " + ln;
+      t2.onclick = () => {
+        const bb = loadBookmarks();
+        const arr = bb[currentFile] || [];
+        const i2 = arr.indexOf(ln);
+        if (i2 >= 0) arr.splice(i2, 1);
+        else arr.push(ln);
+        arr.sort((a, b2) => a - b2);
+        if (arr.length) bb[currentFile] = arr;
+        else delete bb[currentFile];
+        saveBookmarks(bb);
+        renderBookmarks();
+      };
+      box.appendChild(t2);
+    }
+    const b = loadBookmarks();
+    let any = false;
+    for (const path of Object.keys(b).sort()) {
+      for (const line of b[path]) {
+        any = true;
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "\u{1F516} " + path + " \xB7 line " + line;
+        row.onclick = async () => {
+          $("todoPanel").classList.add("hidden");
+          await openFile(path);
+          jumpToLine(line);
+        };
+        box.appendChild(row);
+      }
+    }
+    if (!any)
+      box.insertAdjacentHTML(
+        "beforeend",
+        '<div class="dim">No bookmarks yet - open a file and bookmark the current line from here.</div>'
+      );
+  }
+  $("toolBookmarks").onclick = () => {
+    hideTools();
+    renderBookmarks();
+  };
+  async function checkQuiet() {
+    const chip = $("probChip");
+    if (!currentFile || !/\.(py|js|mjs|json)$/i.test(currentFile)) {
+      chip.classList.add("hidden");
+      return;
+    }
+    try {
+      const d = await postJson("/api/check", { path: currentFile });
+      if (d && d.ok === false) {
+        chip.textContent = "\u26A0 problem" + (d.line ? " \xB7 line " + d.line : "");
+        chip.classList.remove("hidden");
+        chip.onclick = () => runProblems();
+      } else {
+        chip.classList.add("hidden");
+      }
+    } catch (e) {
+      chip.classList.add("hidden");
+    }
+  }
   loadFiles();
   refreshWsLabel();
   window.__ghostBooted = true;

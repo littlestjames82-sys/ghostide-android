@@ -238,3 +238,22 @@ Gates passed: esbuild + parse, 137 element IDs, DOM-stub
 evaluation, desktop endpoints live-tested.
 APK 3,213,424 bytes, md5 aff18926fb373879273e811c45091977,
 versionCode 11, same signer. Not device-tested.
+
+## v1.8.0 (Oct 19, 2026) - Phase 9 round + a latent fix
+BUG FIXED (latent since Phase 6): openQuick treated /api/files
+entries as strings, but both servers return {path, type} objects;
+the .endsWith call threw inside a try and silently emptied the
+list - Quick Open, the split picker and palette file commands
+showed "No files match" on both builds. Now maps type==="file"
+entries to paths.
+Phase 9 (frontend only): collapsible folder tree (persisted),
+Go to Symbol (Ctrl+Shift+O, shares extractSymbols with Outline),
+chat @file mentions (button + send-time attach, 2 files max,
+plus auto-attach of any selected code), Focus/Zen mode (⛶ hides
+both side panels), indent size (2/4) + show-whitespace settings
+(new Compartments declared beside wrapComp, above the view),
+Bookmarks (per-file lines, localStorage), Fix-with-AI inside
+Problems, quiet problems chip after save (desktop checkers).
+Gates: parse, 144 IDs, DOM-stub evaluation PASS (harness now
+durable at ghost-ide/tools/). APK 3,213,424 bytes, md5 02c43111,
+versionCode 12, same signer. Not device-tested.

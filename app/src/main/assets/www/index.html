@@ -55,6 +55,7 @@ setTimeout(function () {
     <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
     <button id="splitBtn" title="Split view - pick a file for the second pane">◫ Split</button>
     <button id="toolsBtn" title="Tools">🧰</button>
+    <button id="zenBtn" title="Focus mode - hide the side panels">⛶</button>
     <button id="findBtn" title="Find / replace in project">🔍</button>
     <button id="settingsBtn" title="Settings">⚙</button>
   </div>
@@ -118,6 +119,7 @@ setTimeout(function () {
     <div id="statusBar">
       <span id="cursorPos">Ln 1, Col 1</span>
       <button id="todoChip" class="hidden" title="Open TODO / FIXME scan">TODO 0</button>
+      <button id="probChip" class="hidden" title="Open Problems">⚠ problem</button>
       <button id="acceptChip" class="hidden">✓ Accept suggestion</button>
       <span id="autocompleteState">autocomplete: idle (pause typing; tap a suggestion or press Tab to accept)</span>
     </div>
@@ -127,6 +129,7 @@ setTimeout(function () {
     <div id="chatLog"></div>
     <div class="chat-input">
       <textarea id="chatText" rows="3" placeholder="Ask about your code… (Enter to send, Shift+Enter for newline)"></textarea>
+      <button id="mentionBtn" title="Attach a file to the message (@file)">@ File</button>
       <button id="chatSend">Send</button>
     </div>
     <label class="ctx-toggle"><input type="checkbox" id="ctxToggle" checked> Include context:
@@ -199,6 +202,8 @@ setTimeout(function () {
     <button id="toolQuick">Quick open (Ctrl+K)</button>
     <button id="toolPalette">Command palette (Ctrl+Shift+P)</button>
     <button id="toolOutline">Outline</button>
+    <button id="toolSymbols">Go to symbol (Ctrl+Shift+O)</button>
+    <button id="toolBookmarks">Bookmarks</button>
     <button id="toolGoto">Go to line</button>
   </div>
   <h4>Project</h4>
@@ -250,6 +255,12 @@ setTimeout(function () {
       <option value="delay">After a short pause (2 s)</option>
     </select></label>
   <label><input type="checkbox" id="setTrim"> Trim trailing spaces on save</label>
+  <label>Indent size
+    <select id="setIndent">
+      <option value="2">2 spaces</option>
+      <option value="4">4 spaces</option>
+    </select></label>
+  <label><input type="checkbox" id="setWs"> Show whitespace</label>
   <label><input type="checkbox" id="setWrap"> Word wrap</label>
   <label><input type="checkbox" id="setShort"> Short answers (saves battery/heat)</label>
   <label>Editor text size

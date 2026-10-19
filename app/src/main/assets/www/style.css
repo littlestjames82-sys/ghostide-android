@@ -165,6 +165,8 @@ main { flex: 1; display: flex; min-height: 0; }
   word-break: break-word;
 }
 #todoChip { margin-left: 6px; }
+#probChip { margin-left: 6px; }
+body.zen #files, body.zen #chat { display: none; }
 #inlineAiBar {
   display: flex; gap: 6px; padding: 6px 8px;
   background: #161b22; border-top: 1px solid #2a2f3a;
