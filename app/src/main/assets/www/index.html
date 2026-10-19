@@ -5,8 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>GhostIDE - offline AI code editor</title>
 <link rel="stylesheet" href="/style.css">
+<script>
+/* Boot watchdog + error trap: plain script, runs even if the
+   bundled editor script dies. Any startup error lands in the red
+   banner instead of failing silently, and if the bundle never
+   reaches its boot flag the banner says so. */
+window.__ghostErrs = [];
+window.__ghostBooted = false;
+function __ghostShowErrs() {
+  var b = document.getElementById("errBanner");
+  if (!b) return;
+  if (window.__ghostErrs.length) {
+    b.textContent = "⚠ Startup problem - tell Ghost: "
+      + window.__ghostErrs.join(" | ");
+    b.classList.remove("hidden");
+  }
+}
+window.addEventListener("error", function (e) {
+  var msg = String(e.message || "unknown error");
+  if (e.error && e.error.stack)
+    msg += " @ " + String(e.error.stack).split("\n").slice(0, 2)
+      .join(" <- ");
+  window.__ghostErrs.push(msg);
+  __ghostShowErrs();
+});
+window.addEventListener("unhandledrejection", function (e) {
+  window.__ghostErrs.push("promise: " + String(e.reason));
+  __ghostShowErrs();
+});
+setTimeout(function () {
+  if (!window.__ghostBooted) {
+    window.__ghostErrs.push(
+      "The editor script did not finish starting.");
+    __ghostShowErrs();
+  }
+}, 8000);
+</script>
 </head>
 <body>
+<div id="errBanner" class="hidden"></div>
 <header>
   <div class="brand">👻 <strong>GhostIDE</strong> <span class="tag">offline AI editor</span></div>
   <div class="current-file" id="currentFile">no file open</div>

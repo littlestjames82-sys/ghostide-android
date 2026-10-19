@@ -159,6 +159,11 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 .dim { color: #9a9fb0; font-size: 12px; }
 #ctxMeter { margin-top: 4px; }
+#errBanner {
+  background: #7a1f1f; color: #ffe9e9; padding: 10px 12px;
+  font-size: 13px; line-height: 1.45; white-space: pre-wrap;
+  word-break: break-word;
+}
 #gitLog {
   margin-top: 8px; font-family: ui-monospace, monospace; font-size: 11px;
   white-space: pre-wrap; word-break: break-word; max-height: 180px;

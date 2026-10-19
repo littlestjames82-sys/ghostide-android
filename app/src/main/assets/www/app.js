@@ -31453,6 +31453,10 @@
   var currentFile = null;
   var dirty = false;
   var modelUp = false;
+  var wrapComp = new Compartment();
+  function wrapExt() {
+    return settings.wrap ? EditorView.lineWrapping : [];
+  }
   var view = new EditorView({
     parent: $("editor"),
     state: EditorState.create({
@@ -31460,10 +31464,6 @@
       extensions: baseExtensions(null)
     })
   });
-  var wrapComp = new Compartment();
-  function wrapExt() {
-    return settings.wrap ? EditorView.lineWrapping : [];
-  }
   function baseExtensions(path) {
     const lang = langFor(path || "");
     return [
@@ -33243,4 +33243,6 @@
   };
   loadFiles();
   refreshWsLabel();
+  window.__ghostBooted = true;
+  if (window.__ghostErrs && window.__ghostErrs.length && typeof __ghostShowErrs === "function") __ghostShowErrs();
 })();

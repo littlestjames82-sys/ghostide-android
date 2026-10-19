@@ -92,10 +92,43 @@ public class MainActivity extends Activity {
                 + LlamaBrain.LIBS_ERROR);
             return;
         }
+        recoverStuckModelSelection();
         if (!modelReady()) {
             showDownload();
         } else {
             loadModelAndStart();
+        }
+    }
+
+    /**
+     * Self-healing for a bad model selection: loadModelAndStart
+     * leaves a "loadMarker" pref naming the variant being loaded,
+     * cleared when the load finishes. If the app starts and the
+     * marker is still set, the last load never finished (the phone
+     * could not hold that model: hang, kill, or crash), so fall
+     * back to the 1.5B. The same fallback applies when the selected
+     * model was never fully downloaded but the 1.5B is ready.
+     */
+    private void recoverStuckModelSelection() {
+        String stuck = getSharedPreferences("ghostide", MODE_PRIVATE)
+            .getString("loadMarker", "");
+        boolean changed = false;
+        if (!stuck.isEmpty()) {
+            getSharedPreferences("ghostide", MODE_PRIVATE)
+                .edit().remove("loadMarker").apply();
+            if (!"1.5b".equals(stuck)) changed = true;
+        }
+        Models.Variant sel = variant();
+        if (!Models.ready(this, sel) && !"1.5b".equals(sel.id)
+                && Models.ready(this, Models.V15)) {
+            changed = true;
+        }
+        if (changed && Models.ready(this, Models.V15)) {
+            Models.select(this, "1.5b");
+            Toast.makeText(this,
+                "Switched back to the 1.5B model (the safe one): the "
+                + "other model did not load cleanly on this phone.",
+                Toast.LENGTH_LONG).show();
         }
     }
 
@@ -287,6 +320,8 @@ public class MainActivity extends Activity {
     }
 
     private void loadModelAndStart() {
+        getSharedPreferences("ghostide", MODE_PRIVATE)
+            .edit().putString("loadMarker", variant().id).apply();
         LinearLayout root = screen();
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(text("👻 GhostIDE", 24, FG));
@@ -306,6 +341,8 @@ public class MainActivity extends Activity {
                     modelFile().getAbsolutePath(), N_CTX);
                 ui(new Runnable() {
                     @Override public void run() {
+                        getSharedPreferences("ghostide", MODE_PRIVATE)
+                            .edit().remove("loadMarker").apply();
                         if (ok) {
                             startIde();
                         } else {

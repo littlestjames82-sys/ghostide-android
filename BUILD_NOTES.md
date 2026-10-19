@@ -177,3 +177,23 @@ Zip tool on the phone explains Export/Share instead.
 APK 3,205,233 bytes, md5 0a291408f73be565ac66178375bdd6de,
 versionCode 8, same signer. Not device-tested - the share provider
 is the newest native surface; first real share is Ryan's test.
+
+## v1.6.1 HOTFIX (Oct 19, 2026) - the dead-IDE bug
+Ryan reported v1.6.0 (and v1.5.0): app opens to the IDE but no
+files load and no taps work. ROOT CAUSE (frontend): Phase 6 put
+`const wrapComp = new Compartment()` AFTER `new EditorView(...)`,
+but baseExtensions() runs during view creation and calls
+wrapComp.of(...) - temporal dead zone, the bundle died at startup
+before any wiring or boot code. Total, silent death on every
+device; invisible to parse checks and HTTP smoke tests because
+nothing here executes the JS.
+FIX: wrapComp/wrapExt moved above view creation. Proven with a
+node DOM-stub evaluation harness: old bundle dies inside
+baseExtensions (".of" of undefined); fixed bundle sails past it
+(stops only on a stub artifact, document.defaultView).
+Also shipped: startup error banner + boot watchdog in index.html
+(any future startup crash prints its message in a red bar), and
+native stuck-model self-healing (loadMarker pref + automatic
+fallback to the 1.5B if a load never completes).
+APK 3,209,328 bytes, md5 9755932372ff5fd72b2ebcae06179539,
+versionCode 9, same signer.
