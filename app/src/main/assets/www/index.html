@@ -95,11 +95,12 @@ setTimeout(function () {
       <pre id="runOut"></pre>
     </div>
     <div id="termPane" class="hidden">
-      <div class="run-head"><span>Terminal · workspace folder · local shell (unsandboxed)</span>
-        <button id="termClose">✕</button></div>
+      <div class="run-head"><span><span id="termTitle">Terminal · workspace folder · local shell (unsandboxed)</span> <span id="termCwd"></span></span>
+        <span><button id="termReset">↺ Session</button>
+        <button id="termClose">✕</button></span></div>
       <pre id="termOut"></pre>
       <div class="term-row">
-        <span>$</span>
+        <span id="termPrompt">$</span>
         <input id="termCmd" type="text" placeholder="type a command, Enter to run (↑/↓ for history)">
       </div>
     </div>
@@ -233,6 +234,7 @@ setTimeout(function () {
     <button id="toolFix">Fix my tests (AI)</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
+    <button id="toolRepl">Python REPL</button>
     <button id="toolZip">Download workspace (.zip)</button>
   </div>
   <div id="statsOut" class="dim"></div>

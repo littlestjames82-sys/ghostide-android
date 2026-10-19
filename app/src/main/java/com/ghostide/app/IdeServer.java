@@ -1298,6 +1298,30 @@ public final class IdeServer {
                 + "desktop build - the phone has no shell for the IDE.\"}");
             return;
         }
+        if (path.equals("/api/repl/reset")) {
+            killRepl();
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
+        if (path.equals("/api/repl") && method.equals("POST")) {
+            try {
+                Map<String, Object> replD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String rout = replExchange(
+                    Json.str(replD, "input", ""));
+                if (rout == null) {
+                    sendJson(out, 400, "{\"error\":\"The Python "
+                        + "REPL could not start on this device.\"}");
+                } else {
+                    sendJson(out, "{\"output\":"
+                        + Json.quote(rout) + "}");
+                }
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/check")) {
             String rel = queryParam(query, "path");
             if (rel != null && rel.endsWith(".py")) {
@@ -2160,6 +2184,102 @@ public final class IdeServer {
             StandardCharsets.UTF_8);
         r.ms = System.currentTimeMillis() - t0;
         return r;
+    }
+
+    /* ---------------- Roadmap G10: phone REPL ----------------
+       A persistent bundled-CPython process (-u -i, stderr
+       merged). Exchanges write one line and collect output
+       with a settle window, mirroring the desktop REPL. */
+    private Process replProc = null;
+    private final StringBuffer replBuf = new StringBuffer();
+
+    private synchronized boolean ensureRepl() {
+        if (replProc != null) {
+            try { replProc.exitValue(); }
+            catch (IllegalThreadStateException e) { return true; }
+            replProc = null;
+        }
+        if (!ensurePythonHome()) return false;
+        try {
+            List<String> cmd = new ArrayList<>();
+            cmd.add(pythonBin());
+            cmd.add("-u");
+            cmd.add("-i");
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.directory(workspace);
+            pb.environment().putAll(pythonEnv());
+            pb.redirectErrorStream(true);
+            replProc = pb.start();
+            final InputStream rin = replProc.getInputStream();
+            Thread t = new Thread(new Runnable() {
+                @Override public void run() {
+                    byte[] buf = new byte[4096];
+                    int n;
+                    try {
+                        while ((n = rin.read(buf)) > 0) {
+                            synchronized (replBuf) {
+                                replBuf.append(new String(
+                                    buf, 0, n,
+                                    StandardCharsets.UTF_8));
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+            t.setDaemon(true);
+            t.start();
+            synchronized (replBuf) { replBuf.setLength(0); }
+            return true;
+        } catch (IOException e) {
+            replProc = null;
+            return false;
+        }
+    }
+
+    private synchronized void killRepl() {
+        if (replProc != null) {
+            try { replProc.destroy(); } catch (Exception ignored) {}
+            replProc = null;
+        }
+        synchronized (replBuf) { replBuf.setLength(0); }
+    }
+
+    /* Returns the REPL's output for this turn, or null when
+       the interpreter could not start. */
+    private String replExchange(String input) {
+        if (!ensureRepl()) return null;
+        int mark;
+        synchronized (replBuf) { mark = replBuf.length(); }
+        try {
+            OutputStream pin = replProc.getOutputStream();
+            pin.write((input + "\n").getBytes(
+                StandardCharsets.UTF_8));
+            pin.flush();
+        } catch (IOException e) {
+            killRepl();
+            return null;
+        }
+        long deadline = System.currentTimeMillis() + 6000;
+        long lastChange = System.currentTimeMillis();
+        int lastLen = mark;
+        while (System.currentTimeMillis() < deadline) {
+            try { Thread.sleep(60); }
+            catch (InterruptedException ie) { break; }
+            int len;
+            synchronized (replBuf) { len = replBuf.length(); }
+            if (len != lastLen) {
+                lastLen = len;
+                lastChange = System.currentTimeMillis();
+            } else if (System.currentTimeMillis() - lastChange
+                    > 500) {
+                break;
+            }
+        }
+        synchronized (replBuf) {
+            String out = replBuf.substring(mark);
+            replBuf.delete(0, replBuf.length());
+            return out;
+        }
     }
 
     /* Syntax-check a Python file with the bundled interpreter.

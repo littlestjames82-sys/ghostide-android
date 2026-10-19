@@ -33471,27 +33471,66 @@
   };
   var termHistory = [];
   var termIdx = -1;
-  $("toolTerminal").onclick = () => {
+  var termMode = "shell";
+  function openTermPane(mode) {
     hideTools();
+    termMode = mode;
     $("termPane").classList.remove("hidden");
+    if (mode === "repl") {
+      $("termTitle").textContent = "Python REPL \xB7 session stays alive between lines";
+      $("termCwd").textContent = "";
+      $("termPrompt").textContent = ">>>";
+      $("termCmd").placeholder = "python line, Enter to run (blank line ends a block)";
+      postJson("/api/repl", { input: "" }).then((d) => {
+        if (d.output) {
+          const out = $("termOut");
+          out.textContent += d.output;
+          out.scrollTop = out.scrollHeight;
+        }
+      });
+    } else {
+      $("termTitle").textContent = "Terminal \xB7 workspace folder \xB7 local shell (unsandboxed)";
+      $("termPrompt").textContent = "$";
+      $("termCmd").placeholder = "type a command, Enter to run (\u2191/\u2193 for history)";
+    }
     $("termCmd").focus();
-  };
+  }
+  $("toolTerminal").onclick = () => openTermPane("shell");
+  $("toolRepl").onclick = () => openTermPane("repl");
   $("termClose").onclick = () => $("termPane").classList.add("hidden");
+  $("termReset").onclick = async () => {
+    await postJson(termMode === "repl" ? "/api/repl/reset" : "/api/terminal/reset", {});
+    const out = $("termOut");
+    out.textContent += "(session reset)\n";
+    if (termMode === "repl") openTermPane("repl");
+  };
   async function runTerm() {
     const input = $("termCmd");
-    const cmd2 = input.value.trim();
-    if (!cmd2) return;
+    const cmd2 = input.value;
+    const out = $("termOut");
+    if (termMode === "repl") {
+      input.value = "";
+      if (cmd2.trim()) termHistory.unshift(cmd2);
+      termIdx = -1;
+      out.textContent += cmd2 + "\n";
+      const d2 = await postJson("/api/repl", { input: cmd2 });
+      if (d2.error) out.textContent += d2.error + "\n";
+      else out.textContent += d2.output || "";
+      out.scrollTop = out.scrollHeight;
+      return;
+    }
+    if (!cmd2.trim()) return;
     termHistory.unshift(cmd2);
     termIdx = -1;
     input.value = "";
-    const out = $("termOut");
     out.textContent += "$ " + cmd2 + "\n";
     out.scrollTop = out.scrollHeight;
     const d = await postJson("/api/terminal", { command: cmd2 });
     if (d.error) {
-      out.textContent += d.error + "\n(The terminal runs on the desktop build.)\n";
+      out.textContent += d.error + "\n";
     } else {
       out.textContent += (d.stdout || "") + (d.stderr || "") + "[exit " + d.code + " \xB7 " + d.ms + " ms]\n";
+      if (d.cwd) $("termCwd").textContent = "\xB7 " + d.cwd;
     }
     out.scrollTop = out.scrollHeight;
   }
@@ -33904,6 +33943,7 @@
     { title: "TODO / FIXME scan", run: () => $("toolTodos").click() },
     { title: "Project stats", run: () => $("toolStats").click() },
     { title: "Terminal", run: () => $("toolTerminal").click() },
+    { title: "Python REPL", run: () => $("toolRepl").click() },
     { title: "Snippets", run: () => $("toolSnippets").click() },
     { title: "Regenerate chat answer", run: () => $("toolRegen").click() },
     { title: "Export chat as file", run: () => $("toolExportChat").click() },

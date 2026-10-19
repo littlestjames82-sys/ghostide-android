@@ -434,3 +434,20 @@ same signer. Sandbox cannot run ARM: assembly fully verified
 (closure over patched ELFs, APK contents), first execution
 test is Ryan's phone; failures surface as plain errors.
 Upload links still pending the stuck upload service.
+
+## v1.20.0 (Oct 19, 2026) - Roadmap G10: terminal sessions + REPL
+Desktop terminal is now a persistent shell session: cwd,
+environment and variables survive across commands (sentinel
+protocol carries each command's exit code + cwd; a 30s
+timeout restarts the session rather than desyncing it;
+switching workspace resets it). New Python REPL pane on
+both builds: a persistent python3 -u -i session - on the
+phone it runs on the G9 bundled interpreter, so variables
+and imports persist between lines there too. Session reset
+button in the pane header.
+Verified: desktop session transcript (cd + var persistence,
+rc tracking, reset), REPL transcript (state across calls,
+multi-line block executing on the blank line) - both live
+against the real endpoints. Phone REPL is Java-mirrored and
+rides on G9's device proof. APK 14470365 bytes md5 67192dd36846c9749525db533bee321c,
+versionCode 24, same signer. Upload links still pending.
