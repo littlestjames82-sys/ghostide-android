@@ -17,6 +17,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JsPromptResult;
+import android.webkit.JsResult;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -392,6 +395,117 @@ public class MainActivity extends Activity {
                         description + "\n\nReopen GhostIDE to restart "
                         + "the local server.");
                 }
+            }
+        });
+        /* Without a WebChromeClient, Android silently swallows the
+           page's alert()/confirm()/prompt() calls (confirm returns
+           false, prompt returns null). The IDE uses them for New
+           file/folder, rename, delete, go-to-line, duplicate and
+           more, so every one of those buttons looked dead on the
+           phone. Bridge them to real dialogs. */
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onJsAlert(WebView view, String url,
+                    String message, final JsResult result) {
+                try {
+                    new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setPositiveButton("OK",
+                            new DialogInterface.OnClickListener() {
+                                @Override public void onClick(
+                                        DialogInterface d, int w) {
+                                    result.confirm();
+                                }
+                            })
+                        .setOnCancelListener(
+                            new DialogInterface.OnCancelListener() {
+                                @Override public void onCancel(
+                                        DialogInterface d) {
+                                    result.confirm();
+                                }
+                            })
+                        .show();
+                } catch (Exception e) {
+                    result.confirm();
+                }
+                return true;
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView view, String url,
+                    String message, final JsResult result) {
+                try {
+                    new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setPositiveButton("OK",
+                            new DialogInterface.OnClickListener() {
+                                @Override public void onClick(
+                                        DialogInterface d, int w) {
+                                    result.confirm();
+                                }
+                            })
+                        .setNegativeButton("Cancel",
+                            new DialogInterface.OnClickListener() {
+                                @Override public void onClick(
+                                        DialogInterface d, int w) {
+                                    result.cancel();
+                                }
+                            })
+                        .setOnCancelListener(
+                            new DialogInterface.OnCancelListener() {
+                                @Override public void onCancel(
+                                        DialogInterface d) {
+                                    result.cancel();
+                                }
+                            })
+                        .show();
+                } catch (Exception e) {
+                    result.cancel();
+                }
+                return true;
+            }
+
+            @Override
+            public boolean onJsPrompt(WebView view, String url,
+                    String message, String defaultValue,
+                    final JsPromptResult result) {
+                try {
+                    final EditText input =
+                        new EditText(MainActivity.this);
+                    if (defaultValue != null) {
+                        input.setText(defaultValue);
+                        input.setSelection(defaultValue.length());
+                    }
+                    new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setView(input)
+                        .setPositiveButton("OK",
+                            new DialogInterface.OnClickListener() {
+                                @Override public void onClick(
+                                        DialogInterface d, int w) {
+                                    result.confirm(input.getText()
+                                        .toString());
+                                }
+                            })
+                        .setNegativeButton("Cancel",
+                            new DialogInterface.OnClickListener() {
+                                @Override public void onClick(
+                                        DialogInterface d, int w) {
+                                    result.cancel();
+                                }
+                            })
+                        .setOnCancelListener(
+                            new DialogInterface.OnCancelListener() {
+                                @Override public void onCancel(
+                                        DialogInterface d) {
+                                    result.cancel();
+                                }
+                            })
+                        .show();
+                } catch (Exception e) {
+                    result.cancel();
+                }
+                return true;
             }
         });
     }

@@ -197,3 +197,20 @@ native stuck-model self-healing (loadMarker pref + automatic
 fallback to the 1.5B if a load never completes).
 APK 3,209,328 bytes, md5 9755932372ff5fd72b2ebcae06179539,
 versionCode 9, same signer.
+
+## v1.6.2 HOTFIX (Oct 19, 2026) - the dead dialogs
+Ryan: "+ New / folder does nothing." ROOT CAUSE (native):
+MainActivity set a WebViewClient but NO WebChromeClient, so
+Android silently swallowed the page's alert()/confirm()/
+prompt() (confirm -> false, prompt -> null). Every dialog-driven
+flow was dead on the phone: new file/folder (prompt), rename,
+delete (confirm), go-to-line, duplicate, replace-all confirm,
+clear chat, big-file open confirm, workspace prompt - and every
+error alert was invisible too. Desktop browsers show these
+natively, which is why endpoint tests never caught it; Gate 0's
+proven flows (download, chat) use no dialogs.
+FIX: WebChromeClient in ensureWebView bridging onJsAlert /
+onJsConfirm / onJsPrompt to native AlertDialogs (EditText for
+prompt). Verified present in the dex. Frontend unchanged.
+APK 3,209,328 bytes, md5 ca2e3cdd5fd30b1a819f9e35eed5bf3f,
+versionCode 10, same signer.
