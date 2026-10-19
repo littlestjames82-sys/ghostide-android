@@ -42,6 +42,10 @@ echo '[0.7/8] staging git templates asset (Roadmap G11)'
 cp ~/workspace/ghostide-apk-build/python-runtime/stage/assets/git-templates.zip "$SRC/assets/git-templates.zip"
 ls -lh "$SRC/assets/git-templates.zip"
 
+echo '[0.8/8] staging offline reference docs (Roadmap G28)'
+cp ~/workspace/ghost-ide/refdocs.json "$SRC/assets/refdocs.json"
+ls -lh "$SRC/assets/refdocs.json"
+
 echo '[1/8] compiling resources'
 "$BT/aapt2" compile --dir "$SRC/res" -o "$OUT/compiled_res.zip"
 

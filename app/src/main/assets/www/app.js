@@ -35663,6 +35663,7 @@
     { title: "Pair mode", run: () => $("toolPair").click() },
     { title: "Review changes (pre-commit)", run: () => $("gitReview").click() },
     { title: "Context lab", run: () => $("toolContext").click() },
+    { title: "Reference docs", run: () => $("toolRefdocs").click() },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
     { title: "API client", run: () => $("toolApi").click() },
     { title: "Export docs site", run: () => $("toolDocs").click() },
@@ -37283,6 +37284,72 @@
     } catch (e) {
       $("reviewAiOut").textContent = "AI review failed: " + e;
     }
+  };
+  var rdCurrentEntry = null;
+  async function rdSearch() {
+    const q = $("rdQuery").value.trim();
+    $("rdEntry").classList.add("hidden");
+    const box = $("rdResults");
+    if (!q) {
+      box.innerHTML = "";
+      return;
+    }
+    box.innerHTML = '<div class="dim">Searching\u2026</div>';
+    try {
+      const r = await fetch("/api/refdocs/search?q=" + encodeURIComponent(q));
+      const d = await r.json();
+      box.innerHTML = "";
+      if (!d.results.length) {
+        box.innerHTML = '<div class="dim">No matches in the bundled reference.</div>';
+        return;
+      }
+      for (const res of d.results) {
+        const row = document.createElement("div");
+        row.className = "ctxRow";
+        row.textContent = (res.lang === "py" ? "\u{1F40D} " : "\u{1F7E8} ") + res.title + " \u2014 " + res.summary;
+        row.onclick = () => rdOpen(res.id);
+        box.appendChild(row);
+      }
+    } catch (e) {
+      box.innerHTML = '<div class="dim">Search failed: ' + e + "</div>";
+    }
+  }
+  async function rdOpen(id2) {
+    try {
+      const r = await fetch("/api/refdocs/get?id=" + encodeURIComponent(id2));
+      const d = await r.json();
+      if (d.error) {
+        alert(d.error);
+        return;
+      }
+      rdCurrentEntry = d.entry;
+      $("rdEntryTitle").textContent = d.entry.title;
+      $("rdEntryBody").textContent = d.entry.body;
+      $("rdEntry").classList.remove("hidden");
+      $("rdResults").innerHTML = "";
+    } catch (e) {
+      alert("Could not open the page: " + e);
+    }
+  }
+  $("toolRefdocs").onclick = () => {
+    hideTools();
+    $("rdPanel").classList.remove("hidden");
+    $("rdQuery").focus();
+  };
+  $("rdClose").onclick = () => $("rdPanel").classList.add("hidden");
+  $("rdSearchBtn").onclick = rdSearch;
+  $("rdQuery").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") rdSearch();
+  });
+  $("rdBack").onclick = () => {
+    $("rdEntry").classList.add("hidden");
+    rdSearch();
+  };
+  $("rdAsk").onclick = () => {
+    if (!rdCurrentEntry) return;
+    $("rdPanel").classList.add("hidden");
+    $("chatText").value = "Answer from this reference page, not from memory.\n\n--- " + rdCurrentEntry.title + " ---\n" + rdCurrentEntry.body.slice(0, 3e3) + "\n\nMy question: ";
+    $("chatText").focus();
   };
   function sliceStats(files, opts) {
     let kept = 0, dropped = 0, keptToks = 0, droppedToks = 0;

@@ -243,6 +243,7 @@ setTimeout(function () {
     <button id="toolDocs">Export docs site</button>
     <button id="toolAssets">Asset browser</button>
     <button id="toolContext">Context lab</button>
+    <button id="toolRefdocs">Reference docs</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>
@@ -345,6 +346,25 @@ setTimeout(function () {
       <button id="iconMakeBtn">Generate icon set</button>
       <div id="iconMsg" class="dim"></div>
     </div>
+  </div>
+</div>
+<div id="rdPanel" class="hidden">
+  <div class="run-head">
+    <span>📚 Reference docs (offline)</span>
+    <button id="rdClose">✕</button>
+  </div>
+  <div class="apiRow">
+    <input id="rdQuery" placeholder="Search: os.path.join, array map, json parse…" style="flex:1">
+    <button id="rdSearchBtn">Search</button>
+  </div>
+  <div id="rdResults"></div>
+  <div id="rdEntry" class="hidden">
+    <div class="rdEntryHead">
+      <button id="rdBack">← Results</button>
+      <span id="rdEntryTitle"></span>
+      <button id="rdAsk">🤖 Ask Ghost with this page</button>
+    </div>
+    <pre id="rdEntryBody"></pre>
   </div>
 </div>
 <div id="ctxPanel" class="hidden">

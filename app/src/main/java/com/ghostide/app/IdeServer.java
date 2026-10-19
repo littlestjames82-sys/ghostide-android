@@ -690,6 +690,34 @@ public final class IdeServer {
             sendJson(out, g1b.toString());
             return;
         }
+        if (path.equals("/api/refdocs/search")) {
+            // Roadmap G28: bundled offline reference search.
+            String rdQ = queryParam(query, "q");
+            sendJson(out, "{\"results\":"
+                + rdSearchJson(rdQ == null ? "" : rdQ) + "}");
+            return;
+        }
+        if (path.equals("/api/refdocs/get")) {
+            String rdId = queryParam(query, "id");
+            rdLoad();
+            if (rdId != null) {
+                for (int i = 0; i < rdMeta.size(); i++) {
+                    if (rdMeta.get(i)[0].equals(rdId)) {
+                        String[] m = rdMeta.get(i);
+                        sendJson(out, "{\"entry\":{\"id\":"
+                            + Json.quote(m[0]) + ",\"lang\":"
+                            + Json.quote(m[1]) + ",\"title\":"
+                            + Json.quote(m[2]) + ",\"summary\":"
+                            + Json.quote(m[3]) + ",\"body\":"
+                            + Json.quote(rdBodies.get(i)) + "}}");
+                        return;
+                    }
+                }
+            }
+            sendJson(out,
+                "{\"error\":\"No such reference entry.\"}");
+            return;
+        }
         if (path.equals("/api/context/stats")) {
             // Roadmap G27: context lab data; the estimator
             // mirrors the desktop port of GhostSlice method v2.
@@ -2271,6 +2299,122 @@ public final class IdeServer {
         if (!f.getPath().startsWith(root.getPath()))
             throw new IOException("path escapes workspace");
         return f;
+    }
+
+    // ---- Roadmap G28: offline reference docs ----
+    // Mirrors server.py's search over the same refdocs.json
+    // (built by ghost-ide/tools/gen_refdocs.py; build.sh
+    // stages it into assets).
+    private final List<String[]> rdMeta = new ArrayList<>();
+    private final List<String> rdBodies = new ArrayList<>();
+    private boolean rdLoaded = false;
+
+    private void rdLoad() {
+        if (rdLoaded) return;
+        rdLoaded = true;
+        try {
+            java.io.InputStream in =
+                ctx.getAssets().open("refdocs.json");
+            java.io.ByteArrayOutputStream buf =
+                new java.io.ByteArrayOutputStream();
+            byte[] chunk = new byte[8192];
+            int n;
+            while ((n = in.read(chunk)) > 0) buf.write(chunk, 0, n);
+            in.close();
+            Map<String, Object> root = Json.obj(Json.parse(
+                new String(buf.toByteArray(), "UTF-8")));
+            List<Object> entries = Json.arr(root.get("entries"));
+            for (Object o : entries) {
+                Map<String, Object> e = Json.obj(o);
+                rdMeta.add(new String[]{
+                    Json.str(e, "id", ""), Json.str(e, "lang", ""),
+                    Json.str(e, "title", ""),
+                    Json.str(e, "summary", "")});
+                rdBodies.add(Json.str(e, "body", ""));
+            }
+        } catch (Exception e) {
+            // No bundled docs: search simply returns nothing.
+        }
+    }
+
+    private static List<String> rdTokens(String text) {
+        List<String> toks = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        String lower = text.toLowerCase();
+        for (int i = 0; i < lower.length(); i++) {
+            char ch = lower.charAt(i);
+            if (Character.isLetterOrDigit(ch)) {
+                cur.append(ch);
+            } else if (cur.length() > 0) {
+                toks.add(cur.toString());
+                cur.setLength(0);
+            }
+        }
+        if (cur.length() > 0) toks.add(cur.toString());
+        return toks;
+    }
+
+    private String rdSearchJson(String q) {
+        rdLoad();
+        String query = q.trim().toLowerCase();
+        List<String> tokens = rdTokens(query);
+        // rows: [score(Integer), title(String), metaIndex]
+        List<Object[]> scored = new ArrayList<>();
+        for (int i = 0; i < rdMeta.size(); i++) {
+            String[] m = rdMeta.get(i);
+            String title = m[2].toLowerCase();
+            int s = 0;
+            if (title.equals(query)) s += 100;
+            else if (!query.isEmpty()
+                    && title.endsWith(query)) s += 60;
+            else if (!query.isEmpty()
+                    && title.contains(query)) s += 40;
+            String[] parts = title.replace('.', ' ')
+                .split("\\s+");
+            java.util.Set<String> partSet =
+                new java.util.HashSet<>(
+                    java.util.Arrays.asList(parts));
+            String summary = m[3].toLowerCase();
+            String body = rdBodies.get(i).toLowerCase();
+            for (String t : tokens) {
+                if (partSet.contains(t)) s += 15;
+                else if (title.contains(t)) s += 6;
+                if (summary.contains(t)) s += 3;
+                if (body.contains(t)) s += 1;
+            }
+            if (s > 0) {
+                scored.add(new Object[]{
+                    Integer.valueOf(s), m[2],
+                    Integer.valueOf(i)});
+            }
+        }
+        java.util.Collections.sort(scored,
+            new java.util.Comparator<Object[]>() {
+                @Override public int compare(Object[] x,
+                        Object[] y) {
+                    int xs = ((Integer) x[0]).intValue();
+                    int ys = ((Integer) y[0]).intValue();
+                    if (ys != xs)
+                        return Integer.compare(ys, xs);
+                    return ((String) x[1]).compareTo(
+                        (String) y[1]);
+                }
+            });
+        StringBuilder b = new StringBuilder("[");
+        int limit = Math.min(12, scored.size());
+        for (int i = 0; i < limit; i++) {
+            Object[] row = scored.get(i);
+            String[] m = rdMeta.get(
+                ((Integer) row[2]).intValue());
+            if (i > 0) b.append(',');
+            b.append("{\"id\":").append(Json.quote(m[0]))
+             .append(",\"lang\":").append(Json.quote(m[1]))
+             .append(",\"title\":").append(Json.quote(m[2]))
+             .append(",\"summary\":").append(Json.quote(m[3]))
+             .append(",\"score\":").append(row[0])
+             .append('}');
+        }
+        return b.append(']').toString();
     }
 
     // ---- Roadmap G27: context lab (GhostSlice port) ----

@@ -781,3 +781,27 @@ equal) and the docs fixture (2360). Slice-math harness
 unsorted fitWindow; both fixed). Caught at build: a Java
 lambda in the phone port (metafactory) - replaced with an
 anonymous Comparator per house rules.
+
+## v1.36.0 (versionCode 40) - Oct 19, 2026 - Roadmap G28
+Offline reference docs (Tools -> Reference docs, palette):
+- refdocs.json (748 entries, 366 KB): the Python slice is
+  extracted from the interpreter's real documentation by
+  tools/gen_refdocs.py (signatures + doc text for 25 stdlib
+  modules, their callables/classes, and the core builtins);
+  the JavaScript slice is 44 hand-written core entries.
+- GET /api/refdocs/search + /api/refdocs/get on both
+  builds (phone reads the bundled asset; build.sh stages
+  refdocs.json at [0.8/8]). Ranking: exact title, suffix,
+  contains, then per-token title/summary/body signals.
+- Entry view with Ask Ghost with this page: drops the page
+  into the chat box so the model answers from the page.
+Proven: search ranks the right page first on five natural
+queries (os.path.join, array map, join path, random
+integer, parse json); the full offline loop (bundled page
+-> composed prompt -> local llama 7B, loopback only)
+answered "what does os.path.join('/a', '/b') return and
+why" correctly from the page ('/b', absolute component
+discards the rest). Generator lessons banked in its
+comments: stdlib alias layers (posix/genericpath) defeat
+owner filters, and module constants carry their type's
+doc string - callables/classes only.

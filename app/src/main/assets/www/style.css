@@ -509,3 +509,16 @@ body.zen #files, body.zen #chat { display: none; }
 .ctxSliceTitle { font-weight: 700; margin-bottom: 4px; }
 #ctxSliceOut, #ctxFitOut { margin-top: 5px; color: #cfd3e0; }
 #ctxPrefix { width: 110px; }
+
+/* Roadmap G28: reference docs */
+#rdPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#rdEntryBody {
+  margin: 0; padding: 8px 10px; font-size: 12.5px;
+  white-space: pre-wrap; color: #cfd3e0; max-height: 320px;
+  overflow-y: auto;
+}
+.rdEntryHead {
+  display: flex; gap: 8px; align-items: center;
+  padding: 6px 10px; flex-wrap: wrap;
+}
+#rdEntryTitle { font-weight: 700; }
