@@ -31454,6 +31454,7 @@
       shortAnswers: false,
       fontSize: "14px",
       infillDelay: 750,
+      repoMap: false,
       autosave: "off",
       trimOnSave: false,
       indent: 2,
@@ -32284,6 +32285,18 @@
     }
     if (attachedNames.length)
       $("ctxMeter").textContent = "attached: " + attachedNames.join(", ");
+    if (settings.repoMap || repoMapOnce) {
+      repoMapOnce = false;
+      try {
+        const mapText = await getRepoMap();
+        if (mapText) {
+          sysContent += "\n\n" + mapText;
+          attachedNames.push("repo map");
+          $("ctxMeter").textContent = "attached: " + attachedNames.join(", ");
+        }
+      } catch (e) {
+      }
+    }
     ta.value = "";
     addMsg("YOU", text);
     history2.push({ role: "user", content: text });
@@ -33003,6 +33016,11 @@
   $("setShort").checked = settings.shortAnswers;
   $("setShort").onchange = (e) => {
     settings.shortAnswers = e.target.checked;
+    saveSettings();
+  };
+  $("setRepoMap").checked = !!settings.repoMap;
+  $("setRepoMap").onchange = (e) => {
+    settings.repoMap = e.target.checked;
     saveSettings();
   };
   $("setFont").value = settings.fontSize;
@@ -33776,6 +33794,7 @@
     { title: "Go to definition", run: () => $("toolDef").click() },
     { title: "Find all references", run: () => $("toolRefs").click() },
     { title: "Rename symbol\u2026", run: () => $("toolRename").click() },
+    { title: "Repo map", run: () => $("toolRepoMap").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {
@@ -34326,6 +34345,46 @@
         if (p.line) jumpToLine(p.line);
       };
       box.appendChild(row);
+    }
+  };
+  var repoMapOnce = false;
+  var repoMapCache = { at: 0, text: "" };
+  async function getRepoMap() {
+    if (Date.now() - repoMapCache.at < 6e4 && repoMapCache.text)
+      return repoMapCache.text;
+    const r = await fetch("/api/repomap?budget=6000");
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    repoMapCache = { at: Date.now(), text: d.map || "" };
+    return repoMapCache.text;
+  }
+  $("toolRepoMap").onclick = async () => {
+    hideTools();
+    $("todoTitle").textContent = "Repo map";
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Building the map\u2026</div>';
+    $("todoPanel").classList.remove("hidden");
+    try {
+      const mapText = await getRepoMap();
+      box.innerHTML = "";
+      const arm = document.createElement("div");
+      arm.className = "findRow";
+      arm.textContent = settings.repoMap ? "\u2713 The map rides along with every chat message (Settings \u2192 repo map is on)" : "\u2795 Attach this map to my next chat message";
+      arm.onclick = () => {
+        repoMapOnce = true;
+        arm.textContent = "\u2713 Armed - it will ride along with your next chat message";
+      };
+      box.appendChild(arm);
+      const pre = document.createElement("div");
+      pre.className = "mapText";
+      pre.textContent = mapText || "(no symbols yet)";
+      box.appendChild(pre);
+    } catch (e) {
+      box.innerHTML = "";
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "Repo map unavailable: " + e.message;
+      box.appendChild(el);
     }
   };
   loadFiles();

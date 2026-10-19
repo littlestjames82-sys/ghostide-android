@@ -312,3 +312,19 @@ exact); 500-file workspace cold build 1.18 s, cached 43 ms,
 refs for a shared helper exactly 550. Gates: parse, 155 IDs,
 DOM-stub PASS. APK md5 e2dad61c114e1ec1d45b6a8b942bd9c6,
 versionCode 15, same signer. Not device-tested.
+
+## v1.12.0 (Oct 19, 2026) - Roadmap G2: repo map
+GET /api/repomap on both servers: the G1 index rendered as a
+ranked map (files by total refs, symbols by ref count, whole
+files dropped past the char budget). Frontend: Tools -> Repo
+map viewer with one-tap "attach to next message", plus a
+Settings toggle to ride along with every chat. Verified: map
+content/ranking/truncation on fixtures; map-only Q&A proof -
+the desktop 7B answered which file/class owns greetings and
+which function creates them from the map alone, no file
+contents. Gates passed. APK 3,221,? bytes md5 dc0b2230,
+versionCode 16, same signer. NOTE: the remote-storage upload
+service has had an orphaned write stuck since the v1.11.0
+upload (every attempt: "equivalent connector write already
+running"); both v1.11.0 and v1.12.0 links are pending that
+clearing. Repos pushed for both versions.

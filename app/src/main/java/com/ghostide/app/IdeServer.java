@@ -179,6 +179,75 @@ public final class IdeServer {
         symCacheFp = fp;
     }
 
+    /** Repo map (Roadmap G2): symbols grouped by file, ranked
+     *  by reference counts, whole files dropped past budget. */
+    private String buildRepoMap(int budget) {
+        Map<String, List<String[]>> byFile = new LinkedHashMap<>();
+        for (String[] d : symCacheDefs) {
+            List<String[]> lst = byFile.get(d[2]);
+            if (lst == null) {
+                lst = new ArrayList<>();
+                byFile.put(d[2], lst);
+            }
+            lst.add(d);
+        }
+        List<Map.Entry<String, List<String[]>>> files =
+            new ArrayList<>(byFile.entrySet());
+        Collections.sort(files,
+            new java.util.Comparator<Map.Entry<String, List<String[]>>>() {
+                @Override public int compare(
+                        Map.Entry<String, List<String[]>> a,
+                        Map.Entry<String, List<String[]>> b) {
+                    return fileRefScore(b) - fileRefScore(a);
+                }
+            });
+        String header = "# Repo map - " + byFile.size()
+            + " files, " + symCacheDefs.size()
+            + " symbols (ranked by references)";
+        StringBuilder out = new StringBuilder(header);
+        int used = header.length() + 1;
+        int shown = 0;
+        for (Map.Entry<String, List<String[]>> e : files) {
+            List<String[]> syms = new ArrayList<>(e.getValue());
+            Collections.sort(syms,
+                new java.util.Comparator<String[]>() {
+                    @Override public int compare(String[] a,
+                            String[] b) {
+                        return refCount(b[0]) - refCount(a[0]);
+                    }
+                });
+            StringBuilder block = new StringBuilder("## " + e.getKey());
+            for (String[] s : syms) {
+                block.append("\n- ").append(s[1]).append(' ')
+                     .append(s[0]).append(" (line ").append(s[3])
+                     .append(", ").append(refCount(s[0]))
+                     .append(" refs)");
+            }
+            if (shown > 0
+                    && used + block.length() + 1 > budget) {
+                out.append("\n## ... +")
+                   .append(files.size() - shown)
+                   .append(" more files (over map budget)");
+                break;
+            }
+            out.append('\n').append(block);
+            used += block.length() + 1;
+            shown++;
+        }
+        return out.toString();
+    }
+
+    private int refCount(String name) {
+        List<String[]> r = symCacheRefs.get(name);
+        return r == null ? 0 : r.size();
+    }
+
+    private int fileRefScore(Map.Entry<String, List<String[]>> e) {
+        int total = 0;
+        for (String[] s : e.getValue()) total += refCount(s[0]);
+        return total;
+    }
+
     private String symbolsJson(List<String[]> defs) {
         StringBuilder b = new StringBuilder("[");
         for (int i = 0; i < defs.size(); i++) {
@@ -319,6 +388,19 @@ public final class IdeServer {
                .append(",\"truncated\":")
                .append(g1Refs.size() > 300).append('}');
             sendJson(out, g1b.toString());
+            return;
+        }
+        if (path.equals("/api/repomap")) {
+            ensureSymbolIndex();
+            int g2Budget = 6000;
+            String g2B = queryParam(query, "budget");
+            if (g2B != null) {
+                try { g2Budget = Integer.parseInt(g2B); }
+                catch (Exception e) { /* default stands */ }
+            }
+            g2Budget = Math.max(1000, Math.min(20000, g2Budget));
+            sendJson(out, "{\"map\":"
+                + Json.quote(buildRepoMap(g2Budget)) + "}");
             return;
         }
         if (path.equals("/api/files")) {
