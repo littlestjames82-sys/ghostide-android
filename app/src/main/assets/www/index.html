@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<title>GhostIDE - offline AI code editor</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">👻 <strong>GhostIDE</strong> <span class="tag">offline AI editor</span></div>
+  <div class="current-file" id="currentFile">no file open</div>
+  <div class="header-right">
+    <span id="saveState" class="save-state"></span>
+    <button id="saveBtn" title="Save (Ctrl+S)">Save</button>
+    <span id="modelPill" class="pill down">model: checking…</span>
+    <button id="startModelBtn" class="hidden">Start model</button>
+    <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
+    <button id="findBtn" title="Find / replace in project">🔍</button>
+    <button id="settingsBtn" title="Settings">⚙</button>
+  </div>
+</header>
+<main>
+  <aside id="files">
+    <div class="panel-head">FILES <span><button id="wsBtn" title="Open a different folder (desktop)">📂</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
+    <div id="wsPath" class="hint"></div>
+    <div id="fileTree"></div>
+    <div id="gitPanel">
+      <div class="panel-head">GIT <span id="gitBranch" class="tag"></span></div>
+      <div id="gitChanges" class="dim">checking…</div>
+      <div class="git-commit">
+        <input id="commitMsg" placeholder="Commit message">
+        <button id="commitBtn">Commit staged</button>
+      </div>
+    </div>
+    <div class="hint">Files save for real, in the workspace folder.</div>
+  </aside>
+  <section id="editorWrap">
+    <div id="tabBar"></div>
+    <div id="editor"></div>
+    <div id="runPane" class="hidden">
+      <div class="run-head"><span id="runTitle">Output</span>
+        <button id="runClose">✕</button></div>
+      <pre id="runOut"></pre>
+    </div>
+    <div id="draftBar" class="hidden">
+      <span id="draftText"></span>
+      <button id="draftRestore">Restore draft</button>
+      <button id="draftDiscard">Discard</button>
+    </div>
+    <div id="statusBar">
+      <span id="cursorPos">Ln 1, Col 1</span>
+      <button id="acceptChip" class="hidden">✓ Accept suggestion</button>
+      <span id="autocompleteState">autocomplete: idle (pause typing; tap a suggestion or press Tab to accept)</span>
+    </div>
+  </section>
+  <aside id="chat">
+    <div class="panel-head">GHOST CHAT <span class="tag">Qwen2.5-Coder 7B · local</span></div>
+    <div id="chatLog"></div>
+    <div class="chat-input">
+      <textarea id="chatText" rows="3" placeholder="Ask about your code… (Enter to send, Shift+Enter for newline)"></textarea>
+      <button id="chatSend">Send</button>
+    </div>
+    <label class="ctx-toggle"><input type="checkbox" id="ctxToggle" checked> Include context:
+      <select id="ctxMode">
+        <option value="file">current file</option>
+        <option value="signatures">project slice (signatures)</option>
+        <option value="full">project slice (full)</option>
+      </select></label>
+    <div id="ctxMeter" class="dim"></div>
+  </aside>
+</main>
+<div id="fileMenu" class="hidden">
+  <button id="menuRename">Rename / move</button>
+  <button id="menuDelete">Delete</button>
+</div>
+<div id="wsMenu" class="hidden"></div>
+<div id="findPanel" class="hidden">
+  <h3>Find in project</h3>
+  <input id="findQuery" placeholder="Search for…">
+  <input id="findReplacement" placeholder="Replace with… (for Replace all)">
+  <div class="find-btns">
+    <button id="findGo">Find</button>
+    <button id="findReplace">Replace all</button>
+    <button id="findClose">Close</button>
+  </div>
+  <div id="findResults"></div>
+</div>
+<div id="diffPanel" class="hidden">
+  <div class="run-head"><span id="diffTitle">Diff</span>
+    <button id="diffClose">✕</button></div>
+  <pre id="diffOut"></pre>
+</div>
+<div id="settingsPanel" class="hidden">
+  <h3>Settings</h3>
+  <label>Chat creativity (temperature)
+    <input type="range" id="setTemp" min="0" max="1" step="0.1">
+    <span id="setTempVal"></span></label>
+  <label><input type="checkbox" id="setAuto"> Inline autocomplete on</label>
+  <label>Autocomplete length (tokens)
+    <input type="number" id="setTokens" min="16" max="256" step="8"></label>
+  <label><input type="checkbox" id="setFormat"> Format on save (desktop, if a formatter is installed)</label>
+  <p id="modelInfo" class="dim"></p>
+  <label>Model file (desktop)
+    <input id="modelPath" type="text" placeholder="/path/to/model.gguf"></label>
+  <button id="modelSwitch">Switch model</button>
+  <button id="settingsClose">Close</button>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

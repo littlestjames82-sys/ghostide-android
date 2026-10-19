@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{background:#17181c;color:#e6e6e6;font-family:sans-serif;margin:20px;line-height:1.5}
+h1{font-size:20px} h2{font-size:16px;color:#7bd88f;margin-top:24px}
+code{background:#101116;padding:2px 5px;border-radius:4px}
+.dim{color:#9a9fb0;font-size:13px}
+</style></head><body>
+<h1>👻 GhostIDE - Help</h1>
+<p>GhostIDE is a fully offline AI code editor. The editor, your files,
+and a real AI model (Qwen2.5-Coder 1.5B) all live on this phone.
+Nothing you type is sent anywhere.</p>
+
+<h2>Getting around</h2>
+<p>Files are listed at the top. Tap one to open it. The editor is in
+the middle, the AI chat at the bottom. Your files live in the app's
+private storage and persist between launches.</p>
+
+<h2>Autocomplete</h2>
+<p>Pause while typing code. After a second or so a grey suggestion
+appears - tap <b>Tab</b> on the keyboard... on a phone keyboard,
+accepting works best with a keyboard that has a Tab key, or just
+ignore the suggestion and keep typing to dismiss it. Suggestions come
+from the model's fill-in-the-middle ability.</p>
+
+<h2>Chat</h2>
+<p>Ask about the open file (it is sent to the model as context),
+request functions, explanations, or fixes. Code blocks get an
+<b>Insert at cursor</b> button.</p>
+
+<h2>Speed</h2>
+<p>On-device AI is slower than a PC - replies stream in over a few
+seconds to a minute depending on length and your phone. The 1.5B
+model was chosen so it runs on most phones; the PC version of
+GhostIDE uses the bigger 7B model.</p>
+
+<h2>Model</h2>
+<p>Menu (⋮) -&gt; <b>Model</b> shows the model's status and lets you
+delete it (frees 940 MB). Next launch will offer the one-time
+download again. The download resumes if interrupted.</p>
+
+<p class="dim">GhostIDE 1.0.0 - Ghost Developer Studio. Engine:
+llama.cpp (MIT). Model: Qwen2.5-Coder-1.5B-Instruct (Apache 2.0).</p>
+</body></html>
