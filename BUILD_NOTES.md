@@ -468,3 +468,16 @@ Verified: assembler closure over the union lib set, APK
 contents (all 109 libs + templates), desktop init endpoint
 live. On-device git proof rides with G9's. APK 19202053 bytes
 md5 e4a020716f836ff3eae47d7bfed95b26, versionCode 25, same signer.
+
+## v1.22.0 (Oct 19, 2026) - Roadmap G12: model store
+The model manager becomes a store of four curated
+Qwen2.5-Coder Q4_K_M builds: 0.5B Sprinter (380 MB, ~0.7 GB
+RAM), 1.5B Balanced (default), 3B Smarter, 7B Max (4.7 GB,
+~5.5 GB RAM - phones with 8 GB+, the desktop-class model).
+New entries carry exact sizes + SHA-256 from the HF LFS
+metadata (bartowski repos), enforced by the existing
+verified downloader; the screen now totals the storage the
+downloaded models use, and Delete reclaims it (that flow
+already existed per variant). APK 19202051 bytes md5 089f90c2fe1d895df3180fb5aec4415d,
+versionCode 26, same signer. Downloading a second store
+model on-device is part of Ryan's device pass.

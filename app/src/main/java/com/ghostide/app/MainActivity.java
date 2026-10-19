@@ -522,10 +522,17 @@ public class MainActivity extends Activity {
         LinearLayout root = screen();
         root.addView(text("👻 GhostIDE", 24, FG));
         root.addView(text("Models", 18, FG));
+        long storeBytes = 0;
+        for (Models.Variant any : Models.ALL) {
+            if (Models.ready(this, any)) storeBytes += any.bytes;
+        }
         TextView intro = text(
             "Engine: llama.cpp on-device (arm64) · Context: " + N_CTX
             + " tokens\nModels live in this app's private storage "
-            + "and are checksum-verified after download.",
+            + "and are checksum-verified after download.\n"
+            + "Downloaded models are using "
+            + (storeBytes / 1048576) + " MB on this phone. "
+            + "Delete any model to reclaim its space.",
             13, DIM);
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
