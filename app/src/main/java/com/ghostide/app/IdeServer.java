@@ -899,6 +899,30 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/diff-text") && method.equals("POST")) {
+            try {
+                Map<String, Object> d = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String rel = Json.str(d, "path", "");
+                File f = safe(rel);
+                String old = f.isFile() ? readFile(f) : "";
+                String diff = simpleDiff(rel, old,
+                    Json.str(d, "content", ""));
+                sendJson(out, "{\"diff\":" + Json.quote(diff) + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/check-content")
+                && method.equals("POST")) {
+            // The phone build has no syntax checkers; agent mode
+            // treats ok:null as "skipped" and says so.
+            sendJson(out, "{\"ok\":null,\"note\":\"checks run on "
+                + "the desktop build; skipped here\"}");
+            return;
+        }
         if (path.equals("/api/refactor") && method.equals("POST")) {
             try {
                 Map<String, Object> d = Json.obj(Json.parse(

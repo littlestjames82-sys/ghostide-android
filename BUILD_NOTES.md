@@ -357,3 +357,20 @@ strict keyword scorer said 2/3 - one answer said "7%" instead
 of "0.07"). Gates passed. APK 3229807 bytes md5
 4f12745c7083c7cb1d7906a15c8c878f, versionCode 18, same signer.
 Upload links still pending the stuck upload service.
+
+## v1.15.0 (Oct 19, 2026) - Roadmap G5: agent mode
+Chat gains an Agent mode toggle: a 12-step loop over the chat
+endpoint with a strict one-action protocol (READ / WRITE /
+CHECK / DONE / ASK). Writes stage in memory only; a review
+panel offers per-file approve (with diff view) or reject-all;
+Stop mid-run discards everything - the workspace is never
+touched until approval. New endpoints: /api/check-content
+(desktop checks staged code; phone returns ok:null = skipped)
+and /api/diff-text on both builds.
+Verified: action parser 7/7 unit cases; FULL live run with
+the desktop 7B on the shop fixture - READ-probe, WRITE new
+file, READ, WRITE edit, CHECK (both OK), DONE in 6 steps;
+applied result computed exactly right (200 cart -> tax ->
+10% off -> "charged 192.60"). Gates passed. APK 3233905 bytes
+md5 7cc2db79fd1c4dca80c537adcea161c9, versionCode 19, same
+signer. Upload links still pending the stuck upload service.

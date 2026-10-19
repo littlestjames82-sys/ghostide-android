@@ -32230,6 +32230,11 @@
       addMsg("SYSTEM", "Model is down - hit Start model first.");
       return;
     }
+    if ($("agentToggle") && $("agentToggle").checked) {
+      ta.value = "";
+      runAgent(text);
+      return;
+    }
     const SYS = BEHAVIOR.systemPrompt;
     let sysContent = SYS;
     if ($("ctxToggle").checked) {
@@ -34539,6 +34544,230 @@
       to
     });
   };
+  var AGENT_MAX_STEPS = 12;
+  var agentRunning = false;
+  var agentStop = false;
+  var AGENT_RULES = [
+    "You are Ghost in AGENT MODE. Complete the task by",
+    "replying with exactly ONE action per message:",
+    "READ <path> - ask for a file's current content",
+    "WRITE <path> - on the next line a fenced code block with",
+    "  the file's complete new content (whole file, no fragments)",
+    "CHECK - syntax-check everything you have written",
+    "DONE <one-line summary> - the task is complete",
+    "ASK <question> - you need the user to decide something",
+    "Rules: never invent file contents - READ a file before",
+    "rewriting it. Keep every WRITE syntactically valid. Do",
+    "not explain outside the action line. You have at most " + AGENT_MAX_STEPS + " actions."
+  ].join("\n");
+  function parseAgentAction(reply) {
+    const text = reply || "";
+    let m = text.match(/^\s*READ\s+(\S+)\s*$/m);
+    if (m) return { type: "read", path: m[1] };
+    m = text.match(/^\s*WRITE\s+(\S+)\s*\n```[a-zA-Z0-9]*\n([\s\S]*?)```/m);
+    if (m) {
+      let content2 = m[2];
+      if (!content2.endsWith("\n")) content2 += "\n";
+      return { type: "write", path: m[1], content: content2 };
+    }
+    if (/^\s*CHECK\s*$/m.test(text)) return { type: "check" };
+    m = text.match(/^\s*DONE\s*(.*)$/m);
+    if (m) return { type: "done", summary: m[1] || "" };
+    m = text.match(/^\s*ASK\s+(.+)$/m);
+    if (m) return { type: "ask", question: m[1].trim() };
+    return { type: "unknown", raw: text.slice(0, 200) };
+  }
+  window.__ghostParseAgent = parseAgentAction;
+  async function runAgent(task) {
+    if (agentRunning) {
+      addMsg("SYSTEM", "An agent task is already running.");
+      return;
+    }
+    if (anyOpenDirty()) {
+      addMsg("SYSTEM", "Agent mode works from the saved files - save your open edits first.");
+      return;
+    }
+    agentRunning = true;
+    agentStop = false;
+    addMsg("YOU", "\u{1F916} " + task);
+    const sendBtn = $("chatSend");
+    const oldSend = sendBtn.onclick;
+    sendBtn.textContent = "\u25A0 Stop agent";
+    sendBtn.onclick = () => {
+      agentStop = true;
+    };
+    const staged = /* @__PURE__ */ new Map();
+    const readCache = /* @__PURE__ */ new Map();
+    async function readForAgent(path) {
+      if (staged.has(path)) return staged.get(path);
+      if (readCache.has(path)) return readCache.get(path);
+      const r = await fetch("/api/file?path=" + encodeURIComponent(path));
+      const d = await r.json();
+      if (d.error) return null;
+      readCache.set(path, d.content);
+      return d.content;
+    }
+    let mapText = "";
+    try {
+      mapText = await getRepoMap();
+    } catch (e) {
+    }
+    const messages = [
+      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") },
+      { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") }
+    ];
+    let outcome = "cap";
+    let summary = "";
+    let nudges = 0;
+    for (let step = 1; step <= AGENT_MAX_STEPS; step++) {
+      if (agentStop) {
+        outcome = "stopped";
+        break;
+      }
+      addMsg("SYSTEM", "\u{1F916} step " + step + "/" + AGENT_MAX_STEPS);
+      let reply = "";
+      try {
+        reply = await collectChat(messages, 2048);
+      } catch (e) {
+        addMsg("SYSTEM", "Agent: model call failed: " + e);
+        outcome = "failed";
+        break;
+      }
+      messages.push({ role: "assistant", content: reply });
+      const act = parseAgentAction(reply);
+      if (act.type === "read") {
+        const content2 = await readForAgent(act.path);
+        addMsg("SYSTEM", "\u{1F4D6} READ " + act.path);
+        messages.push({ role: "user", content: content2 == null ? "READ failed: " + act.path + " does not exist yet. You may create it with WRITE." : "Content of " + act.path + ":\n```\n" + content2.slice(0, 12e3) + "\n```" });
+      } else if (act.type === "write") {
+        staged.set(act.path, act.content);
+        addMsg("SYSTEM", "\u270F\uFE0F WRITE " + act.path + " (staged - not saved)");
+        messages.push({ role: "user", content: "Staged " + act.path + ". " + staged.size + " file(s) staged. Continue." });
+      } else if (act.type === "check") {
+        const notes = [];
+        for (const [p, c] of staged) {
+          const d = await postJson(
+            "/api/check-content",
+            { path: p, content: c }
+          );
+          if (d.ok === true) notes.push(p + ": OK");
+          else if (d.ok === false) notes.push(p + ": PROBLEM " + (d.message || "") + (d.line ? " (line " + d.line + ")" : ""));
+          else notes.push(p + ": check skipped (" + (d.note || "not available") + ")");
+        }
+        addMsg("SYSTEM", "\u{1F50D} CHECK\n" + notes.join("\n"));
+        messages.push({ role: "user", content: "Check results:\n" + notes.join("\n") + "\nFix any problems with another WRITE, or finish with DONE." });
+      } else if (act.type === "done") {
+        outcome = "done";
+        summary = act.summary;
+        break;
+      } else if (act.type === "ask") {
+        addMsg("GHOST", "\u2753 " + act.question);
+        outcome = "asked";
+        break;
+      } else {
+        nudges++;
+        if (nudges > 1) {
+          addMsg("SYSTEM", "Agent stopped: two replies in a row had no action in them.");
+          outcome = "failed";
+          break;
+        }
+        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, WRITE, CHECK, DONE, or ASK." });
+      }
+    }
+    sendBtn.textContent = "Send";
+    sendBtn.onclick = oldSend;
+    agentRunning = false;
+    if (outcome === "stopped") {
+      addMsg("SYSTEM", "Agent stopped by you. Nothing was written - the staged changes were discarded.");
+    } else if (outcome === "cap") {
+      addMsg("SYSTEM", "Agent hit the " + AGENT_MAX_STEPS + "-step cap.");
+    }
+    if ((outcome === "done" || outcome === "cap") && staged.size) {
+      addMsg("GHOST", "\u{1F916} " + (summary || "Task run complete") + " - review the " + staged.size + " file(s) below. Nothing is saved until you approve.");
+      openAgentReview(staged);
+    } else if (outcome === "done") {
+      addMsg("GHOST", "\u{1F916} Done: " + summary);
+    }
+  }
+  async function openAgentReview(staged) {
+    $("todoTitle").textContent = "\u{1F916} Agent changes - approve per file";
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Preparing diffs\u2026</div>';
+    $("todoPanel").classList.remove("hidden");
+    let existing = /* @__PURE__ */ new Set();
+    try {
+      const fr = await fetch("/api/files");
+      const fd = await fr.json();
+      existing = new Set((fd.files || []).filter((x) => x.type === "file").map((x) => x.path));
+    } catch (e) {
+    }
+    const approved = new Set(staged.keys());
+    box.innerHTML = "";
+    const applyRow = document.createElement("div");
+    applyRow.className = "findRow";
+    const rejectRow = document.createElement("div");
+    rejectRow.className = "findRow";
+    rejectRow.textContent = "\u2716 Reject all - write nothing";
+    rejectRow.onclick = () => {
+      $("todoPanel").classList.add("hidden");
+      addMsg("SYSTEM", "Agent changes rejected - nothing was written.");
+    };
+    function refreshApply() {
+      applyRow.textContent = "\u2713 Apply approved (" + approved.size + " of " + staged.size + ")";
+    }
+    applyRow.onclick = async () => {
+      $("todoPanel").classList.add("hidden");
+      let n = 0;
+      for (const [p, c] of staged) {
+        if (!approved.has(p)) continue;
+        const d = await postJson(
+          "/api/file",
+          { path: p, content: c }
+        );
+        if (!d.error) {
+          n++;
+          if (p === currentFile) await reloadCurrentFromDisk();
+          else if (tabStates.has(p)) tabStates.delete(p);
+        }
+      }
+      loadFiles();
+      addMsg("SYSTEM", "Agent changes applied: " + n + " file(s) saved.");
+    };
+    refreshApply();
+    box.appendChild(applyRow);
+    box.appendChild(rejectRow);
+    for (const [p, c] of staged) {
+      let label = function() {
+        row.textContent = (approved.has(p) ? "\u2611 " : "\u2610 ") + p + (existing.has(p) ? "" : " (new file)");
+      };
+      const row = document.createElement("div");
+      row.className = "findRow";
+      label();
+      row.onclick = () => {
+        if (approved.has(p)) approved.delete(p);
+        else approved.add(p);
+        label();
+        refreshApply();
+      };
+      box.appendChild(row);
+      const diffRow = document.createElement("div");
+      diffRow.className = "findRow";
+      diffRow.textContent = "   \u{1F441} view diff for " + p;
+      diffRow.onclick = async () => {
+        const d = await postJson(
+          "/api/diff-text",
+          { path: p, content: c }
+        );
+        pendingRefactor = null;
+        $("diffApply").classList.add("hidden");
+        $("diffDiscard").classList.add("hidden");
+        $("diffTitle").textContent = "Agent diff: " + p;
+        $("diffOut").textContent = d.diff || "(no differences)";
+        $("diffPanel").classList.remove("hidden");
+      };
+      box.appendChild(diffRow);
+    }
+  }
   loadFiles();
   refreshWsLabel();
   window.__ghostBooted = true;
