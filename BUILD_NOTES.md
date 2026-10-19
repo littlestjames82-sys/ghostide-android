@@ -688,3 +688,27 @@ API client (Postman-lite), Tools -> API client:
   Caught by the fixture tests before shipping; imports
   now live at module level. Lesson: no inline imports
   of module names the handler also uses.
+
+## v1.32.0 (versionCode 36) - Oct 19, 2026 - Roadmap G24
+Docs mode:
+- renderMarkdown rewritten: headings 1-6, tables,
+  ordered + task lists, blockquotes, hr, strikethrough,
+  relative images (served via /api/raw) and relative
+  .md links that open in the app. Still escape-first.
+- Mermaid: dependency-free subset renderer to inline
+  SVG (the real mermaid package is ~122 MB unpacked).
+  Flowcharts (shapes, labels, dashed, TD/LR) and
+  sequence diagrams render in preview and in exports;
+  other diagram types fall back to a labeled source
+  block.
+- Live preview: typing in an open .md re-renders the
+  preview (debounced, from the live doc, unsaved edits
+  included).
+- Export docs site (Tools): all workspace .md files
+  become one self-contained docs-site.html with a nav,
+  per-page sections, diagrams inlined, and inter-doc
+  links rewritten to anchors.
+Proven: renderer harness 16/16 (incl. the real
+ROADMAP_20.md and an XSS escape test); the real export
+function run against a live server produced a
+standalone site passing 6/6 checks.

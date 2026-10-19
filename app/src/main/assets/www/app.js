@@ -34554,50 +34554,398 @@
   function escHtml(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
-  function renderMarkdown(src) {
+  function mdDir(p) {
+    return p && p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
+  }
+  function mdResolve(base2, rel) {
+    if (/^(https?:|data:|#|\/)/.test(rel)) return rel;
+    const parts = (base2 ? base2.split("/") : []).concat(rel.split("/"));
+    const out = [];
+    for (const part of parts) {
+      if (part === "." || part === "") continue;
+      if (part === "..") out.pop();
+      else out.push(part);
+    }
+    return out.join("/");
+  }
+  function renderMarkdown(src, basePath) {
+    const base2 = basePath || "";
     const lines = escHtml(src).split("\n");
-    let html2 = "", inCode = false, inList2 = false;
-    const inline = (t2) => t2.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(
-      /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener">$1</a>'
-    );
-    for (const line of lines) {
-      if (line.trim().startsWith("```")) {
-        html2 += inCode ? "</code></pre>" : "<pre><code>";
-        inCode = !inCode;
-        continue;
+    let html2 = "";
+    let fence = null;
+    let listType = null;
+    let quoteBuf = [];
+    let tableBuf = [];
+    const closeList = () => {
+      if (listType) {
+        html2 += "</" + listType + ">";
+        listType = null;
       }
-      if (inCode) {
-        html2 += line + "\n";
-        continue;
+    };
+    const flushQuote = () => {
+      if (quoteBuf.length) {
+        html2 += "<blockquote>" + quoteBuf.map((q) => "<p>" + inline(q) + "</p>").join("") + "</blockquote>";
+        quoteBuf = [];
       }
-      const h = line.match(/^(#{1,3})\s+(.*)/);
-      if (h) {
-        if (inList2) {
-          html2 += "</ul>";
-          inList2 = false;
+    };
+    const flushTable = () => {
+      if (!tableBuf.length) return;
+      const rows = tableBuf.map((r) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+      tableBuf = [];
+      const isSep = (r) => r.every((c) => /^:?-{2,}:?$/.test(c));
+      if (rows.length > 1 && isSep(rows[1])) {
+        html2 += "<table><thead><tr>" + rows[0].map((c) => "<th>" + inline(c) + "</th>").join("") + "</tr></thead><tbody>";
+        for (const r of rows.slice(2)) {
+          html2 += "<tr>" + r.map((c) => "<td>" + inline(c) + "</td>").join("") + "</tr>";
         }
+        html2 += "</tbody></table>";
+      } else {
+        for (const r of rows) {
+          html2 += "<p>" + inline(r.join(" | ")) + "</p>";
+        }
+      }
+    };
+    const inline = (t2) => t2.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, s) => '<img alt="' + alt + '" src="' + (/^(https?:|data:)/.test(s) ? s : "/api/raw?path=" + encodeURIComponent(mdResolve(base2, s))) + '">').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text, href) => {
+      if (/^https?:/.test(href)) {
+        return '<a href="' + href + '" target="_blank" rel="noopener">' + text + "</a>";
+      }
+      const resolved = mdResolve(base2, href);
+      if (/\.md$/i.test(resolved)) {
+        return '<a href="#' + resolved + '" data-md="' + resolved + '">' + text + "</a>";
+      }
+      return '<a href="' + href + '">' + text + "</a>";
+    }).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/~~([^~]+)~~/g, "<del>$1</del>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/(^|\W)_([^_]+)_/g, "$1<em>$2</em>");
+    for (const rawLine of lines) {
+      const line = rawLine;
+      if (fence) {
+        if (line.trim().startsWith("```")) {
+          if (fence.lang === "mermaid") {
+            html2 += renderMermaid(fence.buf.join("\n"));
+          } else {
+            html2 += "<pre><code>" + fence.buf.join("\n") + "\n</code></pre>";
+          }
+          fence = null;
+        } else fence.buf.push(line);
+        continue;
+      }
+      const fm = line.trim().match(/^```(\w*)/);
+      if (fm) {
+        closeList();
+        flushQuote();
+        flushTable();
+        fence = { lang: fm[1] || "", buf: [] };
+        continue;
+      }
+      if (/^\|.*\|$/.test(line.trim())) {
+        closeList();
+        flushQuote();
+        tableBuf.push(line.trim());
+        continue;
+      }
+      flushTable();
+      const h = line.match(/^(#{1,6})\s+(.*)/);
+      if (h) {
+        closeList();
+        flushQuote();
         html2 += "<h" + h[1].length + ">" + inline(h[2]) + "</h" + h[1].length + ">";
         continue;
       }
-      if (/^\s*[-*]\s+/.test(line)) {
-        if (!inList2) {
-          html2 += "<ul>";
-          inList2 = true;
-        }
-        html2 += "<li>" + inline(line.replace(/^\s*[-*]\s+/, "")) + "</li>";
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        closeList();
+        flushQuote();
+        html2 += "<hr>";
         continue;
       }
-      if (inList2) {
-        html2 += "</ul>";
-        inList2 = false;
+      const q = line.match(/^&gt;\s?(.*)/);
+      if (q) {
+        closeList();
+        quoteBuf.push(q[1]);
+        continue;
       }
+      flushQuote();
+      const task = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.*)/);
+      const ul = line.match(/^\s*[-*]\s+(.*)/);
+      const ol = line.match(/^\s*\d+[.)]\s+(.*)/);
+      if (task) {
+        if (listType !== "ul") {
+          closeList();
+          html2 += "<ul>";
+          listType = "ul";
+        }
+        html2 += '<li class="task"><input type="checkbox" disabled' + (task[1].trim() ? " checked" : "") + "> " + inline(task[2]) + "</li>";
+        continue;
+      }
+      if (ul) {
+        if (listType !== "ul") {
+          closeList();
+          html2 += "<ul>";
+          listType = "ul";
+        }
+        html2 += "<li>" + inline(ul[1]) + "</li>";
+        continue;
+      }
+      if (ol) {
+        if (listType !== "ol") {
+          closeList();
+          html2 += "<ol>";
+          listType = "ol";
+        }
+        html2 += "<li>" + inline(ol[1]) + "</li>";
+        continue;
+      }
+      closeList();
       if (line.trim()) html2 += "<p>" + inline(line) + "</p>";
     }
-    if (inCode) html2 += "</code></pre>";
-    if (inList2) html2 += "</ul>";
+    if (fence) {
+      html2 += "<pre><code>" + fence.buf.join("\n") + "\n</code></pre>";
+    }
+    closeList();
+    flushQuote();
+    flushTable();
     return html2;
   }
+  function renderMermaid(src) {
+    try {
+      const text = src.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
+      const first = (text.trim().split("\n")[0] || "").trim();
+      if (/^sequenceDiagram/.test(first)) {
+        return mermaidSequence(text);
+      }
+      if (/^(graph|flowchart)\s/.test(first)) {
+        return mermaidFlow(text);
+      }
+    } catch (e) {
+    }
+    return "<pre><code>" + escHtml(src) + '\n</code></pre><p class="dim">(diagram preview supports flowchart and sequence subsets)</p>';
+  }
+  function mermaidFlow(text) {
+    const dirM = text.match(/^(?:graph|flowchart)\s+(TD|TB|LR|RL|BT)/m);
+    const dir = dirM ? dirM[1] : "TD";
+    const nodes = /* @__PURE__ */ new Map();
+    const edges = [];
+    const node = (id2, label, shape) => {
+      if (!nodes.has(id2)) {
+        nodes.set(id2, { id: id2, label: label || id2, shape: shape || "rect" });
+      } else if (label) {
+        const n = nodes.get(id2);
+        n.label = label;
+        if (shape) n.shape = shape;
+      }
+      return nodes.get(id2);
+    };
+    const NODE_RE = /([A-Za-z0-9_]+)(?:\[\[([^\]]*)\]\]|\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}|\(\(([^)]*)\)\))?/g;
+    const parseSide = (side) => {
+      const ids = [];
+      let m;
+      NODE_RE.lastIndex = 0;
+      const cleaned = side.replace(/"[^"]*"/g, (q) => q.slice(1, -1));
+      while (m = NODE_RE.exec(cleaned)) {
+        const shape = m[3] !== void 0 || m[2] !== void 0 ? "rect" : m[6] !== void 0 ? "circle" : m[5] !== void 0 ? "diamond" : m[4] !== void 0 ? "round" : null;
+        const label = m[2] ?? m[3] ?? m[4] ?? m[5] ?? m[6];
+        node(m[1], label, shape);
+        ids.push(m[1]);
+      }
+      return ids;
+    };
+    for (const rawStmt of text.split(/[;\n]/)) {
+      const stmt = rawStmt.trim();
+      if (!stmt || /^(graph|flowchart)\s/.test(stmt)) continue;
+      if (/^(subgraph|end|classDef|class|style|linkStyle)\b/.test(stmt)) {
+        continue;
+      }
+      const em = stmt.match(/^(.*?)\s*(-\.->|-->|---|--x|--o)\s*(?:\|([^|]*)\|)?\s*(.*)$/);
+      if (em && (em[4] || /\|/.test(stmt))) {
+        const left = parseSide(em[1].replace(/--\s*[^-]+$/, ""));
+        const right = parseSide(em[4]);
+        for (const a of left) {
+          for (const b of right) {
+            edges.push({
+              a,
+              b,
+              label: em[3] || "",
+              dashed: em[2].includes(".")
+            });
+          }
+        }
+      } else {
+        parseSide(stmt);
+      }
+    }
+    if (!nodes.size) throw new Error("no nodes");
+    const level = new Map([...nodes.keys()].map((k) => [k, 0]));
+    for (let i2 = 0; i2 < nodes.size; i2++) {
+      for (const e of edges) {
+        if (level.get(e.b) <= level.get(e.a)) {
+          level.set(e.b, level.get(e.a) + 1);
+        }
+      }
+    }
+    const byLevel = /* @__PURE__ */ new Map();
+    for (const n of nodes.values()) {
+      const l = level.get(n.id);
+      if (!byLevel.has(l)) byLevel.set(l, []);
+      byLevel.get(l).push(n);
+    }
+    const horiz = dir === "LR" || dir === "RL";
+    const NW = 168, NH = 46, GX = 44, GY = 54;
+    const pos = /* @__PURE__ */ new Map();
+    let maxL = 0, maxPer = 0;
+    for (const [l, group] of byLevel) {
+      maxL = Math.max(maxL, l);
+      maxPer = Math.max(maxPer, group.length);
+      group.forEach((n, i2) => {
+        const along = l * (NW + GX), across = i2 * (NH + GY);
+        pos.set(n.id, horiz ? { x: 16 + along, y: 16 + i2 * (NH + GY) } : { x: 16 + i2 * (NW + GX), y: 16 + l * (NH + GY) });
+        if (horiz) pos.get(n.id).y = 16 + across * 0 + i2 * (NH + GY);
+      });
+    }
+    const W = horiz ? 32 + (maxL + 1) * NW + maxL * GX : 32 + maxPer * NW + (maxPer - 1) * GX;
+    const H = horiz ? 32 + maxPer * NH + (maxPer - 1) * GY : 32 + (maxL + 1) * NH + maxL * GY;
+    const shapeSvg = (n) => {
+      const p = pos.get(n.id);
+      const cx = p.x + NW / 2, cy = p.y + NH / 2;
+      const label = n.label.length > 26 ? n.label.slice(0, 25) + "\u2026" : n.label;
+      const txt = '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" class="mtext">' + escHtml(label) + "</text>";
+      if (n.shape === "diamond") {
+        return '<polygon points="' + cx + "," + p.y + " " + (p.x + NW) + "," + cy + " " + cx + "," + (p.y + NH) + " " + p.x + "," + cy + '" class="mbox"/>' + txt;
+      }
+      if (n.shape === "circle") {
+        return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + (NW / 2 - 16) + '" ry="' + NH / 2 + '" class="mbox"/>' + txt;
+      }
+      const rx = n.shape === "round" ? 20 : 5;
+      return '<rect x="' + p.x + '" y="' + p.y + '" width="' + NW + '" height="' + NH + '" rx="' + rx + '" class="mbox"/>' + txt;
+    };
+    const edgeSvg = (e) => {
+      const a = pos.get(e.a), b = pos.get(e.b);
+      if (!a || !b) return "";
+      const x1 = a.x + NW / 2, y1 = a.y + NH / 2;
+      const x2 = b.x + NW / 2, y2 = b.y + NH / 2;
+      let sx = x1, sy = y1, tx = x2, ty = y2;
+      if (horiz) {
+        sx = a.x + NW;
+        tx = b.x;
+        sy = y1;
+        ty = y2;
+      } else {
+        sy = a.y + NH;
+        ty = b.y;
+      }
+      const mid = horiz ? ' x="' + (sx + tx) / 2 + '" y="' + ((sy + ty) / 2 - 4) : ' x="' + ((sx + tx) / 2 + 5) + '" y="' + (sy + ty) / 2;
+      return '<line x1="' + sx + '" y1="' + sy + '" x2="' + tx + '" y2="' + ty + '" class="medge"' + (e.dashed ? ' stroke-dasharray="5 4"' : "") + ' marker-end="url(#mArrow)"/>' + (e.label ? "<text" + mid + '" class="mlabel">' + escHtml(e.label) + "</text>" : "");
+    };
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" class="mermaid-svg"><defs><marker id="mArrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#7ee2a0" stroke-width="1.4"/></marker></defs><style>.mbox{fill:#171a21;stroke:#7ee2a0;stroke-width:1.4}.medge{stroke:#7ee2a0;stroke-width:1.4}.mtext{fill:#e6e8f0;font:13px ui-monospace,monospace}.mlabel{fill:#9a9fb0;font:11px ui-monospace,monospace}</style>' + edges.map(edgeSvg).join("") + [...nodes.values()].map(shapeSvg).join("") + "</svg>";
+  }
+  function mermaidSequence(text) {
+    const actors = [];
+    const seen = /* @__PURE__ */ new Set();
+    const msgs = [];
+    const actor = (a) => {
+      if (!seen.has(a)) {
+        seen.add(a);
+        actors.push(a);
+      }
+    };
+    for (const rawLine of text.split("\n")) {
+      const line = rawLine.trim();
+      const pm = line.match(/^participant\s+(\w+)(?:\s+as\s+(.+))?$/);
+      if (pm) {
+        actor(pm[2] || pm[1]);
+        continue;
+      }
+      const mm = line.match(/^(\w+)\s*(--?>>|--?>)\s*(\w+)\s*:\s*(.*)$/);
+      if (mm) {
+        actor(mm[1]);
+        actor(mm[3]);
+        msgs.push({
+          a: mm[1],
+          b: mm[3],
+          text: mm[4],
+          dashed: mm[2].startsWith("--")
+        });
+      }
+    }
+    if (!actors.length) throw new Error("no actors");
+    const AW = 150, GAP = 60, TOP = 56, STEP = 36;
+    const W = 32 + actors.length * AW + (actors.length - 1) * GAP;
+    const H = TOP + msgs.length * STEP + 30;
+    const cx = (a) => 16 + actors.indexOf(a) * (AW + GAP) + AW / 2;
+    let out = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" class="mermaid-svg"><defs><marker id="mArrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#7ee2a0" stroke-width="1.4"/></marker></defs><style>.mbox{fill:#171a21;stroke:#7ee2a0;stroke-width:1.4}.medge{stroke:#7ee2a0;stroke-width:1.4}.mtext{fill:#e6e8f0;font:13px ui-monospace,monospace}.mlabel{fill:#9a9fb0;font:11px ui-monospace,monospace}.mlife{stroke:#3a3f4d;stroke-dasharray:4 4}</style>';
+    for (const a of actors) {
+      out += '<line x1="' + cx(a) + '" y1="44" x2="' + cx(a) + '" y2="' + (H - 8) + '" class="mlife"/><rect x="' + (cx(a) - AW / 2) + '" y="8" width="' + AW + '" height="36" rx="5" class="mbox"/><text x="' + cx(a) + '" y="30" text-anchor="middle" class="mtext">' + escHtml(a) + "</text>";
+    }
+    msgs.forEach((m, i2) => {
+      const y = TOP + i2 * STEP;
+      out += '<line x1="' + cx(m.a) + '" y1="' + y + '" x2="' + cx(m.b) + '" y2="' + y + '" class="medge"' + (m.dashed ? ' stroke-dasharray="5 4"' : "") + ' marker-end="url(#mArrow)"/><text x="' + (cx(m.a) + cx(m.b)) / 2 + '" y="' + (y - 5) + '" text-anchor="middle" class="mlabel">' + escHtml(m.text) + "</text>";
+    });
+    return out + "</svg>";
+  }
+  window.__ghostMd = renderMarkdown;
+  window.__ghostMermaid = renderMermaid;
+  var mdLivePath = null;
+  var mdLiveTimer = null;
+  view.dom.addEventListener("input", () => {
+    if (!mdLivePath || $("previewPanel").classList.contains("hidden")) {
+      return;
+    }
+    if (currentFile !== mdLivePath) return;
+    clearTimeout(mdLiveTimer);
+    mdLiveTimer = setTimeout(() => {
+      $("previewBody").innerHTML = renderMarkdown(
+        view.state.doc.toString(),
+        mdDir(mdLivePath)
+      );
+    }, 350);
+  });
+  $("previewBody").addEventListener("click", async (e) => {
+    const a = e.target.closest("a[data-md]");
+    if (!a) return;
+    e.preventDefault();
+    const target = a.getAttribute("data-md");
+    await openFile(target);
+    if (currentFile === target) $("toolPreview").click();
+  });
+  $("previewClose").addEventListener("click", () => {
+    mdLivePath = null;
+  });
+  var DOCS_SITE_CSS = "body{margin:0;font-family:system-ui,sans-serif;background:#101116;color:#e6e8f0;display:flex}nav{position:sticky;top:0;height:100vh;overflow:auto;padding:18px;background:#17181f;min-width:200px}nav a{display:block;color:#9fe8bb;text-decoration:none;padding:4px 0;font-size:13px}main{padding:24px 32px;max-width:820px}section{margin-bottom:56px}table{border-collapse:collapse}th,td{border:1px solid #2e3038;padding:5px 10px}pre{background:#17181f;padding:12px;overflow:auto;border-radius:6px}code{font-family:ui-monospace,monospace}blockquote{border-left:3px solid #7ee2a0;margin:0;padding-left:14px;color:#b9bdd0}img{max-width:100%}a{color:#9fe8bb}";
+  async function exportDocsSite() {
+    const r = await fetch("/api/files");
+    const d = await r.json();
+    const mds = (d.files || []).filter((f) => f.type === "file" && /\.md$/i.test(f.path)).map((f) => f.path).sort();
+    if (!mds.length) {
+      alert("No Markdown files in this workspace.");
+      return;
+    }
+    const slug = (p) => p.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slugOf = new Map(mds.map((p) => [p, slug(p)]));
+    const nav2 = [];
+    const sections = [];
+    for (const p of mds) {
+      const fr = await fetch("/api/file?path=" + encodeURIComponent(p));
+      const fd = await fr.json();
+      if (fd.error) continue;
+      let html2 = renderMarkdown(fd.content || "", mdDir(p));
+      html2 = html2.replace(/href="#([^"]+)"/g, (m, target) => slugOf.has(target) ? 'href="#' + slugOf.get(target) + '"' : m);
+      nav2.push('<a href="#' + slug(p) + '">' + escHtml(p) + "</a>");
+      sections.push('<section id="' + slug(p) + '">' + html2 + "</section>");
+    }
+    const site = '<!doctype html>\n<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Project docs</title><style>' + DOCS_SITE_CSS + "</style></head><body><nav>" + nav2.join("") + "</nav><main>" + sections.join("\n") + "</main></body></html>";
+    const wr = await fetch("/api/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: "docs-site.html", content: site })
+    });
+    const wd = await wr.json();
+    if (wd.error) {
+      alert(wd.error);
+      return;
+    }
+    addMsg("SYSTEM", "\u{1F4C4} Exported " + sections.length + " doc page(s) to docs-site.html in the workspace root. It is a single self-contained file: open it anywhere.");
+  }
+  $("toolDocs").onclick = () => {
+    hideTools();
+    exportDocsSite();
+  };
   $("toolPreview").onclick = async () => {
     if (!currentFile) {
       alert("Open a file first.");
@@ -34621,7 +34969,11 @@
         return;
       }
       if (ext === "md" || ext === "markdown") {
-        body.innerHTML = renderMarkdown(d.content);
+        mdLivePath = currentFile;
+        body.innerHTML = renderMarkdown(
+          view.state.doc.toString(),
+          mdDir(currentFile)
+        );
       } else {
         body.innerHTML = "";
         const pre = document.createElement("pre");
@@ -35298,6 +35650,7 @@
     { title: "Pair mode", run: () => $("toolPair").click() },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
     { title: "API client", run: () => $("toolApi").click() },
+    { title: "Export docs site", run: () => $("toolDocs").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {

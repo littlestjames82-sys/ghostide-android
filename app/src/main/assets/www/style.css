@@ -420,3 +420,17 @@ body.zen #files, body.zen #chat { display: none; }
   white-space: pre-wrap; word-break: break-word; max-height: 220px;
   font-family: ui-monospace, monospace; color: #cfd3e0;
 }
+
+/* Roadmap G24: docs mode preview */
+#previewBody table { border-collapse: collapse; margin: 8px 0; }
+#previewBody th, #previewBody td {
+  border: 1px solid #2e3038; padding: 4px 9px; font-size: 12.5px;
+}
+#previewBody th { background: #17181f; }
+#previewBody blockquote {
+  border-left: 3px solid #7ee2a0; margin: 8px 0;
+  padding-left: 12px; color: #b9bdd0;
+}
+#previewBody li.task { list-style: none; margin-left: -18px; }
+#previewBody .mermaid-svg { max-width: 100%; height: auto; }
+#previewBody a[data-md] { color: #9fe8bb; }
