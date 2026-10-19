@@ -39,6 +39,36 @@ public final class IdeServer {
     static final int PORT = 18763;
     private volatile String modelName;
 
+    // Pair mode presence (Roadmap G16), mirrors server.py.
+    static final class PairPeer {
+        String id, name, file;
+        boolean dirty;
+        long seen;
+    }
+    private static final java.util.Map<String, PairPeer> PAIR =
+        new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static String pairPeersJson() {
+        long now = System.currentTimeMillis();
+        StringBuilder sb = new StringBuilder("{\"peers\":[");
+        boolean first = true;
+        for (PairPeer p : PAIR.values()) {
+            if (now - p.seen > 25000) {
+                PAIR.remove(p.id);
+                continue;
+            }
+            if (!first) sb.append(",");
+            first = false;
+            sb.append("{\"id\":").append(Json.quote(p.id))
+                .append(",\"name\":").append(Json.quote(p.name))
+                .append(",\"file\":").append(Json.quote(p.file))
+                .append(",\"dirty\":").append(p.dirty)
+                .append(",\"seen\":").append(p.seen)
+                .append("}");
+        }
+        return sb.append("]}").toString();
+    }
+
     void setModelName(String n) { modelName = n; }
 
     private static final String[] CUT_MARKERS = {
@@ -798,6 +828,30 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/pair/heartbeat")
+                && method.equals("POST")) {
+            try {
+                Map<String, Object> pairD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String pairId = Json.str(pairD, "id", "");
+                if (!pairId.isEmpty()) {
+                    PairPeer pairP = new PairPeer();
+                    pairP.id = pairId;
+                    pairP.name = Json.str(pairD, "name", "device");
+                    pairP.file = Json.str(pairD, "file", "");
+                    Object pairDirty = pairD.get("dirty");
+                    pairP.dirty = pairDirty != null
+                        && "true".equals(String.valueOf(pairDirty));
+                    pairP.seen = System.currentTimeMillis();
+                    PAIR.put(pairId, pairP);
+                }
+                sendJson(out, pairPeersJson());
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/file/delete") && method.equals("POST")) {
             try {
                 Map<String, Object> d = Json.obj(Json.parse(
@@ -1379,6 +1433,10 @@ public final class IdeServer {
         if (path.equals("/api/format")) {
             sendJson(out, "{\"formatted\":false,\"reason\":\"formatters "
                 + "aren't available in the phone build\"}");
+            return;
+        }
+        if (path.equals("/api/pair/peers")) {
+            sendJson(out, pairPeersJson());
             return;
         }
         if (path.equals("/api/todos")) {

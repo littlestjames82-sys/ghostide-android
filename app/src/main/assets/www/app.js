@@ -32007,6 +32007,7 @@
       extensions: baseExtensions(path)
     }));
     tabDirty.set(path, false);
+    pairNoteOpened(path, d.content);
     activateTab(path);
     checkDraft(path, d.content);
     checkQuiet();
@@ -32033,6 +32034,7 @@
         accepting = false;
       }
     }
+    if (await pairGuardSave()) return;
     await fetch("/api/file", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32041,6 +32043,7 @@
         content: view.state.doc.toString()
       })
     });
+    pairNoteSaved();
     dirty = false;
     tabDirty.set(currentFile, false);
     renderTabs();
@@ -33940,6 +33943,7 @@
     { title: "Debug this file", run: () => $("toolDebug").click() },
     { title: "Fix my tests (AI)", run: () => $("toolFix").click() },
     { title: "New project from template", run: () => $("toolTemplates").click() },
+    { title: "Pair mode", run: () => $("toolPair").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {
@@ -35332,6 +35336,319 @@
       box.focus();
     }
   };
+  var pairOn = false;
+  var pairId = "";
+  var pairName = "";
+  var pairPeers = [];
+  var pairConflict = null;
+  var pairBase = {};
+  var pairTimers = [];
+  function fnv1a(s) {
+    let h = 2166136261;
+    for (let i2 = 0; i2 < s.length; i2++) {
+      h ^= s.charCodeAt(i2);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return ("0000000" + h.toString(16)).slice(-8);
+  }
+  function pairDecide(base2, mine, server) {
+    if (server === base2 && mine === base2) return "clean";
+    if (server === base2) return "save";
+    if (mine === base2) return "reload";
+    if (mine === server) return "insync";
+    return "conflict";
+  }
+  function pairNoteOpened(path, content2) {
+    if (content2 != null) pairBase[path] = fnv1a(content2);
+  }
+  function pairNoteSaved() {
+    if (currentFile)
+      pairBase[currentFile] = fnv1a(view.state.doc.toString());
+  }
+  function pairInit() {
+    try {
+      pairOn = localStorage.getItem("ghostide-pair-on") === "1";
+      pairId = localStorage.getItem("ghostide-pair-id") || "";
+      if (!pairId) {
+        pairId = "d" + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem("ghostide-pair-id", pairId);
+      }
+      pairName = localStorage.getItem("ghostide-pair-name") || "";
+      if (!pairName) {
+        pairName = (/android/i.test(navigator.userAgent) ? "phone" : "desktop") + "-" + pairId.slice(-3);
+      }
+    } catch (e) {
+      pairOn = false;
+    }
+    if (pairOn) pairStartLoops();
+    renderPairChip();
+  }
+  function pairStartLoops() {
+    pairStopLoops();
+    pairHeartbeat();
+    pairTimers.push(setInterval(pairHeartbeat, 5e3));
+    pairTimers.push(setInterval(pairPoll, 8e3));
+  }
+  function pairStopLoops() {
+    for (const t2 of pairTimers) clearInterval(t2);
+    pairTimers = [];
+  }
+  function renderPairChip() {
+    const chip = $("pairChip");
+    if (!pairOn) {
+      chip.classList.add("hidden");
+      return;
+    }
+    chip.classList.remove("hidden");
+    chip.textContent = pairConflict ? "\u{1F465}\u26A0 conflict" : "\u{1F465} " + (pairPeers.length + 1);
+  }
+  $("pairChip").onclick = () => openPair();
+  async function pairHeartbeat() {
+    if (!pairOn) return;
+    try {
+      const d = await postJson("/api/pair/heartbeat", {
+        id: pairId,
+        name: pairName,
+        file: currentFile || "",
+        dirty: !!dirty
+      });
+      pairPeers = (d.peers || []).filter(
+        (x) => x.id !== pairId
+      );
+    } catch (e) {
+    }
+    renderPairChip();
+  }
+  async function pairPoll() {
+    if (!pairOn || !currentFile || pairConflict) return;
+    try {
+      const r = await fetch("/api/file?path=" + encodeURIComponent(currentFile));
+      const d = await r.json();
+      if (d.error || d.content == null) return;
+      const server = fnv1a(d.content);
+      const mine = fnv1a(view.state.doc.toString());
+      const base2 = pairBase[currentFile] || server;
+      pairBase[currentFile] = base2;
+      const what = pairDecide(base2, mine, server);
+      if (what === "reload") {
+        const pos = Math.min(
+          view.state.selection.main.head,
+          d.content.length
+        );
+        accepting = true;
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: d.content
+          },
+          selection: { anchor: pos }
+        });
+        accepting = false;
+        pairBase[currentFile] = server;
+        addMsg("SYSTEM", "\u{1F465}\u21BB " + currentFile + " was updated by a paired device - reloaded.");
+      } else if (what === "insync") {
+        pairBase[currentFile] = server;
+      } else if (what === "conflict") {
+        pairConflict = { path: currentFile, conflictPath: null };
+        renderPairChip();
+        addMsg("SYSTEM", "\u{1F465}\u26A0 " + currentFile + " changed on the server while you were editing it. Saves to it are paused - open Pair mode (Tools) to resolve. Your edits are safe in the editor.");
+      }
+    } catch (e) {
+    }
+  }
+  async function pairGuardSave() {
+    if (!pairOn || !currentFile) return false;
+    if (pairConflict && pairConflict.path === currentFile) {
+      alert("This file has an unresolved pair conflict. Resolve it in Tools, Pair mode - your work is safe in the editor and the conflict copy.");
+      return true;
+    }
+    if (pairConflict) return false;
+    try {
+      const r = await fetch("/api/file?path=" + encodeURIComponent(currentFile));
+      const d = await r.json();
+      if (d.error || d.content == null) return false;
+      const server = fnv1a(d.content);
+      const mine = fnv1a(view.state.doc.toString());
+      const base2 = pairBase[currentFile] || server;
+      if (pairDecide(base2, mine, server) !== "conflict")
+        return false;
+      const cpath = currentFile + ".conflict-" + pairName;
+      const w = await postJson("/api/file", {
+        path: cpath,
+        content: view.state.doc.toString()
+      });
+      if (w.error) {
+        alert(w.error);
+        return true;
+      }
+      pairConflict = { path: currentFile, conflictPath: cpath };
+      setSaveState("\u26A0 pair conflict - yours is in " + cpath);
+      addMsg("SYSTEM", "\u{1F465}\u26A0 Save protected: " + currentFile + " has newer work from a paired device, so your version went to " + cpath + " instead of overwriting it. Resolve in Tools, Pair mode.");
+      renderPairChip();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  async function openPair() {
+    hideTools();
+    $("todoTitle").textContent = "Pair mode";
+    const box = $("todoResults");
+    box.innerHTML = "";
+    $("todoPanel").classList.remove("hidden");
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = pairOn ? 'Pair mode is ON. You are "' + pairName + '". Everyone must open the SAME GhostIDE server: desktop on your LAN, phone joins from its Models screen (Pair with a desktop).' : "Pair mode is OFF. Turn it on here, on every device that shares this server.";
+    box.appendChild(head);
+    const tgl = document.createElement("div");
+    tgl.className = "findRow";
+    tgl.textContent = pairOn ? "\u23F8 Turn pair mode off" : "\u25B6 Turn pair mode on";
+    tgl.onclick = () => {
+      pairOn = !pairOn;
+      try {
+        localStorage.setItem(
+          "ghostide-pair-on",
+          pairOn ? "1" : "0"
+        );
+      } catch (e) {
+      }
+      if (pairOn) pairStartLoops();
+      else {
+        pairStopLoops();
+        pairPeers = [];
+      }
+      renderPairChip();
+      openPair();
+    };
+    box.appendChild(tgl);
+    const nm = document.createElement("div");
+    nm.className = "findRow";
+    nm.textContent = "\u270E Device name: " + pairName;
+    nm.onclick = () => {
+      const v = prompt("Name for this device:", pairName);
+      if (v && v.trim()) {
+        pairName = v.trim().slice(0, 40);
+        try {
+          localStorage.setItem("ghostide-pair-name", pairName);
+        } catch (e) {
+        }
+        pairHeartbeat();
+        openPair();
+      }
+    };
+    box.appendChild(nm);
+    if (pairConflict) {
+      const c = pairConflict;
+      const info = document.createElement("div");
+      info.className = "dim";
+      info.textContent = "\u26A0 Conflict on " + c.path + (c.conflictPath ? " - your version is in " + c.conflictPath : "") + ". The server copy was not overwritten.";
+      box.appendChild(info);
+      if (c.path !== currentFile) {
+        const op = document.createElement("div");
+        op.className = "findRow";
+        op.textContent = "\u{1F4C2} Open " + c.path + " to resolve";
+        op.onclick = () => {
+          $("todoPanel").classList.add("hidden");
+          openFile(c.path);
+        };
+        box.appendChild(op);
+      } else {
+        const km = document.createElement("div");
+        km.className = "findRow";
+        km.textContent = "\u2B06 Keep mine (overwrite the server copy with my editor)";
+        km.onclick = async () => {
+          const w = await postJson("/api/file", {
+            path: c.path,
+            content: view.state.doc.toString()
+          });
+          if (w.error) {
+            alert(w.error);
+            return;
+          }
+          pairBase[c.path] = fnv1a(
+            view.state.doc.toString()
+          );
+          pairConflict = null;
+          dirty = false;
+          tabDirty.set(c.path, false);
+          renderTabs();
+          renderPairChip();
+          addMsg("SYSTEM", "\u{1F465} Conflict resolved: your version won for " + c.path + ".");
+          openPair();
+        };
+        box.appendChild(km);
+        const ks = document.createElement("div");
+        ks.className = "findRow";
+        ks.textContent = "\u2B07 Use the server version (my edits stay in the conflict copy)";
+        ks.onclick = async () => {
+          if (!c.conflictPath) {
+            c.conflictPath = c.path + ".conflict-" + pairName;
+            const w = await postJson("/api/file", {
+              path: c.conflictPath,
+              content: view.state.doc.toString()
+            });
+            if (w.error) {
+              alert(w.error);
+              return;
+            }
+          }
+          const r = await fetch("/api/file?path=" + encodeURIComponent(c.path));
+          const d = await r.json();
+          if (d.error) {
+            alert(d.error);
+            return;
+          }
+          accepting = true;
+          view.dispatch({ changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: d.content
+          } });
+          accepting = false;
+          pairBase[c.path] = fnv1a(d.content);
+          pairConflict = null;
+          dirty = false;
+          tabDirty.set(c.path, false);
+          renderTabs();
+          renderPairChip();
+          addMsg("SYSTEM", "\u{1F465} Conflict resolved: server version loaded for " + c.path + ".");
+          openPair();
+        };
+        box.appendChild(ks);
+        if (c.conflictPath) {
+          const oc = document.createElement("div");
+          oc.className = "findRow";
+          oc.textContent = "\u{1F441} Open my conflict copy (" + c.conflictPath + ")";
+          oc.onclick = () => {
+            $("todoPanel").classList.add("hidden");
+            openFile(c.conflictPath);
+          };
+          box.appendChild(oc);
+        }
+      }
+    }
+    if (pairOn) {
+      await pairHeartbeat();
+      if (!pairPeers.length) {
+        const none5 = document.createElement("div");
+        none5.className = "dim";
+        none5.textContent = "No other devices yet. Open this same server on the other device and turn pair mode on there too.";
+        box.appendChild(none5);
+      }
+      for (const p of pairPeers) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "\u{1F465} " + p.name + (p.file ? " - " + p.file + (p.dirty ? " (editing)" : "") : " - no file open");
+        if (p.file) row.onclick = () => {
+          $("todoPanel").classList.add("hidden");
+          openFile(p.file);
+        };
+        box.appendChild(row);
+      }
+    }
+  }
+  $("toolPair").onclick = openPair;
   var PLUGIN_DIR = "plugins";
   var plugins = [];
   var pluginCommands = [];
@@ -36105,6 +36422,7 @@ A fresh project. Ask Ghost where to start, or just start.
   loadFiles();
   refreshWsLabel();
   discoverPlugins();
+  pairInit();
   window.__ghostBooted = true;
   if (window.__ghostErrs && window.__ghostErrs.length && typeof __ghostShowErrs === "function") __ghostShowErrs();
 })();

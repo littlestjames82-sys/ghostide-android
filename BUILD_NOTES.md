@@ -529,3 +529,22 @@ desktop: discovery, exact word counts, JSON format/minify
 written through the API, error paths, surgical removal.
 Phone run joins Ryan's device pass. APK 19210246 bytes
 md5 da9cdc442a5cf4997eab7aaccb2d6c0a, versionCode 29, same signer.
+
+## v1.26.0 (Oct 19, 2026) - Roadmap G16: pair mode
+Two devices, one workspace: everyone opens the SAME
+server (desktop in LAN mode; the phone joins from its
+Models screen via "Pair with a desktop", host remembered).
+Both servers gain /api/pair/heartbeat + /api/pair/peers
+(25 s presence expiry). The web UI heartbeats name + open
+file + dirty flag, shows peers in a header chip and the
+Pair panel (tap a peer's file to open it), auto-reloads
+clean editors when a peer changes the open file, and
+guards every save with an FNV-1a base/mine/server
+decision: a conflicting save is diverted to a
+<file>.conflict-<device> copy - the server copy is never
+silently overwritten - and resolves from the panel (keep
+mine / use server / view the copy). Proven on desktop
+with a two-client simulation against the live server:
+decision table 5/5, presence, no-clobber conflict, clean
+reload. Two-device session is Ryan's proof. APK 19214341
+bytes md5 12b9b30f376d3d5e45f805d2ddf02ff7, versionCode 30, same signer.

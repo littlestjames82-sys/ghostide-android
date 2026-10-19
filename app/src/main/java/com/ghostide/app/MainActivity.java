@@ -364,6 +364,52 @@ public class MainActivity extends Activity {
         }, "ghostide-load").start();
     }
 
+    /* Pair mode (Roadmap G16): the phone joins a desktop
+       GhostIDE server on the LAN and works in its workspace;
+       presence + conflict protection live in the web UI. */
+    private void showPairDialog() {
+        final android.widget.EditText input =
+            new android.widget.EditText(this);
+        input.setHint("192.168.1.20:8765");
+        input.setInputType(
+            android.text.InputType.TYPE_CLASS_TEXT
+            | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        new AlertDialog.Builder(this)
+            .setTitle("Pair with a desktop")
+            .setMessage("Start GhostIDE on the desktop in LAN "
+                + "mode (start-lan), then enter its address. "
+                + "The IDE opens from the desktop, and Pair "
+                + "mode in Tools links the two.")
+            .setView(input)
+            .setPositiveButton("Pair",
+                new android.content.DialogInterface
+                        .OnClickListener() {
+                    @Override
+                    public void onClick(
+                            android.content.DialogInterface d,
+                            int which) {
+                        String host = input.getText().toString()
+                            .trim()
+                            .replaceFirst("^https?://", "")
+                            .replaceAll("/+$", "");
+                        if (host.isEmpty()) return;
+                        getSharedPreferences("ghostide",
+                            MODE_PRIVATE).edit()
+                            .putString("pairHost", host).apply();
+                        startPairedIde(host);
+                    }
+                })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void startPairedIde(String host) {
+        ensureWebView();
+        inHelp = false;
+        setContentView(webView);
+        webView.loadUrl("http://" + host + "/");
+    }
+
     private void startIde() {
         try {
             if (server == null)
@@ -607,6 +653,40 @@ public class MainActivity extends Activity {
                 });
                 root.addView(del);
             }
+        }
+
+        final String pairHost = getSharedPreferences(
+            "ghostide", MODE_PRIVATE)
+            .getString("pairHost", "");
+        if (pairHost != null && !pairHost.isEmpty()) {
+            Button openPair = button(
+                "Open paired IDE (" + pairHost + ")");
+            openPair.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override public void onClick(View vw) {
+                        startPairedIde(pairHost);
+                    }
+                });
+            root.addView(openPair);
+            Button unpair = button("Stop pairing");
+            unpair.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override public void onClick(View vw) {
+                        getSharedPreferences("ghostide",
+                            MODE_PRIVATE).edit()
+                            .remove("pairHost").apply();
+                        showModelScreen();
+                    }
+                });
+            root.addView(unpair);
+        } else {
+            Button pair = button("Pair with a desktop…");
+            pair.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View vw) {
+                    showPairDialog();
+                }
+            });
+            root.addView(pair);
         }
 
         Button back = button("Back to IDE");
