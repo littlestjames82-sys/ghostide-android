@@ -645,3 +645,24 @@ line 2, SQL run prints the fixture rows, broken JSON
 fails, honest nulls elsewhere. Rust paths are wired the
 same way but rustc is not installed in the sandbox, so
 they are proven to the not-installed gate.
+
+## v1.30.0 (versionCode 34) - Oct 19, 2026 - Roadmap G22
+SQLite studio: opening a .db/.sqlite/.sqlite3 file opens
+the studio panel instead of the text editor.
+- Desktop: POST /api/db/info (tables, columns with PK
+  flags, row counts; read-only URI open) and
+  /api/db/query (one statement; read-only mode=ro unless
+  write:true - SQLite itself rejects writes, no string
+  matching; query rows capped at 500, values truncated).
+- Phone: same endpoints on android SQLiteDatabase
+  (OPEN_READONLY vs OPEN_READWRITE, execSQL for writes,
+  changes() for rowcount, typed cursor values incl. blob
+  placeholders).
+- Panel: table chips (tap = schema + SELECT preview),
+  query box, results grid, Read-only / Edits-allowed
+  toggle.
+Proven on test-fixtures/db/notes.db: info exact, SELECT
+returns the seeded rows, a write in read-only mode
+fails with SQLite's own error and does not persist, a
+write with the toggle on lands (rowcount 1) and reads
+back. Phone proof joins the device pass.

@@ -272,6 +272,23 @@ setTimeout(function () {
   <pre id="debugVars"></pre>
   <pre id="debugOut"></pre>
 </div>
+<div id="dbPanel" class="hidden">
+  <div class="run-head">
+    <span id="dbTitle">🗄️ SQLite studio</span>
+    <span>
+      <button id="dbWriteBtn" title="Toggle write access (off = read-only, enforced by SQLite itself)">🔒 Read-only</button>
+      <button id="dbClose">✕</button>
+    </span>
+  </div>
+  <div id="dbTables"></div>
+  <pre id="dbSchema" class="dim"></pre>
+  <div class="dbQueryRow">
+    <textarea id="dbSql" rows="3" placeholder="SELECT * FROM table_name LIMIT 50"></textarea>
+    <button id="dbRunBtn">▶ Run query</button>
+  </div>
+  <div id="dbMsg" class="dim"></div>
+  <div id="dbGridWrap"><table id="dbGrid"></table></div>
+</div>
 <div id="todoPanel" class="hidden">
   <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>
   <div id="todoResults"></div>

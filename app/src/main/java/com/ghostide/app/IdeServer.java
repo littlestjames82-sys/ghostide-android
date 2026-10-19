@@ -850,6 +850,205 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/db/info")
+                && method.equals("POST")) {
+            // Roadmap G22: SQLite studio, mirroring desktop.
+            try {
+                Map<String, Object> dbD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                File dbf = safe(Json.str(dbD, "path", ""));
+                if (!dbf.isFile()) {
+                    throw new Exception("file not found");
+                }
+                android.database.sqlite.SQLiteDatabase db =
+                    android.database.sqlite.SQLiteDatabase
+                    .openDatabase(dbf.getAbsolutePath(), null,
+                        android.database.sqlite.SQLiteDatabase
+                            .OPEN_READONLY);
+                try {
+                    StringBuilder sb = new StringBuilder(
+                        "{\"ok\":true,\"tables\":[");
+                    java.util.List<String> dbNames =
+                        new java.util.ArrayList<String>();
+                    android.database.Cursor dbMc = db.rawQuery(
+                        "SELECT name FROM sqlite_master WHERE "
+                        + "type='table' AND name NOT LIKE "
+                        + "'sqlite_%' ORDER BY name", null);
+                    while (dbMc.moveToNext()) {
+                        dbNames.add(dbMc.getString(0));
+                    }
+                    dbMc.close();
+                    boolean dbFirstT = true;
+                    for (String dbTn : dbNames) {
+                        if (!dbFirstT) sb.append(",");
+                        dbFirstT = false;
+                        String dbQ = dbTn.replace("\"", "\"\"");
+                        sb.append("{\"name\":")
+                            .append(Json.quote(dbTn))
+                            .append(",\"columns\":[");
+                        android.database.Cursor dbPc =
+                            db.rawQuery("PRAGMA table_info(\""
+                                + dbQ + "\")", null);
+                        boolean dbFirstC = true;
+                        while (dbPc.moveToNext()) {
+                            if (!dbFirstC) sb.append(",");
+                            dbFirstC = false;
+                            String dbType = dbPc.getString(2);
+                            sb.append("{\"name\":")
+                                .append(Json.quote(
+                                    dbPc.getString(1)))
+                                .append(",\"type\":")
+                                .append(Json.quote(
+                                    dbType == null ? "" : dbType))
+                                .append(",\"pk\":")
+                                .append(dbPc.getInt(5) != 0)
+                                .append("}");
+                        }
+                        dbPc.close();
+                        android.database.Cursor dbCc =
+                            db.rawQuery("SELECT COUNT(*) FROM \""
+                                + dbQ + "\"", null);
+                        long dbCnt = 0;
+                        if (dbCc.moveToFirst()) {
+                            dbCnt = dbCc.getLong(0);
+                        }
+                        dbCc.close();
+                        sb.append("],\"count\":")
+                            .append(dbCnt).append("}");
+                    }
+                    sb.append("]}");
+                    sendJson(out, sb.toString());
+                } finally {
+                    db.close();
+                }
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/db/query")
+                && method.equals("POST")) {
+            try {
+                Map<String, Object> dbD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                File dbf = safe(Json.str(dbD, "path", ""));
+                if (!dbf.isFile()) {
+                    throw new Exception("file not found");
+                }
+                String dbSql = Json.str(dbD, "sql", "").trim();
+                if (dbSql.isEmpty()) {
+                    throw new Exception("empty query");
+                }
+                boolean dbWrite = Boolean.TRUE.equals(
+                    dbD.get("write"));
+                int dbFlags = dbWrite
+                    ? android.database.sqlite.SQLiteDatabase
+                        .OPEN_READWRITE
+                    : android.database.sqlite.SQLiteDatabase
+                        .OPEN_READONLY;
+                android.database.sqlite.SQLiteDatabase db =
+                    android.database.sqlite.SQLiteDatabase
+                    .openDatabase(dbf.getAbsolutePath(), null,
+                        dbFlags);
+                long dbT0 = System.currentTimeMillis();
+                try {
+                    String dbHead = dbSql.toLowerCase(
+                        java.util.Locale.US);
+                    boolean dbQuery = dbHead.startsWith("select")
+                        || dbHead.startsWith("with")
+                        || dbHead.startsWith("pragma")
+                        || dbHead.startsWith("explain");
+                    if (dbQuery) {
+                        android.database.Cursor dbC =
+                            db.rawQuery(dbSql, null);
+                        StringBuilder sb = new StringBuilder(
+                            "{\"ok\":true,\"columns\":[");
+                        String[] dbCols = dbC.getColumnNames();
+                        for (int i = 0; i < dbCols.length; i++) {
+                            if (i > 0) sb.append(",");
+                            sb.append(Json.quote(dbCols[i]));
+                        }
+                        sb.append("],\"rows\":[");
+                        int dbN = 0;
+                        while (dbC.moveToNext()
+                                && dbN < 501) {
+                            if (dbN > 0) sb.append(",");
+                            sb.append("[");
+                            for (int i = 0;
+                                    i < dbCols.length; i++) {
+                                if (i > 0) sb.append(",");
+                                int dbType = dbC.getType(i);
+                                if (dbType == android.database
+                                        .Cursor.FIELD_TYPE_NULL) {
+                                    sb.append("null");
+                                } else if (dbType
+                                        == android.database
+                                        .Cursor.FIELD_TYPE_INTEGER) {
+                                    sb.append(dbC.getLong(i));
+                                } else if (dbType
+                                        == android.database
+                                        .Cursor.FIELD_TYPE_FLOAT) {
+                                    sb.append(dbC.getDouble(i));
+                                } else if (dbType
+                                        == android.database
+                                        .Cursor.FIELD_TYPE_BLOB) {
+                                    sb.append(Json.quote(
+                                        "<blob "
+                                        + dbC.getBlob(i).length
+                                        + " bytes>"));
+                                } else {
+                                    String dbV = dbC.getString(i);
+                                    if (dbV != null
+                                            && dbV.length() > 500) {
+                                        dbV = dbV.substring(
+                                            0, 500);
+                                    }
+                                    sb.append(Json.quote(
+                                        dbV == null ? "" : dbV));
+                                }
+                            }
+                            sb.append("]");
+                            dbN++;
+                        }
+                        boolean dbTrunc = dbN > 500;
+                        dbC.close();
+                        sb.append("],\"truncated\":")
+                            .append(dbTrunc)
+                            .append(",\"ms\":")
+                            .append(System.currentTimeMillis()
+                                - dbT0)
+                            .append("}");
+                        sendJson(out, sb.toString());
+                    } else {
+                        // On a read-only connection this throws
+                        // SQLiteReadOnlyDatabaseException:
+                        // enforcement by the engine, like the
+                        // desktop's mode=ro.
+                        db.execSQL(dbSql);
+                        android.database.Cursor dbCh =
+                            db.rawQuery("SELECT changes()", null);
+                        long dbChanged = -1;
+                        if (dbCh.moveToFirst()) {
+                            dbChanged = dbCh.getLong(0);
+                        }
+                        dbCh.close();
+                        sendJson(out, "{\"ok\":true,"
+                            + "\"columns\":[],\"rows\":[],"
+                            + "\"rowcount\":" + dbChanged
+                            + ",\"ms\":"
+                            + (System.currentTimeMillis() - dbT0)
+                            + "}");
+                    }
+                } finally {
+                    db.close();
+                }
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/backup/create")
                 && method.equals("POST")) {
             try {
