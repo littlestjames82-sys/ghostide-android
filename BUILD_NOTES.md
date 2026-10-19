@@ -616,3 +616,32 @@ Everything Ryan-independent is built and proven:
   screenshot slots left for real captures only).
 Still Ryan's: $25 Play fee + account, policy hosting,
 screenshots, closed-track creation, rollout call.
+
+## v1.29.0 (versionCode 33) - Oct 19, 2026 - Roadmap G21
+Language packs: first-class HTML, CSS, JSON, Markdown,
+SQL, Rust, and Go next to Python/JS.
+- Highlighting: @codemirror/lang-sql, lang-rust, and
+  lang-go join the bundle; langFor covers all pack
+  extensions. File tree icons per language (fileIcon).
+- Checkers (desktop /api/check): JSON (already), SQL
+  NEW - statements split with sqlite3.complete_statement
+  and executed in order on an in-memory database, errors
+  reported with the statement's start line; Go via
+  gofmt -e when Go is installed; Rust via rustc
+  --emit=metadata when rustc is installed; absent
+  toolchains get an explicit ok:null explanation, never
+  a fake pass. HTML/CSS/Markdown have no local checker
+  and say so.
+- Run configs (desktop /api/run): .sql runs on an
+  in-memory database and prints query rows; .go via
+  go run; .rs compiles with rustc into a temp dir and
+  runs the binary; .py/.js/.sh as before.
+- Phone: /api/check gains a real JSON checker (org.json);
+  Python unchanged; other types keep the honest note.
+Proven against test-fixtures/langpack with a real Go
+1.27.2 toolchain (SHA-verified from go.dev): gofmt
+check OK, go run prints, SQL check catches a typo at
+line 2, SQL run prints the fixture rows, broken JSON
+fails, honest nulls elsewhere. Rust paths are wired the
+same way but rustc is not installed in the sandbox, so
+they are proven to the not-installed gate.
