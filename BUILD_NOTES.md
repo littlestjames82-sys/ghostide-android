@@ -405,3 +405,17 @@ prove total=20 after one 10-price; continue-through-exit
 returns the program's stdout. Gates passed. APK 3238001 bytes
 md5 f9c550457b3316932eddeccdaf8a04c8, versionCode 21, same signer. Upload links still
 pending the stuck upload service.
+
+## v1.18.0 (Oct 19, 2026) - Roadmap G8: self-fixing loop
+"Fix my tests (AI)": runs the suite, hands failures to the
+agent (G5 protocol), whose writes apply immediately - each
+backed up in memory and snapshotted by Local History. Tests
+re-run after every round (max 3). A round that increases
+failures is reverted on the spot. The attempt log ends in a
+report panel with an Undo-all button.
+Verified live with the desktop 7B on a fixture whose
+percent_off subtracted dollars instead of percent: the
+agent read the test, read the source, fixed it in ONE round
+(1 failing -> 0), suite green with no human edits. Gates
+passed. APK 3237998 bytes md5 2fbcf399bffc216da2441fde8ee07f6e, versionCode 22, same
+signer. Upload links still pending the stuck service.
