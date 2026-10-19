@@ -31429,7 +31429,11 @@
       autocomplete: true,
       infillTokens: 48,
       formatOnSave: false,
-      ctxMode: "file"
+      ctxMode: "file",
+      wrap: false,
+      shortAnswers: false,
+      fontSize: "14px",
+      infillDelay: 750
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -31456,6 +31460,10 @@
       extensions: baseExtensions(null)
     })
   });
+  var wrapComp = new Compartment();
+  function wrapExt() {
+    return settings.wrap ? EditorView.lineWrapping : [];
+  }
   function baseExtensions(path) {
     const lang = langFor(path || "");
     return [
@@ -31474,11 +31482,12 @@
           return true;
         } }
       ])),
+      wrapComp.of(wrapExt()),
       EditorView.updateListener.of((u) => {
-        if (u.selectionSet) {
+        if (u.selectionSet || u.docChanged) {
           const head = u.state.selection.main.head;
           const line = u.state.doc.lineAt(head);
-          $("cursorPos").textContent = `Ln ${line.number}, Col ${head - line.from + 1}`;
+          $("cursorPos").textContent = `Ln ${line.number}, Col ${head - line.from + 1} \xB7 ${u.state.doc.lines} lines \xB7 ${u.state.doc.length} chars`;
         }
         if (u.docChanged) {
           if (!accepting) {
@@ -31521,7 +31530,7 @@
     if (!settings.autocomplete) return;
     clearTimeout(infillTimer);
     $("autocompleteState").textContent = "autocomplete: thinking\u2026";
-    infillTimer = setTimeout(() => runInfill(v), 750);
+    infillTimer = setTimeout(() => runInfill(v), settings.infillDelay);
   }
   async function runInfill(v) {
     const seq = ++infillSeq;
@@ -31648,6 +31657,7 @@
   $("menuRename").onclick = async () => {
     $("fileMenu").classList.add("hidden");
     if (!menuTarget) return;
+    if (menuTarget.path === splitFile) closeSplit();
     const to = prompt("Rename / move to:", menuTarget.path);
     if (!to || to === menuTarget.path) return;
     const r = await fetch("/api/file/rename", {
@@ -31686,6 +31696,7 @@
   $("menuDelete").onclick = async () => {
     $("fileMenu").classList.add("hidden");
     if (!menuTarget) return;
+    if (menuTarget.path === splitFile) closeSplit();
     const what = menuTarget.type === "dir" ? "folder and everything in it" : "file";
     if (!confirm("Delete this " + what + "?\n" + menuTarget.path)) return;
     const r = await fetch("/api/file/delete", {
@@ -31736,6 +31747,10 @@
       name2.textContent = (isDirty ? "\u25CF " : "") + p.split("/").pop();
       name2.title = p;
       name2.onclick = () => {
+        if (p === splitFile) {
+          if (splitView) splitView.focus();
+          return;
+        }
         if (p !== currentFile) {
           stashTab();
           activateTab(p);
@@ -31766,6 +31781,7 @@
   function closeTab(p) {
     const i2 = tabOrder.indexOf(p);
     if (i2 < 0) return;
+    if (p === splitFile) closeSplit();
     const isDirty = p === currentFile ? dirty : !!tabDirty.get(p);
     if (isDirty && !confirm("Close " + p + " with unsaved changes?")) return;
     tabOrder.splice(i2, 1);
@@ -31796,6 +31812,10 @@
   }
   async function openFile(path) {
     if (path === currentFile) return;
+    if (path === splitFile) {
+      if (splitView) splitView.focus();
+      return;
+    }
     stashTab();
     if (tabStates.has(path)) {
       activateTab(path);
@@ -31807,6 +31827,7 @@
       alert(d.error);
       return;
     }
+    if (d.content && d.content.length > 2e5 && !confirm(path + " is " + Math.round(d.content.length / 1024) + " KB - large files can make the editor sluggish, especially on the phone. Open it anyway?")) return;
     tabOrder.push(path);
     tabStates.set(path, EditorState.create({
       doc: d.content,
@@ -32122,14 +32143,21 @@
     const messages = [{ role: "system", content: sysContent }, ...history2];
     const body = addMsg("GHOST", "");
     let full = "";
+    chatAbort = new AbortController();
+    const sendBtn = $("chatSend");
+    sendBtn.textContent = "\u25A0 Stop";
+    sendBtn.onclick = () => {
+      if (chatAbort) chatAbort.abort();
+    };
     try {
       const r = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: chatAbort.signal,
         body: JSON.stringify({
           messages,
           stream: true,
-          max_tokens: BEHAVIOR.chat.maxTokens,
+          max_tokens: settings.shortAnswers ? 512 : BEHAVIOR.chat.maxTokens,
           temperature: settings.temperature
         })
       });
@@ -32157,12 +32185,20 @@
         }
       }
     } catch (e) {
-      full = full || "(error talking to the model: " + e + ")";
+      if (e && e.name === "AbortError") {
+        full += "\n\n(stopped)";
+      } else {
+        full = full || "(error talking to the model: " + e + ")";
+      }
     }
+    chatAbort = null;
+    sendBtn.textContent = "Send";
+    sendBtn.onclick = sendChat;
     renderRich(body, full);
     history2.push({ role: "assistant", content: full });
     saveHistory();
   }
+  var chatAbort = null;
   $("chatSend").onclick = sendChat;
   $("chatText").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -32325,6 +32361,7 @@
       "ghostide-recent-workspaces",
       JSON.stringify(wsRecents)
     );
+    if (splitFile) closeSplit();
     tabOrder.length = 0;
     tabStates.clear();
     tabDirty.clear();
@@ -32400,6 +32437,303 @@
     }
     $("findResults").textContent = "Replaced " + d.replacements + " occurrence(s) in " + d.filesChanged + " file(s).";
     loadFiles();
+  };
+  var splitView = null;
+  var splitFile = null;
+  var splitDirty = false;
+  function splitExtensions(path) {
+    return [
+      basicSetup,
+      oneDark,
+      wrapComp.of(wrapExt()),
+      langFor(path || ""),
+      keymap.of([
+        { key: "Mod-s", run: () => {
+          saveSplit();
+          return true;
+        } }
+      ]),
+      EditorView.updateListener.of((u) => {
+        if (u.docChanged && splitFile) {
+          splitDirty = true;
+          tabDirty.set(splitFile, true);
+          $("splitName").textContent = "\u25CF " + splitFile;
+        }
+      })
+    ];
+  }
+  function syncSplitBack() {
+    if (!splitView || !splitFile) return;
+    tabStates.set(splitFile, EditorState.create({
+      doc: splitView.state.doc.toString(),
+      extensions: baseExtensions(splitFile)
+    }));
+    tabDirty.set(splitFile, splitDirty);
+  }
+  async function openSplit(path) {
+    if (!path) return;
+    if (path === currentFile) {
+      alert("That file is already in the main pane.");
+      return;
+    }
+    if (splitFile === path) {
+      if (splitView) splitView.focus();
+      return;
+    }
+    syncSplitBack();
+    let docText;
+    if (tabStates.has(path)) {
+      docText = tabStates.get(path).doc.toString();
+    } else {
+      const r = await fetch("/api/file?path=" + encodeURIComponent(path));
+      const d = await r.json();
+      if (d.error) {
+        alert(d.error);
+        return;
+      }
+      if (d.content && d.content.length > 2e5 && !confirm(path + " is " + Math.round(d.content.length / 1024) + " KB - large files can make the editor sluggish. Open it anyway?")) return;
+      docText = d.content;
+      tabOrder.push(path);
+      tabStates.set(path, EditorState.create({
+        doc: docText,
+        extensions: baseExtensions(path)
+      }));
+      tabDirty.set(path, false);
+      renderTabs();
+    }
+    splitFile = path;
+    splitDirty = !!tabDirty.get(path);
+    const st = EditorState.create({
+      doc: docText,
+      extensions: splitExtensions(path)
+    });
+    if (!splitView) {
+      splitView = new EditorView({ state: st, parent: $("editor2") });
+    } else {
+      splitView.setState(st);
+    }
+    $("splitName").textContent = (splitDirty ? "\u25CF " : "") + path;
+    $("splitCol").classList.remove("hidden");
+    splitView.focus();
+  }
+  function closeSplit() {
+    syncSplitBack();
+    splitFile = null;
+    splitDirty = false;
+    $("splitCol").classList.add("hidden");
+    if (splitView) {
+      splitView.setState(EditorState.create({
+        doc: "",
+        extensions: splitExtensions(null)
+      }));
+    }
+    renderTabs();
+  }
+  async function saveSplit() {
+    if (!splitFile || !splitView) return;
+    const d = await postJson("/api/file", {
+      path: splitFile,
+      content: splitView.state.doc.toString()
+    });
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    splitDirty = false;
+    tabDirty.set(splitFile, false);
+    $("splitName").textContent = splitFile;
+    try {
+      localStorage.removeItem(draftKey(splitFile));
+    } catch (e) {
+    }
+    syncSplitBack();
+    renderTabs();
+  }
+  $("splitBtn").onclick = () => {
+    if (splitFile) {
+      closeSplit();
+      return;
+    }
+    openQuick("split");
+  };
+  $("splitClose").onclick = () => closeSplit();
+  $("splitSave").onclick = () => saveSplit();
+  var quickMode = "open";
+  var quickFiles = [];
+  async function openQuick(mode) {
+    quickMode = mode || "open";
+    try {
+      const r = await fetch("/api/files");
+      const d = await r.json();
+      quickFiles = (d.files || []).filter((f) => !f.endsWith("/"));
+    } catch (e) {
+      quickFiles = [];
+    }
+    $("quickInput").value = "";
+    renderQuick("");
+    $("quickPanel").classList.remove("hidden");
+    $("quickInput").focus();
+  }
+  function closeQuick() {
+    $("quickPanel").classList.add("hidden");
+  }
+  function renderQuick(q) {
+    const list = $("quickList");
+    list.innerHTML = "";
+    const needle = q.toLowerCase();
+    const matches = quickFiles.filter((f) => f.toLowerCase().includes(needle)).slice(0, 30);
+    for (const f of matches) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = f;
+      row.onclick = () => {
+        closeQuick();
+        if (quickMode === "split") openSplit(f);
+        else openFile(f);
+      };
+      list.appendChild(row);
+    }
+    if (!matches.length)
+      list.innerHTML = '<div class="dim">No files match.</div>';
+  }
+  $("quickInput").addEventListener(
+    "input",
+    (e) => renderQuick(e.target.value)
+  );
+  $("quickInput").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeQuick();
+    if (e.key === "Enter") {
+      const first = $("quickList").querySelector(".findRow");
+      if (first) first.click();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if ($("quickPanel").classList.contains("hidden")) openQuick("open");
+      else closeQuick();
+    }
+  });
+  $("toolQuick").onclick = () => {
+    hideTools();
+    openQuick("open");
+  };
+  $("toolOutline").onclick = () => {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    const lines = view.state.doc.toString().split("\n");
+    const res = [
+      /^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)/,
+      /^\s*class\s+([A-Za-z_]\w*)/,
+      /^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)/,
+      /^\s*(?:const|let|var)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>/
+    ];
+    const syms = [];
+    lines.forEach((ln, i2) => {
+      for (const re of res) {
+        const m = ln.match(re);
+        if (m) {
+          syms.push({ name: m[1], line: i2 + 1 });
+          break;
+        }
+      }
+    });
+    $("todoTitle").textContent = "Outline: " + currentFile;
+    const box = $("todoResults");
+    box.innerHTML = "";
+    if (!syms.length)
+      box.textContent = "No functions or classes found in this file.";
+    for (const s of syms) {
+      const row = document.createElement("div");
+      row.className = "todoRow";
+      row.textContent = s.name + "  \xB7  line " + s.line;
+      row.onclick = () => jumpToLine(s.line);
+      box.appendChild(row);
+    }
+    $("todoPanel").classList.remove("hidden");
+  };
+  $("toolGoto").onclick = () => {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    const n = parseInt(prompt("Go to line:"), 10);
+    if (n >= 1) jumpToLine(n);
+  };
+  $("menuCopyPath").onclick = async () => {
+    $("fileMenu").classList.add("hidden");
+    if (!menuTarget) return;
+    try {
+      await navigator.clipboard.writeText(menuTarget.path);
+    } catch (e) {
+      prompt("Copy the path:", menuTarget.path);
+    }
+  };
+  $("menuDownload").onclick = async () => {
+    $("fileMenu").classList.add("hidden");
+    if (!menuTarget) return;
+    const r = await fetch("/api/file?path=" + encodeURIComponent(menuTarget.path));
+    const d = await r.json();
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(
+      new Blob([d.content], { type: "text/plain" })
+    );
+    a.download = menuTarget.path.split("/").pop();
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
+  };
+  $("menuSplit").onclick = () => {
+    $("fileMenu").classList.add("hidden");
+    if (menuTarget) openSplit(menuTarget.path);
+  };
+  $("clearChatBtn").onclick = () => {
+    if (!confirm("Clear this project's chat history?")) return;
+    history2.length = 0;
+    saveHistory();
+    $("chatLog").innerHTML = "";
+    addMsg("GHOST", GREETING);
+  };
+  $("setWrap").checked = settings.wrap;
+  $("setWrap").onchange = (e) => {
+    settings.wrap = e.target.checked;
+    saveSettings();
+    const eff = { effects: wrapComp.reconfigure(wrapExt()) };
+    view.dispatch(eff);
+    if (splitView) splitView.dispatch(eff);
+  };
+  $("setShort").checked = settings.shortAnswers;
+  $("setShort").onchange = (e) => {
+    settings.shortAnswers = e.target.checked;
+    saveSettings();
+  };
+  $("setFont").value = settings.fontSize;
+  document.documentElement.style.setProperty(
+    "--ghost-font",
+    settings.fontSize
+  );
+  $("setFont").onchange = (e) => {
+    settings.fontSize = e.target.value;
+    saveSettings();
+    document.documentElement.style.setProperty(
+      "--ghost-font",
+      settings.fontSize
+    );
+  };
+  $("setDelay").value = settings.infillDelay;
+  $("setDelay").onchange = (e) => {
+    const n = parseInt(e.target.value, 10);
+    if (n >= 300 && n <= 3e3) {
+      settings.infillDelay = n;
+      saveSettings();
+    }
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
@@ -32635,6 +32969,7 @@
   };
   $("toolTodos").onclick = async () => {
     hideTools();
+    $("todoTitle").textContent = "TODO / FIXME";
     const box = $("todoResults");
     box.textContent = "scanning\u2026";
     $("todoPanel").classList.remove("hidden");

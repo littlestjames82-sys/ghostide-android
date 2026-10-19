@@ -143,3 +143,21 @@ Android: todos/stats/raw implemented natively; terminal and check
 return plain-language desktop explanations.
 APK 3,201,134 bytes, md5 0271e324b86082f4437a6b6003eb7d23,
 versionCode 6, same signer. Not device-tested.
+
+## v1.5.0 (Oct 19, 2026) - Phase 6 (roadmap items)
+Shared frontend only - no new endpoints needed:
+- SPLIT VIEW (the deferred Phase 2.5 item): second editor pane,
+  plain editor (autocomplete stays in the main pane); edits sync
+  back into the tab store on save/close; undo history resets when a
+  file changes panes (accepted trade, documented in code + plan).
+- Quick Open palette (Ctrl+K), Outline (functions/classes, tap to
+  jump), Go to line.
+- Chat: Stop button while streaming (AbortController), Clear chat.
+- Settings: word wrap (Compartment reconfigure, both panes),
+  editor text size (CSS var), Short answers mode (512-token cap,
+  the battery/heat knob), autocomplete pause setting.
+- Status bar shows doc lines/chars; files over 200 KB warn before
+  opening (the plan's big-file guard); file menu gains Copy path,
+  Download file, Open in split pane.
+APK 3,205,231 bytes, md5 f850b47a8191f7db6310542a8e88e529,
+versionCode 7, same signer. Not device-tested.

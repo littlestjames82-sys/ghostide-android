@@ -16,6 +16,7 @@
     <span id="modelPill" class="pill down">model: checking…</span>
     <button id="startModelBtn" class="hidden">Start model</button>
     <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
+    <button id="splitBtn" title="Split view - pick a file for the second pane">◫ Split</button>
     <button id="toolsBtn" title="Tools">🧰</button>
     <button id="findBtn" title="Find / replace in project">🔍</button>
     <button id="settingsBtn" title="Settings">⚙</button>
@@ -38,7 +39,14 @@
   </aside>
   <section id="editorWrap">
     <div id="tabBar"></div>
-    <div id="editor"></div>
+    <div id="editorRow">
+      <div id="editor"></div>
+      <div id="splitCol" class="hidden">
+        <div class="split-head"><span id="splitName">no file</span>
+          <span><button id="splitSave">Save</button><button id="splitClose">✕</button></span></div>
+        <div id="editor2"></div>
+      </div>
+    </div>
     <div id="runPane" class="hidden">
       <div class="run-head"><span id="runTitle">Output</span>
         <button id="runClose">✕</button></div>
@@ -78,11 +86,19 @@
         <option value="full">project slice (full)</option>
       </select></label>
     <div id="ctxMeter" class="dim"></div>
+    <button id="clearChatBtn" title="Clear this project's chat history">Clear chat</button>
   </aside>
 </main>
 <div id="fileMenu" class="hidden">
   <button id="menuRename">Rename / move</button>
   <button id="menuDelete">Delete</button>
+  <button id="menuCopyPath">Copy path</button>
+  <button id="menuDownload">Download file</button>
+  <button id="menuSplit">Open in split pane</button>
+</div>
+<div id="quickPanel" class="hidden">
+  <input id="quickInput" type="text" placeholder="Open file by name… (Enter opens, Esc closes)">
+  <div id="quickList"></div>
 </div>
 <div id="wsMenu" class="hidden"></div>
 <div id="findPanel" class="hidden">
@@ -112,6 +128,12 @@
     <button id="toolDup">Duplicate file</button>
     <button id="toolSnippets">Snippets</button>
   </div>
+  <h4>Go</h4>
+  <div class="toolGrid">
+    <button id="toolQuick">Quick open (Ctrl+K)</button>
+    <button id="toolOutline">Outline</button>
+    <button id="toolGoto">Go to line</button>
+  </div>
   <h4>Project</h4>
   <div class="toolGrid">
     <button id="toolTodos">TODO / FIXME scan</button>
@@ -123,7 +145,7 @@
 </div>
 
 <div id="todoPanel" class="hidden">
-  <div class="panel-head"><h3>TODO / FIXME</h3><button id="todoClose">✕</button></div>
+  <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>
   <div id="todoResults"></div>
 </div>
 
@@ -154,6 +176,17 @@
   <label>Autocomplete length (tokens)
     <input type="number" id="setTokens" min="16" max="256" step="8"></label>
   <label><input type="checkbox" id="setFormat"> Format on save (desktop, if a formatter is installed)</label>
+  <label><input type="checkbox" id="setWrap"> Word wrap</label>
+  <label><input type="checkbox" id="setShort"> Short answers (saves battery/heat)</label>
+  <label>Editor text size
+    <select id="setFont">
+      <option value="12.5px">Small</option>
+      <option value="14px">Medium</option>
+      <option value="16px">Large</option>
+      <option value="18px">XL</option>
+    </select></label>
+  <label>Autocomplete pause (ms)
+    <input type="number" id="setDelay" min="300" max="3000" step="100"></label>
   <p id="modelInfo" class="dim"></p>
   <label>Model file (desktop)
     <input id="modelPath" type="text" placeholder="/path/to/model.gguf"></label>
