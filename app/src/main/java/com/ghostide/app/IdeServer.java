@@ -651,6 +651,95 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/refactor") && method.equals("POST")) {
+            try {
+                Map<String, Object> d = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String op = Json.str(d, "op", "");
+                Map<String, Object> res;
+                if (op.equals("extract-function")) {
+                    throw new IOException("Extract function runs "
+                        + "on the desktop build (it needs a real "
+                        + "Python AST). Inline, extract variable, "
+                        + "and move work here.");
+                } else if (op.equals("inline")) {
+                    res = refactorInline(Json.str(d, "name", ""));
+                } else if (op.equals("extract-variable")) {
+                    res = refactorExtractVar(d);
+                } else if (op.equals("move")) {
+                    res = refactorMove(Json.str(d, "from", ""),
+                                       Json.str(d, "to", ""));
+                } else {
+                    throw new IOException("unknown refactor: " + op);
+                }
+                @SuppressWarnings("unchecked")
+                List<String[]> changes =
+                    (List<String[]>) res.get("changes");
+                StringBuilder diff = new StringBuilder();
+                StringBuilder filesJson = new StringBuilder("[");
+                for (int i = 0; i < changes.size(); i++) {
+                    String[] c = changes.get(i);
+                    if (i > 0) {
+                        diff.append('\n');
+                        filesJson.append(',');
+                    }
+                    diff.append(simpleDiff(c[0], c[1], c[2]));
+                    filesJson.append(Json.quote(c[0]));
+                }
+                filesJson.append(']');
+                boolean apply = Boolean.TRUE.equals(d.get("apply"));
+                String moveJson = "null";
+                if (op.equals("move")) {
+                    moveJson = "{\"from\":"
+                        + Json.quote(Json.str(d, "from", ""))
+                        + ",\"to\":"
+                        + Json.quote(Json.str(d, "to", "")) + "}";
+                }
+                if (apply) {
+                    for (String[] c : changes) {
+                        File fp = safe(c[0]);
+                        if (fp.getParentFile() != null)
+                            fp.getParentFile().mkdirs();
+                        snapshotHistory(fp, c[2]);
+                        writeFile(fp, c[2]);
+                    }
+                    if (op.equals("move")) {
+                        File src = safe(Json.str(d, "from", ""));
+                        File dst = safe(Json.str(d, "to", ""));
+                        if (dst.getParentFile() != null)
+                            dst.getParentFile().mkdirs();
+                        if (!src.renameTo(dst))
+                            throw new IOException(
+                                "could not move the file");
+                    }
+                }
+                StringBuilder info = new StringBuilder("{");
+                boolean firstInfo = true;
+                for (String k : new String[]{"expr", "replaced",
+                        "filesFixed", "replacements"}) {
+                    if (res.containsKey(k)) {
+                        if (!firstInfo) info.append(',');
+                        firstInfo = false;
+                        info.append(Json.quote(k)).append(':');
+                        Object v = res.get(k);
+                        if (v instanceof String)
+                            info.append(Json.quote((String) v));
+                        else
+                            info.append(v);
+                    }
+                }
+                info.append('}');
+                sendJson(out, "{\"diff\":" + Json.quote(diff.toString())
+                    + ",\"applied\":" + apply
+                    + ",\"info\":" + info
+                    + ",\"files\":" + filesJson
+                    + ",\"move\":" + moveJson + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/rename-symbol")
                 && method.equals("POST")) {
             try {
@@ -1050,6 +1139,346 @@ public final class IdeServer {
                     snaps[i].delete();
             }
         } catch (Exception e) { /* history never breaks a save */ }
+    }
+
+    // ---- Refactoring (Roadmap G3, phone mirrors) ----
+    // Same contract as desktop: compute -> unified-ish diff
+    // preview -> apply on request. Extract-function stays
+    // desktop-only (it needs a real Python AST); inline, move,
+    // and extract-variable are implemented here textually.
+    private static final java.util.regex.Pattern IDENT_PAT =
+        java.util.regex.Pattern.compile(
+            "^[A-Za-z_$][A-Za-z0-9_$]*$");
+
+    private String simpleDiff(String path, String oldText,
+            String newText) {
+        String[] a = oldText.split("\n", -1);
+        String[] b = newText.split("\n", -1);
+        StringBuilder out = new StringBuilder();
+        out.append("--- a/").append(path).append('\n');
+        out.append("+++ b/").append(path).append('\n');
+        if (a.length > 3000 || b.length > 3000) {
+            out.append("(file too large to diff here)\n");
+            return out.toString();
+        }
+        int n = a.length, m = b.length;
+        int[][] dp = new int[n + 1][m + 1];
+        for (int i = n - 1; i >= 0; i--) {
+            for (int j = m - 1; j >= 0; j--) {
+                dp[i][j] = a[i].equals(b[j])
+                    ? dp[i + 1][j + 1] + 1
+                    : Math.max(dp[i + 1][j], dp[i][j + 1]);
+            }
+        }
+        int i = 0, j = 0;
+        while (i < n && j < m) {
+            if (a[i].equals(b[j])) {
+                out.append(' ').append(a[i]).append('\n');
+                i++; j++;
+            } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                out.append('-').append(a[i]).append('\n');
+                i++;
+            } else {
+                out.append('+').append(b[j]).append('\n');
+                j++;
+            }
+        }
+        while (i < n) out.append('-').append(a[i++]).append('\n');
+        while (j < m) out.append('+').append(b[j++]).append('\n');
+        return out.toString();
+    }
+
+    private Map<String, Object> refactorInline(String name)
+            throws IOException {
+        if (!IDENT_PAT.matcher(name).matches())
+            throw new IOException("not a valid name: " + name);
+        ensureSymbolIndex();
+        String[] def = null;
+        int defCount = 0;
+        for (String[] d : symCacheDefs) {
+            if (d[0].equals(name) && d[1].equals("value")) {
+                def = d;
+                defCount++;
+            }
+        }
+        if (defCount != 1)
+            throw new IOException("Inline needs exactly one "
+                + "simple assignment to " + name
+                + "; found " + defCount + ".");
+        File defFile = safe(def[2]);
+        String defText = readFile(defFile);
+        String[] defLines = defText.split("\n", -1);
+        int defLine = Integer.parseInt(def[3]);
+        java.util.regex.Matcher dm = java.util.regex.Pattern
+            .compile("^\\s*(?:const\\s+|let\\s+|var\\s+)?"
+                + java.util.regex.Pattern.quote(name)
+                + "\\s*=\\s*(.+?);?\\s*$")
+            .matcher(defLines[defLine - 1]);
+        if (!dm.find())
+            throw new IOException("The definition of " + name
+                + " is not a simple one-line assignment.");
+        String expr = dm.group(1);
+        java.util.regex.Pattern assignPat =
+            java.util.regex.Pattern.compile(
+                "\\b" + java.util.regex.Pattern.quote(name)
+                + "\\s*=(?!=)");
+        java.util.regex.Pattern wordPat =
+            java.util.regex.Pattern.compile(
+                "\\b" + java.util.regex.Pattern.quote(name) + "\\b");
+        boolean simple = expr.matches("[\\w$.\"'/\\[\\] ]+");
+        String replacement = simple ? expr : "(" + expr + ")";
+        List<String[]> refs = symCacheRefs.get(name);
+        if (refs == null) refs = new ArrayList<>();
+        Map<String, List<Integer>> byFile = new LinkedHashMap<>();
+        for (String[] r : refs) {
+            List<Integer> lst = byFile.get(r[0]);
+            if (lst == null) {
+                lst = new ArrayList<>();
+                byFile.put(r[0], lst);
+            }
+            lst.add(Integer.parseInt(r[1]));
+        }
+        List<String[]> changes = new ArrayList<>();
+        for (Map.Entry<String, List<Integer>> e : byFile.entrySet()) {
+            File fp = safe(e.getKey());
+            String ftext = readFile(fp);
+            String[] flines = ftext.split("\n", -1);
+            Set<Integer> touched = new HashSet<>(e.getValue());
+            for (int ln : touched) {
+                if (assignPat.matcher(flines[ln - 1]).find()
+                        && !(e.getKey().equals(def[2])
+                             && ln == defLine))
+                    throw new IOException(name + " is assigned "
+                        + "in more than one place (" + e.getKey()
+                        + ").");
+            }
+            StringBuilder nb = new StringBuilder();
+            for (int i = 0; i < flines.length; i++) {
+                int ln = i + 1;
+                if (e.getKey().equals(def[2]) && ln == defLine)
+                    continue;
+                String l = flines[i];
+                if (touched.contains(ln))
+                    l = wordPat.matcher(l)
+                        .replaceAll(java.util.regex.Matcher
+                            .quoteReplacement(replacement));
+                if (nb.length() > 0 || i > 0) {
+                    // join below instead
+                }
+                nb.append(l);
+                if (i < flines.length - 1) nb.append('\n');
+            }
+            String newText = nb.toString();
+            if (!newText.equals(ftext))
+                changes.add(new String[]{e.getKey(), ftext, newText});
+        }
+        if (changes.isEmpty())
+            throw new IOException("Nothing to inline.");
+        Map<String, Object> res = new HashMap<>();
+        res.put("changes", changes);
+        res.put("expr", expr);
+        return res;
+    }
+
+    private Map<String, Object> refactorExtractVar(
+            Map<String, Object> d) throws IOException {
+        String name = Json.str(d, "name", "");
+        if (!IDENT_PAT.matcher(name).matches())
+            throw new IOException("not a valid name: " + name);
+        String rel = Json.str(d, "path", "");
+        File f = safe(rel);
+        String text = readFile(f);
+        String[] lines = text.split("\n", -1);
+        int lineNo = (int) Json.num(d, "line", 0);
+        int scol = (int) Json.num(d, "startCol", 0);
+        int ecol = (int) Json.num(d, "endCol", 0);
+        if (lineNo < 1 || lineNo > lines.length)
+            throw new IOException("line out of range");
+        String line = lines[lineNo - 1];
+        if (scol < 0 || ecol > line.length() || ecol <= scol)
+            throw new IOException("Select an expression first.");
+        String expr = line.substring(scol, ecol);
+        if (expr.trim().isEmpty())
+            throw new IOException("Select an expression first.");
+        boolean py = rel.endsWith(".py");
+        boolean bare = IDENT_PAT.matcher(expr).matches();
+        java.util.regex.Pattern pat = bare
+            ? java.util.regex.Pattern.compile(
+                "\\b" + java.util.regex.Pattern.quote(expr) + "\\b")
+            : null;
+        int count = 0;
+        int firstIdx = -1;
+        String[] newLines = lines.clone();
+        for (int i = 0; i < lines.length; i++) {
+            if (pat != null) {
+                java.util.regex.Matcher m = pat.matcher(lines[i]);
+                int n = 0;
+                while (m.find()) n++;
+                if (n > 0) {
+                    newLines[i] = m.replaceAll(
+                        java.util.regex.Matcher.quoteReplacement(name));
+                    count += n;
+                }
+            } else if (lines[i].contains(expr)) {
+                int n = 0, idx = 0;
+                while ((idx = lines[i].indexOf(expr, idx)) >= 0) {
+                    n++;
+                    idx += expr.length();
+                }
+                newLines[i] = lines[i].replace(expr, name);
+                count += n;
+            }
+            if (count > 0 && firstIdx < 0
+                    && !newLines[i].equals(lines[i]))
+                firstIdx = i;
+        }
+        if (count == 0)
+            throw new IOException("Expression not found.");
+        String stmt = lines[firstIdx];
+        int ind = 0;
+        while (ind < stmt.length()
+                && Character.isWhitespace(stmt.charAt(ind))) ind++;
+        String indent = stmt.substring(0, ind);
+        String decl = py
+            ? indent + name + " = " + expr
+            : indent + "const " + name + " = " + expr + ";";
+        StringBuilder nb = new StringBuilder();
+        for (int i = 0; i < newLines.length; i++) {
+            if (i == firstIdx) {
+                nb.append(decl).append('\n');
+            }
+            nb.append(newLines[i]);
+            if (i < newLines.length - 1) nb.append('\n');
+        }
+        String newText = nb.toString();
+        Map<String, Object> res = new HashMap<>();
+        List<String[]> changes = new ArrayList<>();
+        changes.add(new String[]{rel, text, newText});
+        res.put("changes", changes);
+        res.put("replaced", count);
+        res.put("expr", expr);
+        return res;
+    }
+
+    private Map<String, Object> refactorMove(String frm, String to)
+            throws IOException {
+        File src = safe(frm);
+        File dst = safe(to);
+        if (!src.isFile())
+            throw new IOException("no such file: " + frm);
+        if (dst.exists())
+            throw new IOException("already exists: " + to);
+        List<File> all = new ArrayList<>();
+        collectTextFiles(workspace, all);
+        List<String[]> changes = new ArrayList<>();
+        int total = 0;
+        if (frm.endsWith(".py")) {
+            String oldMod = frm.substring(0, frm.length() - 3)
+                .replace('/', '.');
+            String newMod = to.substring(0, to.length() - 3)
+                .replace('/', '.');
+            java.util.regex.Pattern modPat =
+                java.util.regex.Pattern.compile(
+                    "^(\\s*(?:import|from)\\s+)"
+                    + java.util.regex.Pattern.quote(oldMod)
+                    + "(?=[\\s.]|$)");
+            for (File fp : all) {
+                String rel = workspace.toURI().relativize(
+                    fp.toURI()).getPath();
+                if (rel.equals(frm) || !rel.endsWith(".py"))
+                    continue;
+                String ftext = readFile(fp);
+                String[] flines = ftext.split("\n", -1);
+                boolean hit = false;
+                for (int i = 0; i < flines.length; i++) {
+                    java.util.regex.Matcher m =
+                        modPat.matcher(flines[i]);
+                    if (m.find()) {
+                        flines[i] = m.replaceFirst(
+                            java.util.regex.Matcher
+                                .quoteReplacement(m.group(1) + newMod));
+                        hit = true;
+                        total++;
+                    }
+                }
+                if (hit) {
+                    changes.add(new String[]{rel, ftext,
+                        joinLines(flines)});
+                }
+            }
+        } else if (frm.endsWith(".js") || frm.endsWith(".mjs")) {
+            for (File fp : all) {
+                String rel = workspace.toURI().relativize(
+                    fp.toURI()).getPath();
+                if (rel.equals(frm)
+                        || !(rel.endsWith(".js")
+                             || rel.endsWith(".mjs")))
+                    continue;
+                String oldSpec = relSpec(rel, frm);
+                String newSpec = relSpec(rel, to);
+                if (oldSpec.equals(newSpec)) continue;
+                String ftext = readFile(fp);
+                int n = countOccurrences(ftext, "'" + oldSpec + "'")
+                    + countOccurrences(ftext, "\"" + oldSpec + "\"");
+                if (n > 0) {
+                    String newText = ftext
+                        .replace("'" + oldSpec + "'",
+                                 "'" + newSpec + "'")
+                        .replace("\"" + oldSpec + "\"",
+                                 "\"" + newSpec + "\"");
+                    changes.add(new String[]{rel, ftext, newText});
+                    total += n;
+                }
+            }
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("changes", changes);
+        res.put("filesFixed", changes.size());
+        res.put("replacements", total);
+        return res;
+    }
+
+    private static String joinLines(String[] lines) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) b.append('\n');
+            b.append(lines[i]);
+        }
+        return b.toString();
+    }
+
+    private static int countOccurrences(String text, String needle) {
+        int n = 0, idx = 0;
+        while ((idx = text.indexOf(needle, idx)) >= 0) {
+            n++;
+            idx += needle.length();
+        }
+        return n;
+    }
+
+    /** Relative module specifier from importer's dir to target. */
+    private static String relSpec(String importer, String target) {
+        String dir = importer.contains("/")
+            ? importer.substring(0, importer.lastIndexOf('/')) : "";
+        String[] dParts = dir.isEmpty()
+            ? new String[0] : dir.split("/");
+        String t = target;
+        if (t.endsWith(".js")) t = t.substring(0, t.length() - 3);
+        String[] tParts = t.split("/");
+        int common = 0;
+        while (common < dParts.length && common < tParts.length
+                && dParts[common].equals(tParts[common]))
+            common++;
+        StringBuilder sb = new StringBuilder();
+        for (int i = common; i < dParts.length; i++)
+            sb.append("../");
+        for (int i = common; i < tParts.length; i++) {
+            if (i > common) sb.append('/');
+            sb.append(tParts[i]);
+        }
+        String s = sb.toString();
+        if (!s.startsWith(".")) s = "./" + s;
+        return s;
     }
 
     private static String readFile(File f) throws IOException {

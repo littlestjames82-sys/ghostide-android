@@ -32473,6 +32473,9 @@
     }
   }
   async function showDiff(path) {
+    pendingRefactor = null;
+    $("diffApply").classList.add("hidden");
+    $("diffDiscard").classList.add("hidden");
     const r = await fetch("/api/git/diff?path=" + encodeURIComponent(path));
     const d = await r.json();
     $("diffTitle").textContent = "Diff: " + path;
@@ -33793,6 +33796,9 @@
     { title: "Go to symbol\u2026", run: () => openSymbols() },
     { title: "Go to definition", run: () => $("toolDef").click() },
     { title: "Find all references", run: () => $("toolRefs").click() },
+    { title: "Extract function\u2026", run: () => $("toolExtractFn").click() },
+    { title: "Extract variable\u2026", run: () => $("toolExtractVar").click() },
+    { title: "Inline variable", run: () => $("toolInline").click() },
     { title: "Rename symbol\u2026", run: () => $("toolRename").click() },
     { title: "Repo map", run: () => $("toolRepoMap").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
@@ -34386,6 +34392,148 @@
       el.textContent = "Repo map unavailable: " + e.message;
       box.appendChild(el);
     }
+  };
+  var pendingRefactor = null;
+  function anyOpenDirty() {
+    if (dirty) return true;
+    for (const v of tabDirty.values()) if (v) return true;
+    return false;
+  }
+  async function previewRefactor(title, payload) {
+    const d = await postJson("/api/refactor", payload);
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    pendingRefactor = { title, payload };
+    $("diffTitle").textContent = title + " - preview";
+    $("diffOut").textContent = d.diff || "(no text changes - the file move itself)";
+    $("diffApply").classList.remove("hidden");
+    $("diffDiscard").classList.remove("hidden");
+    $("diffPanel").classList.remove("hidden");
+  }
+  function closeDiff() {
+    pendingRefactor = null;
+    $("diffApply").classList.add("hidden");
+    $("diffDiscard").classList.add("hidden");
+    $("diffPanel").classList.add("hidden");
+  }
+  $("diffClose").onclick = closeDiff;
+  $("diffDiscard").onclick = closeDiff;
+  $("diffApply").onclick = async () => {
+    if (!pendingRefactor) return;
+    const { title, payload } = pendingRefactor;
+    const d = await postJson(
+      "/api/refactor",
+      Object.assign({}, payload, { apply: true })
+    );
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    closeDiff();
+    const changed = new Set(d.files || []);
+    if (d.move) {
+      const wasOpen = tabOrder.includes(d.move.from);
+      if (tabStates.has(d.move.from)) closeTab(d.move.from);
+      if (wasOpen) await openFile(d.move.to, true);
+    }
+    for (const p of changed) {
+      if (p === currentFile) await reloadCurrentFromDisk();
+      else if (tabStates.has(p)) tabStates.delete(p);
+    }
+    loadFiles();
+    setSaveState("refactor applied: " + title);
+  };
+  $("toolExtractFn").onclick = () => {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    if (dirty) {
+      alert("Save first - refactoring works on the saved file.");
+      return;
+    }
+    const sel = view.state.selection.main;
+    if (sel.empty) {
+      alert("Select the statements to extract first.");
+      return;
+    }
+    let startLine = view.state.doc.lineAt(sel.from).number;
+    let endLine = view.state.doc.lineAt(sel.to).number;
+    if (view.state.doc.lineAt(sel.to).from === sel.to) endLine--;
+    const name2 = prompt("New function name:", "extracted");
+    if (!name2) return;
+    previewRefactor("Extract function " + name2, {
+      op: "extract-function",
+      path: currentFile,
+      startLine,
+      endLine,
+      name: name2
+    });
+  };
+  $("toolExtractVar").onclick = () => {
+    hideTools();
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    if (dirty) {
+      alert("Save first - refactoring works on the saved file.");
+      return;
+    }
+    const sel = view.state.selection.main;
+    if (sel.empty) {
+      alert("Select an expression on one line first.");
+      return;
+    }
+    const lineObj = view.state.doc.lineAt(sel.from);
+    if (view.state.doc.lineAt(sel.to).number !== lineObj.number) {
+      alert("Extract variable works on a single line for now.");
+      return;
+    }
+    const name2 = prompt("New variable name:", "value");
+    if (!name2) return;
+    previewRefactor("Extract variable " + name2, {
+      op: "extract-variable",
+      path: currentFile,
+      line: lineObj.number,
+      startCol: sel.from - lineObj.from,
+      endCol: sel.to - lineObj.from,
+      name: name2
+    });
+  };
+  $("toolInline").onclick = () => {
+    hideTools();
+    const w = wordAtCursor();
+    if (!w.word) {
+      alert("Put the cursor on a variable name first.");
+      return;
+    }
+    if (anyOpenDirty()) {
+      alert("Save all open files first - inline rewrites every file that uses " + w.word + ".");
+      return;
+    }
+    previewRefactor("Inline " + w.word, { op: "inline", name: w.word });
+  };
+  $("menuMove").onclick = () => {
+    $("fileMenu").classList.add("hidden");
+    if (!menuTarget || menuTarget.type === "dir") return;
+    if (anyOpenDirty()) {
+      alert("Save all open files first - moving a file rewrites the files that import it.");
+      return;
+    }
+    const to = prompt(
+      "Move " + menuTarget.path + " to:",
+      menuTarget.path
+    );
+    if (!to || to === menuTarget.path) return;
+    previewRefactor("Move " + menuTarget.path + " \u2192 " + to, {
+      op: "move",
+      from: menuTarget.path,
+      to
+    });
   };
   loadFiles();
   refreshWsLabel();

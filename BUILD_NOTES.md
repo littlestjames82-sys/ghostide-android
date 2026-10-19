@@ -322,9 +322,25 @@ Settings toggle to ride along with every chat. Verified: map
 content/ranking/truncation on fixtures; map-only Q&A proof -
 the desktop 7B answered which file/class owns greetings and
 which function creates them from the map alone, no file
-contents. Gates passed. APK 3,221,? bytes md5 dc0b2230,
+contents. Gates passed. APK 3221617 bytes md5 dc0b2230f8388c0d590b826d6b35151f,
 versionCode 16, same signer. NOTE: the remote-storage upload
 service has had an orphaned write stuck since the v1.11.0
 upload (every attempt: "equivalent connector write already
 running"); both v1.11.0 and v1.12.0 links are pending that
 clearing. Repos pushed for both versions.
+
+## v1.13.0 (Oct 19, 2026) - Roadmap G3: refactoring engine
+POST /api/refactor on both servers, always preview-first:
+compute -> unified diff -> Apply writes through the save path
+(so Local History snapshots make every refactor undoable).
+Ops: extract-function (desktop, AST: infers params + returns),
+extract-variable (both; function-scoped on desktop, file-wide
+on phone), inline (both, index-driven, single-assignment
+guard), move with import fixups (both; py module paths, JS
+relative specifiers). Desktop-verified: all four ops applied
+to fixtures and the programs produced IDENTICAL output
+(64.17 / 107.0 / "thing works") before and after. Phone
+extract-function returns an honest desktop-only message.
+Gates passed. APK 3229806 bytes md5 3cef7368d4c5fc6bec06b5ad4fda542f,
+versionCode 17, same signer. Upload link still pending (see
+v1.12.0 note - the service itself is now timing out too).

@@ -150,6 +150,7 @@ setTimeout(function () {
   <button id="menuDelete">Delete</button>
   <button id="menuCopyPath">Copy path</button>
   <button id="menuCopyContents">Copy contents</button>
+  <button id="menuMove">Move / rename path…</button>
   <button id="menuDownload">Download file</button>
   <button id="menuSplit">Open in split pane</button>
 </div>
@@ -191,6 +192,9 @@ setTimeout(function () {
     <button id="toolUnfold">Unfold all</button>
     <button id="toolDef">Go to definition</button>
     <button id="toolRefs">Find all references</button>
+    <button id="toolExtractFn">Extract function…</button>
+    <button id="toolExtractVar">Extract variable…</button>
+    <button id="toolInline">Inline variable</button>
     <button id="toolRename">Rename symbol…</button>
   </div>
   <h4>Text</h4>
@@ -248,7 +252,9 @@ setTimeout(function () {
 
 <div id="diffPanel" class="hidden">
   <div class="run-head"><span id="diffTitle">Diff</span>
-    <button id="diffClose">✕</button></div>
+    <span><button id="diffApply" class="hidden">✓ Apply refactor</button>
+    <button id="diffDiscard" class="hidden">Discard</button>
+    <button id="diffClose">✕</button></span></div>
   <pre id="diffOut"></pre>
 </div>
 <div id="settingsPanel" class="hidden">
