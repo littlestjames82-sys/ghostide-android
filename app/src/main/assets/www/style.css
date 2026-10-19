@@ -166,6 +166,14 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 #todoChip { margin-left: 6px; }
 #probChip { margin-left: 6px; }
+#crumbs {
+  padding: 3px 10px; font-size: 12px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  border-bottom: 1px solid #21262d;
+}
+#fileFilter {
+  width: calc(100% - 16px); margin: 4px 8px; box-sizing: border-box;
+}
 body.zen #files, body.zen #chat { display: none; }
 #inlineAiBar {
   display: flex; gap: 6px; padding: 6px 8px;

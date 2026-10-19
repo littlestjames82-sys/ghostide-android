@@ -257,3 +257,22 @@ Problems, quiet problems chip after save (desktop checkers).
 Gates: parse, 144 IDs, DOM-stub evaluation PASS (harness now
 durable at ghost-ide/tools/). APK 3,213,424 bytes, md5 02c43111,
 versionCode 12, same signer. Not device-tested.
+
+## v1.9.0 (Oct 19, 2026) - Phase 10 round
+Frontend + one endpoint on both servers (POST /api/rename-symbol,
+word-boundary identifier rename; desktop live-verified: renamed
+3 occurrences of `total`, left `totalCount` untouched, refused
+non-identifiers; Java mirror compiled in).
+New: breadcrumbs (path + enclosing function, live on selection);
+explorer filter input; session restore (open tabs + current file
+persist in localStorage and reopen on launch, missing paths
+skipped, big-file prompt suppressed for restores); reopen closed
+tab (palette); Rename symbol UI (dirty-buffer guard, buffer
+reload after); Go to definition (heuristic search over
+def/class/function lines, list on multiple hits); Copy contents
+in the file menu; problems check also runs on file open;
+Write-code-from-comment AI action (reuses the review/apply
+panel, inserts under the comment).
+Gates: parse, 150 IDs, DOM-stub evaluation PASS.
+APK 3,217,520 bytes, md5 178cab89375f51eb76c071ae166d0238,
+versionCode 13, same signer. Not device-tested.

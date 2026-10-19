@@ -316,6 +316,48 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/rename-symbol")
+                && method.equals("POST")) {
+            try {
+                Map<String, Object> d = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String word = Json.str(d, "word", "");
+                String rep = Json.str(d, "replacement", "");
+                if (!word.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+                        || !rep.matches("[A-Za-z_$][A-Za-z0-9_$]*"))
+                    throw new IOException("not an identifier");
+                java.util.regex.Pattern pat =
+                    java.util.regex.Pattern.compile(
+                        "\\b" + java.util.regex.Pattern.quote(word)
+                        + "\\b");
+                List<File> files = new ArrayList<>();
+                collectTextFiles(workspace, files);
+                int changed = 0;
+                int total = 0;
+                for (File f : files) {
+                    String text;
+                    try { text = readFile(f); }
+                    catch (Exception e) { continue; }
+                    java.util.regex.Matcher m = pat.matcher(text);
+                    int n = 0;
+                    while (m.find()) n++;
+                    if (n > 0) {
+                        m.reset();
+                        writeFile(f, m.replaceAll(
+                            java.util.regex.Matcher
+                                .quoteReplacement(rep)));
+                        changed++;
+                        total += n;
+                    }
+                }
+                sendJson(out, "{\"filesChanged\":" + changed
+                    + ",\"replacements\":" + total + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/git/status")) {
             sendJson(out, "{\"repo\":false,\"error\":\"git isn't "
                 + "available in the phone build\"}");

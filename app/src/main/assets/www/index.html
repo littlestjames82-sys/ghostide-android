@@ -63,6 +63,7 @@ setTimeout(function () {
 <main>
   <aside id="files">
     <div class="panel-head">FILES <span><button id="wsBtn" title="Open a different folder (desktop)">📂</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
+    <input id="fileFilter" type="text" placeholder="Filter files…">
     <div id="wsPath" class="hint"></div>
     <div id="fileTree"></div>
     <div id="gitPanel">
@@ -79,6 +80,7 @@ setTimeout(function () {
   </aside>
   <section id="editorWrap">
     <div id="tabBar"></div>
+    <div id="crumbs" class="dim"></div>
     <div id="editorRow">
       <div id="editor"></div>
       <div id="splitCol" class="hidden">
@@ -146,6 +148,7 @@ setTimeout(function () {
   <button id="menuRename">Rename / move</button>
   <button id="menuDelete">Delete</button>
   <button id="menuCopyPath">Copy path</button>
+  <button id="menuCopyContents">Copy contents</button>
   <button id="menuDownload">Download file</button>
   <button id="menuSplit">Open in split pane</button>
 </div>
@@ -174,6 +177,7 @@ setTimeout(function () {
     <button id="aiTests">Write tests</button>
     <button id="aiDoc">Add docstrings</button>
     <button id="aiInline">Edit selection with AI…</button>
+    <button id="aiWrite">Write code from comment</button>
   </div>
   <h4>Current file</h4>
   <div class="toolGrid">
@@ -184,6 +188,8 @@ setTimeout(function () {
     <button id="toolFindFile">Find in file</button>
     <button id="toolFold">Fold all</button>
     <button id="toolUnfold">Unfold all</button>
+    <button id="toolDef">Go to definition</button>
+    <button id="toolRename">Rename symbol…</button>
   </div>
   <h4>Text</h4>
   <div class="toolGrid">
