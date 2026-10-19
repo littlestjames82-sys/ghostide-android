@@ -35651,6 +35651,7 @@
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
     { title: "API client", run: () => $("toolApi").click() },
     { title: "Export docs site", run: () => $("toolDocs").click() },
+    { title: "Asset browser", run: () => $("toolAssets").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {
@@ -37001,6 +37002,135 @@
     hideTools();
     runFixLoop();
   };
+  var IMG_EXTS = [
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "svg",
+    "bmp",
+    "ico",
+    "avif"
+  ];
+  var assetSortBySize = true;
+  function fmtSize(n) {
+    if (n == null) return "?";
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+    return (n / (1024 * 1024)).toFixed(2) + " MB";
+  }
+  async function openAssets() {
+    $("assetPanel").classList.remove("hidden");
+    $("toolsPanel").classList.add("hidden");
+    const r = await fetch("/api/files");
+    const d = await r.json();
+    const imgs = (d.files || []).filter((f) => f.type === "file" && IMG_EXTS.includes(
+      (f.path.split(".").pop() || "").toLowerCase()
+    ));
+    imgs.sort((a, b) => assetSortBySize ? (b.size || 0) - (a.size || 0) : a.path.localeCompare(b.path));
+    const grid = $("assetGrid");
+    grid.innerHTML = "";
+    if (!imgs.length) {
+      grid.innerHTML = '<div class="dim">No images in this workspace yet. The icon maker below can create some.</div>';
+    }
+    imgs.forEach((f, i2) => {
+      const card = document.createElement("div");
+      card.className = "assetCard" + (assetSortBySize && i2 === 0 && imgs.length > 1 ? " heaviest" : "");
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = "/api/raw?path=" + encodeURIComponent(f.path);
+      img.alt = f.path;
+      const name2 = document.createElement("div");
+      name2.className = "aName";
+      name2.textContent = f.path;
+      const meta2 = document.createElement("div");
+      meta2.className = "aMeta";
+      meta2.textContent = fmtSize(f.size) + (assetSortBySize && i2 === 0 && imgs.length > 1 ? " \xB7 \u{1F418} heaviest" : "");
+      img.onload = () => {
+        meta2.textContent = img.naturalWidth + "\xD7" + img.naturalHeight + " \xB7 " + meta2.textContent;
+      };
+      card.append(img, name2, meta2);
+      card.onclick = () => {
+        $("previewTitle").textContent = "Preview: " + f.path;
+        const body = $("previewBody");
+        body.innerHTML = "";
+        const big = document.createElement("img");
+        big.src = img.src;
+        big.alt = f.path;
+        body.appendChild(big);
+        $("previewPanel").classList.remove("hidden");
+      };
+      grid.appendChild(card);
+    });
+    drawIcon();
+  }
+  function drawIcon() {
+    const cv = $("iconCanvas");
+    const ctx = cv.getContext("2d");
+    const S2 = cv.width;
+    ctx.clearRect(0, 0, S2, S2);
+    const shape = $("iconShape").value;
+    if (shape !== "none") {
+      ctx.fillStyle = $("iconBg").value;
+      ctx.beginPath();
+      if (shape === "circle") {
+        ctx.arc(S2 / 2, S2 / 2, S2 / 2 - 4, 0, Math.PI * 2);
+      } else if (shape === "rounded") {
+        ctx.roundRect(4, 4, S2 - 8, S2 - 8, 96);
+      } else {
+        ctx.rect(4, 4, S2 - 8, S2 - 8);
+      }
+      ctx.fill();
+    }
+    const glyph = $("iconText").value || "\u{1F47B}";
+    ctx.fillStyle = $("iconFg").value;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "300px system-ui, sans-serif";
+    ctx.fillText(glyph, S2 / 2, S2 / 2 + 12);
+  }
+  async function makeIconSet() {
+    drawIcon();
+    const sizes = [
+      [48, "icons/icon-48.png"],
+      [72, "icons/icon-72.png"],
+      [96, "icons/icon-96.png"],
+      [144, "icons/icon-144.png"],
+      [192, "icons/icon-192.png"],
+      [512, "icons/icon-512.png"],
+      [180, "icons/apple-touch-icon.png"],
+      [32, "icons/favicon-32.png"]
+    ];
+    let ok = 0;
+    for (const [size, path] of sizes) {
+      const c = document.createElement("canvas");
+      c.width = size;
+      c.height = size;
+      c.getContext("2d").drawImage($("iconCanvas"), 0, 0, size, size);
+      const b64 = c.toDataURL("image/png").split(",")[1];
+      const r = await fetch("/api/file64", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, base64: b64 })
+      });
+      const d = await r.json();
+      if (!d.error) ok++;
+    }
+    $("iconMsg").textContent = "Wrote " + ok + " icon files to icons/ (48-512 px, Apple touch icon, favicon).";
+    loadFiles();
+  }
+  $("toolAssets").onclick = openAssets;
+  $("assetClose").onclick = () => $("assetPanel").classList.add("hidden");
+  $("assetSortBtn").onclick = () => {
+    assetSortBySize = !assetSortBySize;
+    $("assetSortBtn").textContent = assetSortBySize ? "Largest first" : "Name A-Z";
+    openAssets();
+  };
+  $("iconMakeBtn").onclick = makeIconSet;
+  for (const id2 of ["iconText", "iconShape", "iconBg", "iconFg"]) {
+    $(id2).addEventListener("input", drawIcon);
+  }
   var API_SAVE_PATH = ".ghostide/api-requests.json";
   var apiSavedList = [];
   function apiParseHeaders(text) {

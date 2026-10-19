@@ -434,3 +434,32 @@ body.zen #files, body.zen #chat { display: none; }
 #previewBody li.task { list-style: none; margin-left: -18px; }
 #previewBody .mermaid-svg { max-width: 100%; height: auto; }
 #previewBody a[data-md] { color: #9fe8bb; }
+
+/* Roadmap G25: asset browser + icon maker */
+#assetPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#assetGrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px; padding: 8px 10px;
+}
+.assetCard {
+  background: #17181f; border: 1px solid #2e3038; border-radius: 8px;
+  padding: 6px; cursor: pointer; text-align: center;
+}
+.assetCard.heaviest { border-color: #e2a07e; }
+.assetCard img {
+  width: 100%; height: 72px; object-fit: contain; background:
+  repeating-conic-gradient(#20222b 0% 25%, #17181f 0% 50%) 0 0 / 16px 16px;
+  border-radius: 4px;
+}
+.assetCard .aName {
+  font-size: 11px; word-break: break-all; color: #e6e8f0; margin-top: 4px;
+}
+.assetCard .aMeta { font-size: 10.5px; color: #9a9fb0; }
+.iconMaker { display: flex; gap: 14px; padding: 6px 10px 12px; flex-wrap: wrap; }
+#iconCanvas {
+  width: 128px; height: 128px; border: 1px solid #2e3038;
+  border-radius: 8px; background:
+  repeating-conic-gradient(#20222b 0% 25%, #17181f 0% 50%) 0 0 / 16px 16px;
+}
+.iconControls { display: flex; flex-direction: column; gap: 7px; font-size: 12.5px; }
+.iconControls label { display: flex; gap: 8px; align-items: center; justify-content: space-between; }

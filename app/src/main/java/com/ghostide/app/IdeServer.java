@@ -715,7 +715,14 @@ public final class IdeServer {
                 if (i > 0) b.append(',');
                 b.append("{\"path\":").append(Json.quote(p))
                  .append(",\"type\":\"").append(dir ? "dir" : "file")
-                 .append("\"}");
+                 .append("\"");
+                if (!dir) {
+                    // Roadmap G25: file sizes for the asset
+                    // browser, mirroring desktop.
+                    b.append(",\"size\":")
+                     .append(new File(workspace, p).length());
+                }
+                b.append("}");
             }
             b.append("]}");
             sendJson(out, b.toString());
@@ -943,6 +950,36 @@ public final class IdeServer {
                 sendJson(out, 400, "{\"error\":"
                     + Json.quote("request failed: " + msg(e))
                     + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/file64")
+                && method.equals("POST")) {
+            // Roadmap G25: binary write (base64), mirroring
+            // desktop - for generated PNG icon sets.
+            try {
+                Map<String, Object> fD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                File ff = safe(Json.str(fD, "path", ""));
+                byte[] fRaw = android.util.Base64.decode(
+                    Json.str(fD, "base64", ""),
+                    android.util.Base64.DEFAULT);
+                if (fRaw.length > 8 * 1024 * 1024) {
+                    throw new Exception("file too large (8 MB cap)");
+                }
+                if (ff.getParentFile() != null) {
+                    ff.getParentFile().mkdirs();
+                }
+                java.io.FileOutputStream fOs =
+                    new java.io.FileOutputStream(ff);
+                fOs.write(fRaw);
+                fOs.close();
+                sendJson(out, "{\"ok\":true,\"path\":"
+                    + Json.quote(Json.str(fD, "path", ""))
+                    + ",\"size\":" + fRaw.length + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
             }
             return;
         }

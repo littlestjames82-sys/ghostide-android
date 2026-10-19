@@ -712,3 +712,23 @@ Proven: renderer harness 16/16 (incl. the real
 ROADMAP_20.md and an XSS escape test); the real export
 function run against a live server produced a
 standalone site passing 6/6 checks.
+
+## v1.33.0 (versionCode 37) - Oct 19, 2026 - Roadmap G25
+Asset tools (Tools -> Asset browser):
+- /api/files now carries file sizes on both builds.
+- Asset browser: image grid with thumbnails (checker
+  background so transparency reads), dimensions from the
+  loaded image, sizes, heaviest-first sort with the top
+  card flagged - or name sort.
+- Icon maker: glyph (emoji or up to 4 chars) on a
+  rounded/circle/square/transparent backing with color
+  pickers and a live canvas preview. Generate writes an
+  8-file PNG set to icons/ (48/72/96/144/192/512, Apple
+  touch icon, favicon 32) through the new POST
+  /api/file64 (base64 binary write, 8 MB cap, both
+  builds).
+Proven: /api/files sizes exact against the fixture
+(heavy.png 1,441,103 B vs small.png 76 B); the file64
+round trip is byte-identical by md5 with a valid PNG
+header and IHDR. The canvas drawing itself runs in the
+browser; Arc F closes with this goal.

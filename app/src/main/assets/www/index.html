@@ -240,6 +240,7 @@ setTimeout(function () {
     <button id="toolBackup">Encrypted backup</button>
     <button id="toolApi">API client</button>
     <button id="toolDocs">Export docs site</button>
+    <button id="toolAssets">Asset browser</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>
@@ -316,6 +317,33 @@ setTimeout(function () {
   <pre id="apiRespHeaders"></pre>
   <pre id="apiResp"></pre>
   <div id="apiHistory" class="apiList"></div>
+</div>
+<div id="assetPanel" class="hidden">
+  <div class="run-head">
+    <span>🖼️ Assets</span>
+    <span>
+      <button id="assetSortBtn">Largest first</button>
+      <button id="assetClose">✕</button>
+    </span>
+  </div>
+  <div id="assetGrid"></div>
+  <div class="run-head"><span>🎨 Icon maker</span></div>
+  <div class="iconMaker">
+    <canvas id="iconCanvas" width="512" height="512"></canvas>
+    <div class="iconControls">
+      <label>Glyph <input id="iconText" type="text" maxlength="4" value="👻"></label>
+      <label>Shape <select id="iconShape">
+        <option value="rounded">Rounded square</option>
+        <option value="circle">Circle</option>
+        <option value="square">Square</option>
+        <option value="none">None (transparent)</option>
+      </select></label>
+      <label>Background <input id="iconBg" type="color" value="#171a21"></label>
+      <label>Foreground <input id="iconFg" type="color" value="#7ee2a0"></label>
+      <button id="iconMakeBtn">Generate icon set</button>
+      <div id="iconMsg" class="dim"></div>
+    </div>
+  </div>
 </div>
 <div id="todoPanel" class="hidden">
   <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>
