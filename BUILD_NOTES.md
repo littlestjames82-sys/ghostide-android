@@ -419,3 +419,18 @@ agent read the test, read the source, fixed it in ONE round
 (1 failing -> 0), suite green with no human edits. Gates
 passed. APK 3237998 bytes md5 2fbcf399bffc216da2441fde8ee07f6e, versionCode 22, same
 signer. Upload links still pending the stuck service.
+
+## v1.19.0 (Oct 19, 2026) - Roadmap G9: Python runs on-device
+Bundles a Termux CPython 3.14.8 runtime: interpreter +
+library closure + all 75 extension modules flattened into
+nativeLibraryDir (SONAMEs renamed to end in .so with
+.dynstr patching - see python-runtime/G9_SCOPING.md and
+assemble.py), stdlib as an asset unpacked to filesDir.
+/api/run now executes .py files on the phone (same response
+shape as desktop, 20s timeout, stdin EOF); /api/check and
+/api/check-content give REAL Python syntax results on-device
+instead of ok:null. APK 14470364 bytes md5 ba2d9cc2aed9b2020b1d62f6a78753c4, versionCode 23,
+same signer. Sandbox cannot run ARM: assembly fully verified
+(closure over patched ELFs, APK contents), first execution
+test is Ryan's phone; failures surface as plain errors.
+Upload links still pending the stuck upload service.

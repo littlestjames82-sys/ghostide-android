@@ -922,18 +922,38 @@ public final class IdeServer {
             return;
         }
         if (path.startsWith("/api/tests/")) {
-            sendJson(out, 400, "{\"error\":\"Tests run on the "
-                + "desktop build (the phone has no Python/Node "
-                + "runtime). Open this project on the desktop "
-                + "to run its suite.\"}");
+            sendJson(out, 400, "{\"error\":\"The test runner "
+                + "panel is desktop-only for now. Python files "
+                + "themselves run on this phone - use Run.\"}");
             return;
         }
         if (path.equals("/api/check-content")
                 && method.equals("POST")) {
-            // The phone build has no syntax checkers; agent mode
-            // treats ok:null as "skipped" and says so.
-            sendJson(out, "{\"ok\":null,\"note\":\"checks run on "
-                + "the desktop build; skipped here\"}");
+            // Python content is checked with the bundled
+            // interpreter (G9); other languages keep ok:null,
+            // which agent mode reports as "skipped".
+            try {
+                Map<String, Object> d = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String rel = Json.str(d, "path", "");
+                String content = Json.str(d, "content", null);
+                if (rel.endsWith(".py") && content != null) {
+                    File tmp = new File(ctx.getCacheDir(),
+                        "ghost-check-content.py");
+                    writeFile(tmp, content);
+                    Object[] chk = pySyntaxCheck(tmp);
+                    if (chk != null) {
+                        boolean ok = (Boolean) chk[0];
+                        sendJson(out, "{\"ok\":" + ok
+                            + ",\"line\":" + chk[1]
+                            + ",\"message\":"
+                            + Json.quote((String) chk[2]) + "}");
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {}
+            sendJson(out, "{\"ok\":null,\"note\":\"no checker for "
+                + "this file type on the phone; skipped\"}");
             return;
         }
         if (path.equals("/api/refactor") && method.equals("POST")) {
@@ -1090,10 +1110,60 @@ public final class IdeServer {
                 return;
             }
         }
+        if (path.equals("/api/run") && method.equals("POST")) {
+            // Roadmap G9: Python files run on the bundled
+            // interpreter; everything else keeps the honest
+            // desktop-only answer from the stub below.
+            try {
+                Map<String, Object> d = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String rel = Json.str(d, "path", "");
+                if (rel.endsWith(".py")) {
+                    File f = safe(rel);
+                    if (!f.isFile())
+                        throw new IOException("no such file: " + rel);
+                    if (!ensurePythonHome())
+                        throw new IOException("the bundled Python "
+                            + "runtime could not be unpacked");
+                    List<String> cmd = new ArrayList<>();
+                    cmd.add(pythonBin());
+                    cmd.add(f.getAbsolutePath());
+                    ProcResult r;
+                    try {
+                        r = runProcess(cmd, workspace, 20,
+                            pythonEnv());
+                    } catch (IOException ioe) {
+                        throw new IOException("bundled Python "
+                            + "failed to start on this device: "
+                            + msg(ioe));
+                    }
+                    String runOut = r.stdout;
+                    if (runOut.length() > 32768)
+                        runOut = runOut.substring(
+                            runOut.length() - 32768);
+                    String runErr = r.stderr;
+                    if (runErr.length() > 8192)
+                        runErr = runErr.substring(
+                            runErr.length() - 8192);
+                    sendJson(out, "{\"ok\":true,\"code\":" + r.code
+                        + ",\"stdout\":" + Json.quote(runOut)
+                        + ",\"stderr\":" + Json.quote(runErr)
+                        + ",\"ms\":" + r.ms
+                        + ",\"cmd\":"
+                        + Json.quote("python3 " + rel) + "}");
+                    return;
+                }
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+                return;
+            }
+        }
         if (path.startsWith("/api/git/") || path.equals("/api/run")
                 || path.equals("/api/context")) {
             String what = path.equals("/api/run")
-                ? "Running code isn't available in the phone build."
+                ? "Running this file type isn't available in the "
+                  + "phone build (Python files run on-device)."
                 : path.equals("/api/context")
                 ? "Project slices run on the desktop build (GhostSlice). "
                   + "Use current-file context on the phone."
@@ -1229,9 +1299,28 @@ public final class IdeServer {
             return;
         }
         if (path.equals("/api/check")) {
-            sendJson(out, "{\"ok\":null,\"output\":\"Syntax checking "
-                + "runs on the desktop build (it uses the system "
-                + "Python/Node interpreters).\"}");
+            String rel = queryParam(query, "path");
+            if (rel != null && rel.endsWith(".py")) {
+                try {
+                    File f = safe(rel);
+                    if (f.isFile()) {
+                        Object[] chk = pySyntaxCheck(f);
+                        if (chk != null) {
+                            boolean ok = (Boolean) chk[0];
+                            String output = ok
+                                ? "Python syntax OK (on-device)"
+                                : (String) chk[2] + " (line "
+                                  + chk[1] + ")";
+                            sendJson(out, "{\"ok\":" + ok
+                                + ",\"output\":"
+                                + Json.quote(output) + "}");
+                            return;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            sendJson(out, "{\"ok\":null,\"output\":\"No syntax "
+                + "checker for this file type on the phone.\"}");
             return;
         }
         if (path.equals("/api/model/switch")) {
@@ -1928,6 +2017,187 @@ public final class IdeServer {
 
     private static String msg(Exception e) {
         return e.getMessage() == null ? e.toString() : e.getMessage();
+    }
+
+    /* ---------------- Roadmap G9: bundled CPython ----------------
+       The APK ships a Termux CPython 3.14 tree: the interpreter
+       as libpythonbin.so plus its library closure and all
+       extension modules flattened into nativeLibraryDir (the
+       only app location Android will execute from), and the
+       pure-Python stdlib as assets/pyhome.zip, unpacked once
+       to filesDir/pyhome. PYTHONPATH points at nativeLibraryDir
+       so the import system finds the extension modules there;
+       LD_LIBRARY_PATH resolves their dependencies. */
+
+    private File pyHomeDir() {
+        return new File(ctx.getFilesDir(), "pyhome");
+    }
+
+    private String pythonBin() {
+        return new File(ctx.getApplicationInfo().nativeLibraryDir,
+            "libpythonbin.so").getAbsolutePath();
+    }
+
+    private synchronized boolean ensurePythonHome() {
+        File home = pyHomeDir();
+        File stamp = new File(home, ".ready-3.14.8");
+        if (stamp.isFile()) return true;
+        java.util.zip.ZipInputStream zin = null;
+        try {
+            if (home.exists()) deleteRecursive(home);
+            home.mkdirs();
+            zin = new java.util.zip.ZipInputStream(
+                ctx.getAssets().open("pyhome.zip"));
+            java.util.zip.ZipEntry e;
+            byte[] buf = new byte[65536];
+            while ((e = zin.getNextEntry()) != null) {
+                File f = new File(home, e.getName());
+                if (!f.getCanonicalPath().startsWith(
+                        home.getCanonicalPath())) continue;
+                if (e.isDirectory()) { f.mkdirs(); continue; }
+                if (f.getParentFile() != null)
+                    f.getParentFile().mkdirs();
+                FileOutputStream fo = new FileOutputStream(f);
+                int n;
+                while ((n = zin.read(buf)) > 0) fo.write(buf, 0, n);
+                fo.close();
+            }
+            zin.close();
+            zin = null;
+            FileOutputStream so = new FileOutputStream(stamp);
+            so.write(1);
+            so.close();
+            return true;
+        } catch (Exception ex) {
+            if (zin != null) try { zin.close(); } catch (Exception z) {}
+            return false;
+        }
+    }
+
+    private Map<String, String> pythonEnv() {
+        Map<String, String> env = new HashMap<>();
+        String nl = ctx.getApplicationInfo().nativeLibraryDir;
+        env.put("PYTHONHOME", pyHomeDir().getAbsolutePath());
+        env.put("PYTHONPATH", nl);
+        env.put("PYTHONDONTWRITEBYTECODE", "1");
+        env.put("LD_LIBRARY_PATH", nl);
+        env.put("HOME", ctx.getFilesDir().getAbsolutePath());
+        env.put("TMPDIR", ctx.getCacheDir().getAbsolutePath());
+        return env;
+    }
+
+    private static class ProcResult {
+        int code; String stdout; String stderr; long ms;
+    }
+
+    private ProcResult runProcess(List<String> cmd, File cwd,
+            int timeoutSec, Map<String, String> extraEnv)
+            throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        if (cwd != null) pb.directory(cwd);
+        if (extraEnv != null) pb.environment().putAll(extraEnv);
+        long t0 = System.currentTimeMillis();
+        final Process proc = pb.start();
+        try { proc.getOutputStream().close(); }
+        catch (Exception ignored) {}
+        final ByteArrayOutputStream so = new ByteArrayOutputStream();
+        final ByteArrayOutputStream se = new ByteArrayOutputStream();
+        Thread t1 = new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    InputStream in = proc.getInputStream();
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        synchronized (so) {
+                            if (so.size() < 65536) so.write(buf, 0, n);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        });
+        Thread t2 = new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    InputStream in = proc.getErrorStream();
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        synchronized (se) {
+                            if (se.size() < 32768) se.write(buf, 0, n);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        });
+        t1.start();
+        t2.start();
+        ProcResult r = new ProcResult();
+        boolean done = false;
+        long deadline = t0 + timeoutSec * 1000L;
+        while (System.currentTimeMillis() < deadline) {
+            try { r.code = proc.exitValue(); done = true; break; }
+            catch (IllegalThreadStateException e) {
+                try { Thread.sleep(50); }
+                catch (InterruptedException ie) { break; }
+            }
+        }
+        if (!done) {
+            proc.destroy();
+            r.code = -1;
+            synchronized (se) {
+                se.write("\n[timed out after ".getBytes(
+                    StandardCharsets.UTF_8));
+                se.write((timeoutSec + "s - killed]").getBytes(
+                    StandardCharsets.UTF_8));
+            }
+        }
+        try { t1.join(2000); } catch (Exception ignored) {}
+        try { t2.join(2000); } catch (Exception ignored) {}
+        r.stdout = new String(so.toByteArray(),
+            StandardCharsets.UTF_8);
+        r.stderr = new String(se.toByteArray(),
+            StandardCharsets.UTF_8);
+        r.ms = System.currentTimeMillis() - t0;
+        return r;
+    }
+
+    /* Syntax-check a Python file with the bundled interpreter.
+       Returns {ok, line, message} or null when the runtime is
+       unavailable (callers then answer ok:null honestly). */
+    private Object[] pySyntaxCheck(File target) {
+        try {
+            if (!ensurePythonHome()) return null;
+            File cfile = new File(ctx.getCacheDir(),
+                "ghost-check.pyc");
+            List<String> cmd = new ArrayList<>();
+            cmd.add(pythonBin());
+            cmd.add("-c");
+            cmd.add("import py_compile,sys;"
+                + "py_compile.compile(sys.argv[1],"
+                + "cfile=sys.argv[2],doraise=True)");
+            cmd.add(target.getAbsolutePath());
+            cmd.add(cfile.getAbsolutePath());
+            ProcResult r = runProcess(cmd,
+                ctx.getCacheDir(), 20, pythonEnv());
+            if (r.code == 0) return new Object[]{Boolean.TRUE, 0, ""};
+            String err = r.stderr == null ? "" : r.stderr;
+            int line = 0;
+            String m = "";
+            java.util.regex.Matcher mm = java.util.regex.Pattern
+                .compile(", line (\\d+)").matcher(err);
+            while (mm.find()) line = Integer.parseInt(mm.group(1));
+            String[] lines = err.split("\n");
+            for (int i = lines.length - 1; i >= 0; i--) {
+                if (!lines[i].trim().isEmpty()) {
+                    m = lines[i].trim();
+                    break;
+                }
+            }
+            return new Object[]{Boolean.FALSE, line, m};
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String readUntil(InputStream in, String marker)

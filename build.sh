@@ -32,6 +32,10 @@ cp ~/workspace/ghost-ide/web/style.css "$SRC/assets/www/"
 cp ~/workspace/ghost-ide/web/app.js "$SRC/assets/www/"
 ls -lh "$SRC/assets/www"
 
+echo '[0.6/8] staging bundled Python stdlib asset (Roadmap G9)'
+cp ~/workspace/ghostide-apk-build/python-runtime/stage/assets/pyhome.zip "$SRC/assets/pyhome.zip"
+ls -lh "$SRC/assets/pyhome.zip"
+
 echo '[1/8] compiling resources'
 "$BT/aapt2" compile --dir "$SRC/res" -o "$OUT/compiled_res.zip"
 
@@ -55,7 +59,10 @@ echo '[4/8] dexing'
 
 echo '[5/8] adding dex + native libs'
 cp "$NATIVE_LIBS"/*.so "$OUT/apkroot/lib/arm64-v8a/"
-ls -lh "$OUT/apkroot/lib/arm64-v8a"
+echo '[5.5/8] adding bundled Python runtime libs (Roadmap G9)'
+cp ~/workspace/ghostide-apk-build/python-runtime/stage/lib/*.so "$OUT/apkroot/lib/arm64-v8a/"
+ls -lh "$OUT/apkroot/lib/arm64-v8a" | head -8
+ls "$OUT/apkroot/lib/arm64-v8a" | wc -l
 cd "$OUT" && "$JDK/bin/jar" uf base.apk classes.dex && cd - >/dev/null
 cd "$OUT/apkroot" && "$JDK/bin/jar" uf "$OUT/base.apk" lib && cd - >/dev/null
 
