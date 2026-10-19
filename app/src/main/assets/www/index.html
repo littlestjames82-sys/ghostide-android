@@ -16,6 +16,7 @@
     <span id="modelPill" class="pill down">model: checking…</span>
     <button id="startModelBtn" class="hidden">Start model</button>
     <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
+    <button id="toolsBtn" title="Tools">🧰</button>
     <button id="findBtn" title="Find / replace in project">🔍</button>
     <button id="settingsBtn" title="Settings">⚙</button>
   </div>
@@ -42,6 +43,15 @@
       <div class="run-head"><span id="runTitle">Output</span>
         <button id="runClose">✕</button></div>
       <pre id="runOut"></pre>
+    </div>
+    <div id="termPane" class="hidden">
+      <div class="run-head"><span>Terminal · workspace folder · local shell (unsandboxed)</span>
+        <button id="termClose">✕</button></div>
+      <pre id="termOut"></pre>
+      <div class="term-row">
+        <span>$</span>
+        <input id="termCmd" type="text" placeholder="type a command, Enter to run (↑/↓ for history)">
+      </div>
     </div>
     <div id="draftBar" class="hidden">
       <span id="draftText"></span>
@@ -86,6 +96,50 @@
   </div>
   <div id="findResults"></div>
 </div>
+<div id="toolsPanel" class="hidden">
+  <div class="panel-head"><h3>🧰 Tools</h3><button id="toolsClose">✕</button></div>
+  <h4>Ask Ghost (current file or selection)</h4>
+  <div class="toolGrid">
+    <button id="aiExplain">Explain</button>
+    <button id="aiFix">Find + fix bugs</button>
+    <button id="aiTests">Write tests</button>
+    <button id="aiDoc">Add docstrings</button>
+  </div>
+  <h4>Current file</h4>
+  <div class="toolGrid">
+    <button id="toolPreview">Preview</button>
+    <button id="toolCheck">Check syntax</button>
+    <button id="toolDup">Duplicate file</button>
+    <button id="toolSnippets">Snippets</button>
+  </div>
+  <h4>Project</h4>
+  <div class="toolGrid">
+    <button id="toolTodos">TODO / FIXME scan</button>
+    <button id="toolStats">Project stats</button>
+    <button id="toolSlice">Save slice as file</button>
+    <button id="toolTerminal">Terminal</button>
+  </div>
+  <div id="statsOut" class="dim"></div>
+</div>
+
+<div id="todoPanel" class="hidden">
+  <div class="panel-head"><h3>TODO / FIXME</h3><button id="todoClose">✕</button></div>
+  <div id="todoResults"></div>
+</div>
+
+<div id="snipPanel" class="hidden">
+  <div class="panel-head"><h3>Snippets</h3><button id="snipClose">✕</button></div>
+  <div id="snipList"></div>
+  <input id="snipName" type="text" placeholder="name for a new snippet">
+  <button id="snipAdd">＋ Add from selection (or whole file)</button>
+  <p class="dim">Tap a snippet to insert it at the cursor. Snippets live in this browser/app only.</p>
+</div>
+
+<div id="previewPanel" class="hidden">
+  <div class="panel-head"><h3 id="previewTitle">Preview</h3><button id="previewClose">✕</button></div>
+  <div id="previewBody"></div>
+</div>
+
 <div id="diffPanel" class="hidden">
   <div class="run-head"><span id="diffTitle">Diff</span>
     <button id="diffClose">✕</button></div>

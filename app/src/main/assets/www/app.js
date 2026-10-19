@@ -32401,6 +32401,352 @@
     $("findResults").textContent = "Replaced " + d.replacements + " occurrence(s) in " + d.filesChanged + " file(s).";
     loadFiles();
   };
+  $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
+  $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
+  function hideTools() {
+    $("toolsPanel").classList.add("hidden");
+  }
+  function codeForAi() {
+    const sel = view.state.selection.main;
+    const doc2 = view.state.doc.toString();
+    const picked = sel.empty ? doc2 : doc2.slice(sel.from, sel.to);
+    return picked.slice(0, BEHAVIOR.context.fileChars);
+  }
+  function aiAction(kind) {
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    const fence = "```\n" + codeForAi() + "\n```";
+    const prompts = {
+      explain: "Explain what this code from " + currentFile + " does, briefly, and flag anything risky or buggy:\n" + fence,
+      fix: "Find and fix the bugs in this code from " + currentFile + ". Return the full corrected code, then one line per fix:\n" + fence,
+      tests: "Write tests for this code from " + currentFile + " (pytest for Python, node:test for JS). Return the complete test file only:\n" + fence,
+      doc: "Add clear docstrings and comments to this code from " + currentFile + " without changing its behavior. Return the full updated file:\n" + fence
+    };
+    hideTools();
+    $("chatText").value = prompts[kind];
+    sendChat();
+  }
+  $("aiExplain").onclick = () => aiAction("explain");
+  $("aiFix").onclick = () => aiAction("fix");
+  $("aiTests").onclick = () => aiAction("tests");
+  $("aiDoc").onclick = () => aiAction("doc");
+  function escHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function renderMarkdown(src) {
+    const lines = escHtml(src).split("\n");
+    let html2 = "", inCode = false, inList2 = false;
+    const inline = (t2) => t2.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(
+      /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>'
+    );
+    for (const line of lines) {
+      if (line.trim().startsWith("```")) {
+        html2 += inCode ? "</code></pre>" : "<pre><code>";
+        inCode = !inCode;
+        continue;
+      }
+      if (inCode) {
+        html2 += line + "\n";
+        continue;
+      }
+      const h = line.match(/^(#{1,3})\s+(.*)/);
+      if (h) {
+        if (inList2) {
+          html2 += "</ul>";
+          inList2 = false;
+        }
+        html2 += "<h" + h[1].length + ">" + inline(h[2]) + "</h" + h[1].length + ">";
+        continue;
+      }
+      if (/^\s*[-*]\s+/.test(line)) {
+        if (!inList2) {
+          html2 += "<ul>";
+          inList2 = true;
+        }
+        html2 += "<li>" + inline(line.replace(/^\s*[-*]\s+/, "")) + "</li>";
+        continue;
+      }
+      if (inList2) {
+        html2 += "</ul>";
+        inList2 = false;
+      }
+      if (line.trim()) html2 += "<p>" + inline(line) + "</p>";
+    }
+    if (inCode) html2 += "</code></pre>";
+    if (inList2) html2 += "</ul>";
+    return html2;
+  }
+  $("toolPreview").onclick = async () => {
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    hideTools();
+    $("previewTitle").textContent = "Preview: " + currentFile;
+    const body = $("previewBody");
+    const ext = (currentFile.split(".").pop() || "").toLowerCase();
+    if (["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"].includes(ext)) {
+      body.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = "/api/raw?path=" + encodeURIComponent(currentFile);
+      img.alt = currentFile;
+      body.appendChild(img);
+    } else {
+      const r = await fetch("/api/file?path=" + encodeURIComponent(currentFile));
+      const d = await r.json();
+      if (d.error) {
+        alert(d.error);
+        return;
+      }
+      if (ext === "md" || ext === "markdown") {
+        body.innerHTML = renderMarkdown(d.content);
+      } else {
+        body.innerHTML = "";
+        const pre = document.createElement("pre");
+        pre.textContent = d.content;
+        body.appendChild(pre);
+      }
+    }
+    $("previewPanel").classList.remove("hidden");
+  };
+  $("previewClose").onclick = () => $("previewPanel").classList.add("hidden");
+  $("toolCheck").onclick = async () => {
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    hideTools();
+    $("runPane").classList.remove("hidden");
+    $("runTitle").textContent = "Checking " + currentFile + " \u2026";
+    $("runOut").textContent = "";
+    const d = await postJson("/api/check", { path: currentFile });
+    if (d.error) {
+      $("runTitle").textContent = "Check unavailable";
+      $("runOut").textContent = d.error;
+      return;
+    }
+    if (d.ok === null) {
+      $("runTitle").textContent = "Check: no checker for this file type";
+      $("runOut").textContent = d.output;
+      return;
+    }
+    $("runTitle").textContent = (d.ok ? "\u2713 Syntax OK \xB7 " : "\u2717 Syntax problem \xB7 ") + currentFile;
+    $("runOut").textContent = d.output;
+  };
+  $("toolDup").onclick = async () => {
+    if (!currentFile) {
+      alert("Open a file first.");
+      return;
+    }
+    hideTools();
+    const dot3 = currentFile.lastIndexOf(".");
+    const slash3 = currentFile.lastIndexOf("/");
+    const suggestion = dot3 > slash3 ? currentFile.slice(0, dot3) + "-copy" + currentFile.slice(dot3) : currentFile + "-copy";
+    const name2 = prompt("Duplicate as:", suggestion);
+    if (!name2) return;
+    const r = await fetch("/api/file?path=" + encodeURIComponent(currentFile));
+    const d = await r.json();
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    const s = await postJson("/api/file", {
+      path: name2,
+      content: d.content
+    });
+    if (s.error) {
+      alert(s.error);
+      return;
+    }
+    await loadFiles();
+    openFile(name2);
+  };
+  var snippets3 = [];
+  try {
+    snippets3 = JSON.parse(localStorage.getItem("ghostide-snippets") || "[]");
+  } catch (e) {
+    snippets3 = [];
+  }
+  function persistSnippets() {
+    try {
+      localStorage.setItem("ghostide-snippets", JSON.stringify(snippets3));
+    } catch (e) {
+    }
+  }
+  function renderSnips() {
+    const list = $("snipList");
+    list.innerHTML = "";
+    if (!snippets3.length) {
+      list.innerHTML = '<div class="dim">No snippets yet.</div>';
+      return;
+    }
+    snippets3.forEach((sn, i2) => {
+      const row = document.createElement("div");
+      row.className = "snipRow";
+      const label = document.createElement("span");
+      label.textContent = sn.name;
+      label.title = "Insert at cursor";
+      label.onclick = () => {
+        const sel = view.state.selection.main;
+        view.dispatch({
+          changes: {
+            from: sel.from,
+            to: sel.to,
+            insert: sn.body
+          },
+          selection: { anchor: sel.from + sn.body.length }
+        });
+        view.focus();
+        $("snipPanel").classList.add("hidden");
+      };
+      const del = document.createElement("button");
+      del.textContent = "\u2715";
+      del.onclick = () => {
+        snippets3.splice(i2, 1);
+        persistSnippets();
+        renderSnips();
+      };
+      row.appendChild(label);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+  $("toolSnippets").onclick = () => {
+    hideTools();
+    renderSnips();
+    $("snipPanel").classList.remove("hidden");
+  };
+  $("snipClose").onclick = () => $("snipPanel").classList.add("hidden");
+  $("snipAdd").onclick = () => {
+    const sel = view.state.selection.main;
+    const body = sel.empty ? view.state.doc.toString() : view.state.doc.sliceString(sel.from, sel.to);
+    if (!body.trim()) {
+      alert("Nothing to save - open a file first.");
+      return;
+    }
+    const name2 = $("snipName").value.trim() || "snippet " + (snippets3.length + 1);
+    snippets3.push({ name: name2, body });
+    persistSnippets();
+    $("snipName").value = "";
+    renderSnips();
+  };
+  $("toolTodos").onclick = async () => {
+    hideTools();
+    const box = $("todoResults");
+    box.textContent = "scanning\u2026";
+    $("todoPanel").classList.remove("hidden");
+    const r = await fetch("/api/todos");
+    const d = await r.json();
+    if (d.error) {
+      box.textContent = d.error;
+      return;
+    }
+    box.innerHTML = "";
+    if (!d.todos.length) {
+      box.textContent = "No TODO / FIXME / XXX / HACK markers. Clean!";
+      return;
+    }
+    for (const t2 of d.todos) {
+      const row = document.createElement("div");
+      row.className = "todoRow";
+      const b = document.createElement("b");
+      b.textContent = t2.kind;
+      row.appendChild(b);
+      row.appendChild(document.createTextNode(
+        " " + t2.path + ":" + t2.line + "  " + t2.text
+      ));
+      row.title = t2.text;
+      row.onclick = async () => {
+        await openFile(t2.path);
+        jumpToLine(t2.line);
+      };
+      box.appendChild(row);
+    }
+  };
+  $("todoClose").onclick = () => $("todoPanel").classList.add("hidden");
+  $("toolStats").onclick = async () => {
+    const out = $("statsOut");
+    out.textContent = "counting\u2026";
+    const r = await fetch("/api/stats");
+    const d = await r.json();
+    if (d.error) {
+      out.textContent = d.error;
+      return;
+    }
+    const exts = Object.entries(d.byExt).sort((a, b) => b[1].lines - a[1].lines).slice(0, 6).map(([e, s]) => e + ": " + s.files + " files, " + s.lines.toLocaleString() + " lines").join("\n");
+    out.textContent = d.files + " files \xB7 " + d.lines.toLocaleString() + " lines \xB7 " + (d.bytes / 1048576).toFixed(2) + " MB\n" + exts;
+  };
+  $("toolSlice").onclick = async () => {
+    hideTools();
+    const mode = $("ctxMode").value === "file" ? "signatures" : $("ctxMode").value;
+    const d = await postJson("/api/context", {
+      mode,
+      budget: BEHAVIOR.context.sliceBudget
+    });
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    if (d.over) {
+      alert("Slice is ~" + d.tokens + " tokens - over budget, not saved.");
+      return;
+    }
+    const content2 = "# GhostIDE project slice (" + d.mode + ")\n<!-- " + d.tokens + " of ~" + d.originalTokens + " tokens \xB7 " + d.files + " files \xB7 saved from the Tools panel -->\n\n" + d.text;
+    const s = await postJson("/api/file", {
+      path: ".ghostide-context.md",
+      content: content2
+    });
+    if (s.error) {
+      alert(s.error);
+      return;
+    }
+    await loadFiles();
+    alert("Saved .ghostide-context.md (" + d.tokens.toLocaleString() + " tokens, " + d.files + " files).");
+  };
+  var termHistory = [];
+  var termIdx = -1;
+  $("toolTerminal").onclick = () => {
+    hideTools();
+    $("termPane").classList.remove("hidden");
+    $("termCmd").focus();
+  };
+  $("termClose").onclick = () => $("termPane").classList.add("hidden");
+  async function runTerm() {
+    const input = $("termCmd");
+    const cmd2 = input.value.trim();
+    if (!cmd2) return;
+    termHistory.unshift(cmd2);
+    termIdx = -1;
+    input.value = "";
+    const out = $("termOut");
+    out.textContent += "$ " + cmd2 + "\n";
+    out.scrollTop = out.scrollHeight;
+    const d = await postJson("/api/terminal", { command: cmd2 });
+    if (d.error) {
+      out.textContent += d.error + "\n(The terminal runs on the desktop build.)\n";
+    } else {
+      out.textContent += (d.stdout || "") + (d.stderr || "") + "[exit " + d.code + " \xB7 " + d.ms + " ms]\n";
+    }
+    out.scrollTop = out.scrollHeight;
+  }
+  $("termCmd").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      runTerm();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (termIdx < termHistory.length - 1) {
+        termIdx++;
+        $("termCmd").value = termHistory[termIdx];
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      termIdx = Math.max(-1, termIdx - 1);
+      $("termCmd").value = termIdx >= 0 ? termHistory[termIdx] : "";
+    }
+  });
   loadFiles();
   refreshWsLabel();
 })();

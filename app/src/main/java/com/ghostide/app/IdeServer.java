@@ -337,6 +337,128 @@ public final class IdeServer {
                 + "aren't available in the phone build\"}");
             return;
         }
+        if (path.equals("/api/todos")) {
+            // Tools pack: TODO/FIXME/XXX/HACK scan (native).
+            String[] kinds = {"TODO", "FIXME", "XXX", "HACK"};
+            List<File> files = new ArrayList<>();
+            collectTextFiles(workspace, files);
+            StringBuilder b = new StringBuilder("{\"todos\":[");
+            int count = 0;
+            for (File f : files) {
+                if (count >= 300) break;
+                String text;
+                try { text = readFile(f); } catch (Exception e) {
+                    continue;
+                }
+                String rel = workspace.toURI().relativize(
+                    f.toURI()).getPath();
+                String[] lines = text.split("\n", -1);
+                for (int i = 0; i < lines.length && count < 300; i++) {
+                    String kind = null;
+                    for (String k : kinds) {
+                        if (lines[i].contains(k)) { kind = k; break; }
+                    }
+                    if (kind != null) {
+                        if (count > 0) b.append(',');
+                        String t = lines[i].trim();
+                        if (t.length() > 200) t = t.substring(0, 200);
+                        b.append("{\"path\":").append(Json.quote(rel))
+                         .append(",\"line\":").append(i + 1)
+                         .append(",\"kind\":\"").append(kind).append("\"")
+                         .append(",\"text\":").append(Json.quote(t))
+                         .append("}");
+                        count++;
+                    }
+                }
+            }
+            b.append("]}");
+            sendJson(out, b.toString());
+            return;
+        }
+        if (path.equals("/api/stats")) {
+            // Tools pack: project stats (native).
+            List<File> all = new ArrayList<>();
+            collectAllFiles(workspace, all);
+            long totalBytes = 0;
+            long totalLines = 0;
+            java.util.TreeMap<String, long[]> byExt =
+                new java.util.TreeMap<>();
+            for (File f : all) {
+                totalBytes += f.length();
+                String name = f.getName();
+                int dot = name.lastIndexOf('.');
+                String ext = dot > 0
+                    ? name.substring(dot).toLowerCase(
+                        java.util.Locale.US) : "(none)";
+                long[] slot = byExt.get(ext);
+                if (slot == null) {
+                    slot = new long[] {0, 0};
+                    byExt.put(ext, slot);
+                }
+                slot[0]++;
+                if (f.length() <= 2 * 1024 * 1024) {
+                    try {
+                        byte[] data = readBytes(f);
+                        long n = 0;
+                        for (byte x : data) if (x == '\n') n++;
+                        slot[1] += n;
+                        totalLines += n;
+                    } catch (Exception ignored) {}
+                }
+            }
+            StringBuilder b = new StringBuilder();
+            b.append("{\"files\":").append(all.size())
+             .append(",\"bytes\":").append(totalBytes)
+             .append(",\"lines\":").append(totalLines)
+             .append(",\"byExt\":{");
+            boolean first = true;
+            for (java.util.Map.Entry<String, long[]> e
+                    : byExt.entrySet()) {
+                if (!first) b.append(',');
+                first = false;
+                b.append(Json.quote(e.getKey()))
+                 .append(":{\"files\":").append(e.getValue()[0])
+                 .append(",\"lines\":").append(e.getValue()[1])
+                 .append("}");
+            }
+            b.append("}}");
+            sendJson(out, b.toString());
+            return;
+        }
+        if (path.equals("/api/raw")) {
+            try {
+                File f = safe(queryParam(query, "path"));
+                if (!f.isFile()) throw new IOException("not found");
+                byte[] data = readBytes(f);
+                String name = f.getName().toLowerCase(
+                    java.util.Locale.US);
+                String ctype = "application/octet-stream";
+                if (name.endsWith(".png")) ctype = "image/png";
+                else if (name.endsWith(".jpg") || name.endsWith(".jpeg"))
+                    ctype = "image/jpeg";
+                else if (name.endsWith(".gif")) ctype = "image/gif";
+                else if (name.endsWith(".svg")) ctype = "image/svg+xml";
+                else if (name.endsWith(".webp")) ctype = "image/webp";
+                else if (name.endsWith(".bmp")) ctype = "image/bmp";
+                writeHead(out, 200, ctype, data.length);
+                synchronized (out) { out.write(data); out.flush(); }
+            } catch (Exception e) {
+                sendJson(out, 400,
+                    "{\"error\":" + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/terminal")) {
+            sendJson(out, 400, "{\"error\":\"The terminal runs on the "
+                + "desktop build - the phone has no shell for the IDE.\"}");
+            return;
+        }
+        if (path.equals("/api/check")) {
+            sendJson(out, "{\"ok\":null,\"output\":\"Syntax checking "
+                + "runs on the desktop build (it uses the system "
+                + "Python/Node interpreters).\"}");
+            return;
+        }
         if (path.equals("/api/model/switch")) {
             sendJson(out, 400, "{\"error\":\"On the phone, switch "
                 + "models from the app menu (Models) instead.\"}");
@@ -511,6 +633,27 @@ public final class IdeServer {
         FileOutputStream o = new FileOutputStream(f);
         o.write(content.getBytes(StandardCharsets.UTF_8));
         o.close();
+    }
+
+    private void collectAllFiles(File dir, List<File> out) {
+        File[] kids = dir.listFiles();
+        if (kids == null) return;
+        for (File k : kids) {
+            if (k.getName().startsWith(".")) continue;
+            if (k.isDirectory()) collectAllFiles(k, out);
+            else out.add(k);
+        }
+    }
+
+    private static byte[] readBytes(File f) throws IOException {
+        java.io.FileInputStream in = new java.io.FileInputStream(f);
+        java.io.ByteArrayOutputStream b =
+            new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) >= 0) b.write(buf, 0, n);
+        in.close();
+        return b.toByteArray();
     }
 
     private void collectTextFiles(File dir, List<File> out) {

@@ -103,3 +103,43 @@ APK 3,188,846 bytes, md5 423d9532aab40c32b118aad776f832d1,
 versionCode 4, same signer. Not device-tested.
 Build gotcha: route() already declares q and query locals - new
 locals there need distinct names (needle).
+
+## v1.3.0 (Oct 19, 2026) - Phase 3
+- 3.1 Model manager: Models.java variant table (1.5B + 3B), menu ->
+  Models screen lists/downloads/switches/deletes. DownloadService
+  parameterized by variant extra; downloads now SHA-256 VERIFIED
+  after the exact-size gate (mismatch discards the file). 1.5B
+  keeps its legacy .part name so old partials still resume.
+  IdeServer modelName is now an instance field set from the active
+  variant. Desktop got /api/model/info + /api/model/switch +
+  Settings UI for the same job.
+  3B facts (bartowski): 1,929,903,360 bytes, sha256 3da3afe6...460.
+  The file was downloaded and hash-verified bit-exact here, and
+  inference-proven on desktop llama.cpp (correct palindrome code,
+  6.4 tok/s on the 2-core sandbox).
+- 3.2 Behavior pack: web/src/behavior.js is the single source for
+  system prompt + chat/infill/context defaults, both apps ship it.
+  BEHAVIOR.md documents the native mirrors (CUT_MARKERS, Models).
+- 3.3 LAN sync: desktop GET /api/sync/bundle + POST /api/sync/apply
+  (escape-tested live); phone menu Sync pull/push with a PC address
+  dialog (org.json payloads, text-extension allowlist, .. refused).
+- 3.4 Chat history persists per workspace (localStorage keyed by
+  workspace path; phone scope "on-device"), restored on return.
+APK 3,197,038 bytes, md5 d92bdf0866c455a2488f24d1cc5c7df5,
+versionCode 5, same signer. Not device-tested.
+
+## v1.4.0 (Oct 19, 2026) - Tools Pack (Ryan: "load up this ide with tools")
+Shared frontend: 🧰 Tools panel with AI quick actions (Explain /
+Find+fix bugs / Write tests / Add docstrings - prompt templates over
+the selection or file, through the normal chat), Preview (markdown
+rendered, images via /api/raw, code as text), Check syntax, Duplicate
+file, Snippets (localStorage, insert at cursor), TODO/FIXME scan
+(click to jump), Project stats, Save slice as file, and a Terminal
+pane (desktop shell in the workspace, history with up/down).
+Desktop server: /api/terminal (30 s timeout, unsandboxed, stated in
+the UI), /api/check (ast.parse / node --check / json), /api/todos,
+/api/stats, /api/raw - all live-tested here.
+Android: todos/stats/raw implemented natively; terminal and check
+return plain-language desktop explanations.
+APK 3,201,134 bytes, md5 0271e324b86082f4437a6b6003eb7d23,
+versionCode 6, same signer. Not device-tested.
