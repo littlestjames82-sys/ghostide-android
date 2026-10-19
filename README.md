@@ -1,47 +1,68 @@
 # GhostIDE for Android 👻
 
-The fully on-device edition of GhostIDE: a real AI code editor that
-runs entirely on the phone. The editor, the file workspace, an
-in-app HTTP server, and a llama.cpp engine (JNI) all live in the
-app; the model (Qwen2.5-Coder 1.5B or 3B, GGUF) downloads once into
-app-private storage and then works offline forever.
+The fully on-device edition of GhostIDE: a real AI code
+editor that runs entirely on the phone. The editor, the
+workspace, an in-app HTTP server, a llama.cpp engine
+(JNI), a bundled Python interpreter, and a bundled git
+all live in the app. Models download once into
+app-private storage and then work offline forever.
 
 **Your code never leaves the device. The AI lives here.**
 
-- Package: `com.ghostide.app` · min SDK 24 · target SDK 34 · arm64 only
-- The web IDE is the SAME frontend bundle as the desktop `ghost-ide`
-  repo (one behavior pack, `BEHAVIOR.md` there, so the apps cannot
-  drift). Desktop-only features (git, run, GhostSlice slices) explain
-  themselves in plain words on the phone; tabs, find/replace,
-  drafts, import/export, and LAN sync work natively.
-- Model manager (menu -> Models): download / switch / delete the
-  1.5B (940 MB, ~1.5 GB RAM) or the 3B (1.93 GB, ~2.6 GB RAM, best on
-  6 GB+ phones). Downloads run in a foreground service (background,
-  resumable, notification progress) and are exact-size + SHA-256
-  verified (hashes in `Models.java`, checked against Hugging Face).
+- Package: `com.ghostide.app` · min SDK 24 · target SDK 34
+  · arm64 only
+- The web IDE is the SAME frontend bundle as the desktop
+  `ghost-ide` repo (one behavior pack, `BEHAVIOR.md`
+  there, so the two apps cannot drift). Things only a
+  desktop can do explain themselves in plain words on
+  the phone.
+
+## What the phone build does
+
+- Full editor: tabs, split view, find/replace, local
+  history, drafts with recovery, import/export/share.
+- On-device AI: chat with context modes (file, smart
+  slice, project slice), agent mode with staged writes
+  and diff review, autocomplete, inline edits.
+- Model store (native Models screen): 0.5B Sprinter,
+  1.5B Balanced, 3B Smarter, 7B Max. Downloads run in a
+  foreground service (background, resumable, with
+  progress) and are exact-size + SHA-256 verified;
+  delete any model to reclaim its space.
+- Run Python on the phone (bundled CPython 3.14 from
+  Termux packages), with a persistent REPL and real
+  syntax checking.
+- Full git on the phone (bundled git 2.56): init,
+  status, diff, stage, commit, branches, blame, log.
+- Voice coding: system speech recognition into chat or
+  the editor, plus spoken commands ("save file",
+  "run it", "Ask Ghost ...").
+- Project templates, sandboxed plugins, pair mode
+  (join a desktop workspace from the Models screen,
+  with conflict-safe sync), and optional encrypted
+  backups in the same format as the desktop build.
 
 ## Build
 
-Manual recipe (no Gradle): `build.sh` runs aapt2 + javac + d8 +
-zipalign + apksigner from the Android SDK build-tools. See
-`BUILD_NOTES.md` for the full story, including why the Java JNI
-bridge class must stay named `com.ghostbot.app.LlamaBrain`.
+Manual recipe (no Gradle): `build.sh` runs aapt2 +
+javac + d8 + zipalign + apksigner from the Android SDK
+build-tools, signing with the preserved debug keystore
+so every build installs as an in-place update. See
+`BUILD_NOTES.md` for the full story, including why the
+JNI bridge class must stay named
+`com.ghostbot.app.LlamaBrain`, how the Python and git
+runtimes are bundled (`python-runtime/`), and the
+per-version changelog.
 
-Prerequisites not in this repo:
-- Android SDK + JDK 17
-- The prebuilt arm64 llama.cpp libraries (`libllama`, `libggml*`,
-  `libghost_llama`, `libomp`), expected at
-  `~/workspace/ghostbot/phone/native/libs/arm64-v8a/` - they come
-  from the studio's on-device llama.cpp build (llama.cpp b11382).
-- A signing keystore (the build script points at the studio's local
-  one; use your own for your own builds - never commit a keystore).
+Release builds (Play): `build-release.sh` produces a
+signed `.aab` with the production upload key plus a
+universal tester APK generated from the bundle. The
+keystore and its password live outside this repo; see
+`store/LISTING.md` for the launch checklist and gates.
 
-## Layout
-- `app/src/main/java/com/ghostide/app/` - MainActivity (screens,
-  menus, import/export, LAN sync), DownloadService (background model
-  downloads), IdeServer (the in-app /api server), Models (the model
-  matrix), Json (tiny JSON helper)
-- `app/src/main/java/com/ghostbot/app/LlamaBrain.java` - JNI bridge
-  (class name is load-bearing for the native symbols)
-- `app/src/main/assets/www/` - the bundled web IDE
-- `app/src/main/assets/help.html` - in-app help
+Prerequisites not in this repo: the Android SDK
+build-tools, a JDK 17, the llama `.so` libraries, and
+bundletool for release builds.
+
+MIT licensed. Built by Ghost Developer Studio, Oakdale,
+Tennessee.

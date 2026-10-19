@@ -1758,6 +1758,32 @@ public final class IdeServer {
                     }
                 } catch (Exception ignored) {}
             }
+            if (rel != null && rel.endsWith(".json")) {
+                // Roadmap G21: JSON gets a real checker on the
+                // phone too (org.json is part of Android).
+                try {
+                    File jf = safe(rel);
+                    if (jf.isFile()) {
+                        String text = readFile(jf).trim();
+                        try {
+                            if (text.startsWith("[")) {
+                                new org.json.JSONArray(text);
+                            } else {
+                                new org.json.JSONObject(text);
+                            }
+                            sendJson(out, "{\"ok\":true,\"output\":"
+                                + Json.quote("JSON OK (on-device): "
+                                + rel) + "}");
+                            return;
+                        } catch (Exception je) {
+                            sendJson(out, "{\"ok\":false,\"output\":"
+                                + Json.quote("JSON error: "
+                                + je.getMessage()) + "}");
+                            return;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
             sendJson(out, "{\"ok\":null,\"output\":\"No syntax "
                 + "checker for this file type on the phone.\"}");
             return;
