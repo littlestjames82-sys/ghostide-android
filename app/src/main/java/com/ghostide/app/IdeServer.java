@@ -19,8 +19,12 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * In-app HTTP server for the standalone GhostIDE phone app.
@@ -46,6 +50,147 @@ public final class IdeServer {
     private final Context ctx;
     private final LlamaBrain brain;
     private final File workspace;
+
+    // Symbol index (Roadmap G1): cached defs + references,
+    // invalidated by a (path, size, mtime) fingerprint.
+    private String symCacheFp = null;
+    private List<String[]> symCacheDefs = null;
+    private Map<String, List<String[]>> symCacheRefs = null;
+    private int symCacheFiles = 0;
+    private static final java.util.regex.Pattern SYM_PY_DEF =
+        java.util.regex.Pattern.compile(
+            "^(\\s*)(?:async\\s+)?def\\s+([A-Za-z_]\\w*)");
+    private static final java.util.regex.Pattern SYM_PY_CLASS =
+        java.util.regex.Pattern.compile(
+            "^(\\s*)class\\s+([A-Za-z_]\\w*)");
+    private static final java.util.regex.Pattern SYM_PY_VAL =
+        java.util.regex.Pattern.compile(
+            "^([A-Za-z_]\\w*)\\s*=(?!=)");
+    private static final java.util.regex.Pattern SYM_JS_FUNC =
+        java.util.regex.Pattern.compile(
+            "^\\s*(?:async\\s+)?function\\s+([A-Za-z_$][\\w$]*)");
+    private static final java.util.regex.Pattern SYM_JS_CLASS =
+        java.util.regex.Pattern.compile(
+            "^\\s*class\\s+([A-Za-z_$][\\w$]*)");
+    private static final java.util.regex.Pattern SYM_JS_VAL =
+        java.util.regex.Pattern.compile(
+            "^\\s*(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=(?!=)");
+
+    private synchronized void ensureSymbolIndex() {
+        List<File> files = new ArrayList<>();
+        collectTextFiles(workspace, files);
+        StringBuilder fpb = new StringBuilder();
+        List<File> kept = new ArrayList<>();
+        for (File f : files) {
+            if (f.length() > 512 * 1024) continue;
+            kept.add(f);
+            fpb.append(f.getPath()).append(':').append(f.length())
+               .append(':').append(f.lastModified()).append(';');
+        }
+        String fp = String.valueOf(fpb.toString().hashCode());
+        if (fp.equals(symCacheFp) && symCacheDefs != null) return;
+        List<String[]> defs = new ArrayList<>();
+        Map<String, String> texts = new LinkedHashMap<>();
+        Set<String> names = new HashSet<>();
+        for (File f : kept) {
+            String rel = workspace.toURI().relativize(
+                f.toURI()).getPath();
+            String text;
+            try { text = readFile(f); } catch (Exception e) {
+                continue;
+            }
+            texts.put(rel, text);
+            boolean py = rel.endsWith(".py");
+            String[] lines = text.split("\n", -1);
+            for (int i = 0; i < lines.length; i++) {
+                String ln = lines[i];
+                String name = null;
+                String kind = null;
+                java.util.regex.Matcher m;
+                if (py) {
+                    if ((m = SYM_PY_DEF.matcher(ln)).find()) {
+                        name = m.group(2);
+                        kind = m.group(1).isEmpty()
+                            ? "function" : "method";
+                    } else if ((m = SYM_PY_CLASS.matcher(ln)).find()) {
+                        name = m.group(2);
+                        kind = "class";
+                    } else if ((m = SYM_PY_VAL.matcher(ln)).find()) {
+                        name = m.group(1);
+                        kind = "value";
+                    }
+                } else {
+                    if ((m = SYM_JS_FUNC.matcher(ln)).find()) {
+                        name = m.group(1);
+                        kind = "function";
+                    } else if ((m = SYM_JS_CLASS.matcher(ln)).find()) {
+                        name = m.group(1);
+                        kind = "class";
+                    } else if ((m = SYM_JS_VAL.matcher(ln)).find()) {
+                        name = m.group(1);
+                        kind = "value";
+                    }
+                }
+                if (name != null) {
+                    defs.add(new String[]{name, kind, rel,
+                        String.valueOf(i + 1)});
+                    names.add(name);
+                }
+            }
+        }
+        Map<String, List<String[]>> refs = new HashMap<>();
+        if (!names.isEmpty()) {
+            List<String> sorted = new ArrayList<>(names);
+            Collections.sort(sorted, new java.util.Comparator<String>() {
+                @Override public int compare(String a, String b) {
+                    return b.length() - a.length();
+                }
+            });
+            StringBuilder alt = new StringBuilder();
+            for (int i = 0; i < sorted.size(); i++) {
+                if (i > 0) alt.append('|');
+                alt.append(java.util.regex.Pattern.quote(sorted.get(i)));
+            }
+            java.util.regex.Pattern big =
+                java.util.regex.Pattern.compile(
+                    "\\b(" + alt + ")\\b");
+            for (Map.Entry<String, String> e : texts.entrySet()) {
+                String[] lines = e.getValue().split("\n", -1);
+                for (int i = 0; i < lines.length; i++) {
+                    java.util.regex.Matcher m = big.matcher(lines[i]);
+                    while (m.find()) {
+                        List<String[]> lst = refs.get(m.group(1));
+                        if (lst == null) {
+                            lst = new ArrayList<>();
+                            refs.put(m.group(1), lst);
+                        }
+                        String t = lines[i].trim();
+                        if (t.length() > 160)
+                            t = t.substring(0, 160);
+                        lst.add(new String[]{e.getKey(),
+                            String.valueOf(i + 1), t});
+                    }
+                }
+            }
+        }
+        symCacheDefs = defs;
+        symCacheRefs = refs;
+        symCacheFiles = texts.size();
+        symCacheFp = fp;
+    }
+
+    private String symbolsJson(List<String[]> defs) {
+        StringBuilder b = new StringBuilder("[");
+        for (int i = 0; i < defs.size(); i++) {
+            String[] d = defs.get(i);
+            if (i > 0) b.append(',');
+            b.append("{\"name\":").append(Json.quote(d[0]))
+             .append(",\"kind\":").append(Json.quote(d[1]))
+             .append(",\"path\":").append(Json.quote(d[2]))
+             .append(",\"line\":").append(d[3]).append('}');
+        }
+        return b.append(']').toString();
+    }
     private volatile boolean running = false;
     private ServerSocket socket;
 
@@ -134,6 +279,46 @@ public final class IdeServer {
         if (path.equals("/api/model/start")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"started\":false}");
+            return;
+        }
+        if (path.equals("/api/symbols")) {
+            ensureSymbolIndex();
+            sendJson(out, "{\"symbols\":"
+                + symbolsJson(symCacheDefs) + ",\"files\":"
+                + symCacheFiles + "}");
+            return;
+        }
+        if (path.equals("/api/symbols/search")) {
+            ensureSymbolIndex();
+            String g1Name = queryParam(query, "name");
+            List<String[]> g1Hits = new ArrayList<>();
+            for (String[] g1d : symCacheDefs) {
+                if (g1d[0].equals(g1Name)) g1Hits.add(g1d);
+            }
+            sendJson(out, "{\"symbols\":"
+                + symbolsJson(g1Hits) + "}");
+            return;
+        }
+        if (path.equals("/api/references")) {
+            ensureSymbolIndex();
+            String g1Name = queryParam(query, "name");
+            List<String[]> g1Refs = symCacheRefs.get(g1Name);
+            if (g1Refs == null) g1Refs = new ArrayList<>();
+            StringBuilder g1b = new StringBuilder(
+                "{\"references\":[");
+            int g1Lim = Math.min(300, g1Refs.size());
+            for (int i = 0; i < g1Lim; i++) {
+                String[] g1r = g1Refs.get(i);
+                if (i > 0) g1b.append(',');
+                g1b.append("{\"path\":").append(Json.quote(g1r[0]))
+                   .append(",\"line\":").append(g1r[1])
+                   .append(",\"text\":").append(Json.quote(g1r[2]))
+                   .append('}');
+            }
+            g1b.append("],\"total\":").append(g1Refs.size())
+               .append(",\"truncated\":")
+               .append(g1Refs.size() > 300).append('}');
+            sendJson(out, g1b.toString());
             return;
         }
         if (path.equals("/api/files")) {

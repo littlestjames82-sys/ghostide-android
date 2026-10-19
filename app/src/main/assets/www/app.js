@@ -32814,15 +32814,17 @@
       for (const s of matches2) {
         const row = document.createElement("div");
         row.className = "findRow";
-        row.textContent = "\u0192 " + s.name + "  \xB7 line " + s.line;
-        row.onclick = () => {
+        row.textContent = "\u0192 " + s.name + (s.path && s.path !== currentFile ? "  \xB7 " + s.path + ":" + s.line : "  \xB7 line " + s.line);
+        row.onclick = async () => {
           closeQuick();
+          if (s.path && s.path !== currentFile)
+            await openFile(s.path);
           jumpToLine(s.line);
         };
         list.appendChild(row);
       }
       if (!matches2.length)
-        list.innerHTML = '<div class="dim">No symbols in this file.</div>';
+        list.innerHTML = '<div class="dim">No symbols match.</div>';
       return;
     }
     if (quickMode === "mention") {
@@ -33772,6 +33774,7 @@
     { title: "Outline (functions and classes)", run: () => $("toolOutline").click() },
     { title: "Go to symbol\u2026", run: () => openSymbols() },
     { title: "Go to definition", run: () => $("toolDef").click() },
+    { title: "Find all references", run: () => $("toolRefs").click() },
     { title: "Rename symbol\u2026", run: () => $("toolRename").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
@@ -33815,19 +33818,29 @@
     document.body.classList.toggle("zen");
   }
   $("zenBtn").onclick = toggleZen;
-  function openSymbols() {
+  async function openSymbols() {
     hideTools();
-    if (!currentFile) {
-      alert("Open a file first.");
-      return;
-    }
     quickMode = "symbol";
-    quickSymbols = extractSymbols(view.state.doc.toString());
-    $("quickInput").placeholder = "Go to symbol in " + currentFile + "\u2026 (Esc closes)";
+    quickSymbols = currentFile ? extractSymbols(view.state.doc.toString()).map((s) => ({
+      name: s.name,
+      line: s.line,
+      path: currentFile,
+      kind: s.kind || ""
+    })) : [];
+    $("quickInput").placeholder = "Go to symbol in workspace\u2026 (Esc closes)";
     $("quickInput").value = "";
     renderQuick("");
     $("quickPanel").classList.remove("hidden");
     $("quickInput").focus();
+    try {
+      const r = await fetch("/api/symbols");
+      const d = await r.json();
+      if (d.symbols && d.symbols.length) {
+        quickSymbols = d.symbols;
+        renderQuick($("quickInput").value);
+      }
+    } catch (e) {
+    }
   }
   $("toolSymbols").onclick = openSymbols;
   document.addEventListener("keydown", (e) => {
@@ -34029,33 +34042,41 @@
       alert("Put the cursor on a name first.");
       return;
     }
-    const pats = [
-      "def " + w.word,
-      "class " + w.word,
-      "function " + w.word,
-      "const " + w.word + " =",
-      "let " + w.word + " =",
-      "var " + w.word + " =",
-      w.word + " = function",
-      w.word + ": function"
-    ];
     let hits = [];
-    for (const q of pats) {
-      const d = await postJson("/api/search", { query: q });
-      if (d.matches && d.matches.length) {
-        hits = d.matches;
-        break;
-      }
+    try {
+      const r = await fetch("/api/symbols/search?name=" + encodeURIComponent(w.word));
+      const d = await r.json();
+      if (d.symbols) hits = d.symbols;
+    } catch (e) {
     }
-    const seen = /* @__PURE__ */ new Set();
-    hits = hits.filter((h) => {
-      const k = h.path + ":" + h.line;
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
     if (!hits.length) {
-      alert("No definition found for '" + w.word + "' (looked for def / class / function lines - it is a simple search, not a language server).");
+      const pats = [
+        "def " + w.word,
+        "class " + w.word,
+        "function " + w.word,
+        "const " + w.word + " =",
+        "let " + w.word + " =",
+        "var " + w.word + " =",
+        w.word + " = function",
+        w.word + ": function"
+      ];
+      for (const q of pats) {
+        const d = await postJson("/api/search", { query: q });
+        if (d.matches && d.matches.length) {
+          hits = d.matches;
+          break;
+        }
+      }
+      const seen = /* @__PURE__ */ new Set();
+      hits = hits.filter((h) => {
+        const k = h.path + ":" + h.line;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    }
+    if (!hits.length) {
+      alert("No definition found for '" + w.word + "' in the workspace index.");
       return;
     }
     if (hits.length === 1) {
@@ -34070,7 +34091,7 @@
     for (const h of hits) {
       const row = document.createElement("div");
       row.className = "findRow";
-      row.textContent = h.path + " \xB7 line " + h.line;
+      row.textContent = (h.kind ? h.kind + "  " : "") + h.path + " \xB7 line " + h.line;
       row.onclick = async () => {
         $("todoPanel").classList.add("hidden");
         if (h.path !== currentFile) await openFile(h.path);
@@ -34079,6 +34100,40 @@
       box.appendChild(row);
     }
     $("todoPanel").classList.remove("hidden");
+  };
+  $("toolRefs").onclick = async () => {
+    hideTools();
+    const w = wordAtCursor();
+    if (!w.word) {
+      alert("Put the cursor on a name first.");
+      return;
+    }
+    $("todoTitle").textContent = "References to " + w.word + "\u2026";
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Searching the index\u2026</div>';
+    $("todoPanel").classList.remove("hidden");
+    const r = await fetch("/api/references?name=" + encodeURIComponent(w.word));
+    const d = await r.json();
+    box.innerHTML = "";
+    $("todoTitle").textContent = "References: " + w.word + " (" + (d.total || 0) + (d.truncated ? ", first 300" : "") + ")";
+    if (d.error || !d.references || !d.references.length) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = d.error || "No occurrences of '" + w.word + "' - references are tracked for names that are defined somewhere in the workspace.";
+      box.appendChild(el);
+      return;
+    }
+    for (const h of d.references) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = h.path + " \xB7 " + h.line + "  " + h.text;
+      row.onclick = async () => {
+        $("todoPanel").classList.add("hidden");
+        if (h.path !== currentFile) await openFile(h.path);
+        jumpToLine(h.line);
+      };
+      box.appendChild(row);
+    }
   };
   $("menuCopyContents").onclick = async () => {
     $("fileMenu").classList.add("hidden");

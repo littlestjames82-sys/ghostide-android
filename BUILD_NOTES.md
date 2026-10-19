@@ -297,3 +297,18 @@ HEAD content). Gates: parse, 154 IDs, DOM-stub PASS. One javac
 fix during build (loop var collision in route()).
 APK 3,217,518 bytes, md5 39725cf99e908f48ba15a026b3618838,
 versionCode 14, same signer. Not device-tested.
+
+## v1.11.0 (Oct 19, 2026) - Roadmap G1: workspace symbol index
+Two-pass symbol index on BOTH servers (defs pass: py def/class/
+module values, JS function/class/const-let-var; refs pass:
+word-boundary occurrences of defined names), cached against a
+(path, size, mtime) fingerprint so any save rebuilds lazily.
+Endpoints: GET /api/symbols, /api/symbols/search, /api/references
+(300 cap + total). Frontend: Go to definition answers from the
+index first (heuristic kept as fallback), new Find All
+References panel, Go to Symbol is workspace-wide.
+Verified: fixture correctness by hand (defs, kinds, refs counts
+exact); 500-file workspace cold build 1.18 s, cached 43 ms,
+refs for a shared helper exactly 550. Gates: parse, 155 IDs,
+DOM-stub PASS. APK md5 e2dad61c114e1ec1d45b6a8b942bd9c6,
+versionCode 15, same signer. Not device-tested.
