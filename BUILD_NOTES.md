@@ -511,3 +511,21 @@ in the test runner, the Node CLI runs, the GGUF tool
 passes its syntax check, substitution leaves no
 placeholders. APK 19206150 bytes md5 05d71b0abeb88f836311e2d1c4b81866, versionCode 28,
 same signer. Upload links still pending.
+
+## v1.25.0 (Oct 19, 2026) - Roadmap G15: plugin system
+Plugins are folders in the workspace plugins/<id>/ with a
+plugin.json manifest + plugin.js. Scripts run in sandboxed
+iframes (opaque origin) and reach the IDE only through the
+ghost postMessage API: files list/read/write, editor
+current/selection/insert/open, ask-Ghost, panel UI +
+notify. Actions surface in Tools and the command palette;
+the manager (Tools -> Plugins) enables/disables, removes
+(folder delete on both builds), installs the two samples
+(Word Count Pro, JSON Toolbox) and rescans. One design
+catch: the file listing hides dotfolders on both builds,
+so the plugin folder is the visible plugins/ - which also
+makes plugins editable in the IDE itself. Verified on
+desktop: discovery, exact word counts, JSON format/minify
+written through the API, error paths, surgical removal.
+Phone run joins Ryan's device pass. APK 19210246 bytes
+md5 da9cdc442a5cf4997eab7aaccb2d6c0a, versionCode 29, same signer.
