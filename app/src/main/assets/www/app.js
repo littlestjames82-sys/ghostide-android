@@ -35662,6 +35662,7 @@
     { title: "New project from template", run: () => $("toolTemplates").click() },
     { title: "Pair mode", run: () => $("toolPair").click() },
     { title: "Review changes (pre-commit)", run: () => $("gitReview").click() },
+    { title: "Context lab", run: () => $("toolContext").click() },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
     { title: "API client", run: () => $("toolApi").click() },
     { title: "Export docs site", run: () => $("toolDocs").click() },
@@ -37283,6 +37284,118 @@
       $("reviewAiOut").textContent = "AI review failed: " + e;
     }
   };
+  function sliceStats(files, opts) {
+    let kept = 0, dropped = 0, keptToks = 0, droppedToks = 0;
+    for (const f of files) {
+      const toks = f.tokens || 0;
+      let drop = false;
+      if (opts.skipTests && (/(^|\/)(tests?|__tests__)(\/|$)/i.test(f.path) || /(^|\/)test[_-]/.test(f.path) || /[_-](test|spec)\.[a-z0-9]+$/i.test(f.path)))
+        drop = true;
+      if (opts.skipDocs && /\.md$/i.test(f.path)) drop = true;
+      if (opts.skipLocks && f.lock) drop = true;
+      if (opts.maxBytes && f.bytes > opts.maxBytes) drop = true;
+      if (opts.prefix && !f.path.startsWith(opts.prefix))
+        drop = true;
+      if (drop) {
+        dropped++;
+        droppedToks += toks;
+      } else {
+        kept++;
+        keptToks += toks;
+      }
+    }
+    return { kept, dropped, keptToks, droppedToks };
+  }
+  function fitWindow(files, budget) {
+    const sorted = [...files].sort(
+      (x, y) => (y.tokens || 0) - (x.tokens || 0)
+    );
+    let used = 0, inside = 0;
+    for (const f of sorted) {
+      const toks = f.tokens || 0;
+      if (used + toks <= budget) {
+        used += toks;
+        inside++;
+      }
+    }
+    return { used, inside, outside: files.length - inside };
+  }
+  window.__ghostCtx = { sliceStats, fitWindow };
+  var ctxStatsData = null;
+  function renderCtx() {
+    if (!ctxStatsData) return;
+    const d = ctxStatsData;
+    $("ctxSummary").textContent = d.fileCount + " text files \xB7 " + fmtSize(d.totalBytes) + " \xB7 \u2248 " + d.totalTokens.toLocaleString() + " tokens if Ghost read everything";
+    const heat = $("ctxHeat");
+    heat.innerHTML = "";
+    const max = Math.max(1, ...d.files.map((f) => f.tokens || 0));
+    for (const f of d.files.slice(0, 140)) {
+      const tile = document.createElement("div");
+      tile.className = "ctxTile";
+      const ratio = (f.tokens || 0) / max;
+      tile.style.background = "hsl(" + Math.round(210 - 190 * ratio) + ", 65%, " + (26 + Math.round(14 * ratio)) + "%)";
+      tile.style.flexGrow = String(1 + Math.round(ratio * 5));
+      tile.textContent = f.path.split("/").pop();
+      tile.title = f.path + " \xB7 \u2248 " + (f.tokens === null ? "?" : f.tokens.toLocaleString()) + " tokens \xB7 " + fmtSize(f.bytes);
+      tile.onclick = () => openFile(f.path);
+      heat.appendChild(tile);
+    }
+    const list = $("ctxList");
+    list.innerHTML = "";
+    for (const f of d.files.slice(0, 30)) {
+      const row = document.createElement("div");
+      row.className = "ctxRow";
+      const pct = d.totalTokens ? ((f.tokens || 0) / d.totalTokens * 100).toFixed(1) : "0";
+      row.textContent = f.path + " \u2014 \u2248 " + (f.tokens === null ? "too large to count" : f.tokens.toLocaleString() + " tokens") + " (" + pct + "%) \xB7 " + fmtSize(f.bytes) + (f.lock ? " \xB7 lockfile" : "");
+      row.onclick = () => openFile(f.path);
+      list.appendChild(row);
+    }
+    renderCtxSlice();
+  }
+  function renderCtxSlice() {
+    if (!ctxStatsData) return;
+    const opts = {
+      skipTests: $("ctxSkipTests").checked,
+      skipDocs: $("ctxSkipDocs").checked,
+      skipLocks: $("ctxSkipLocks").checked,
+      maxBytes: parseInt($("ctxMaxSize").value, 10) || 0,
+      prefix: $("ctxPrefix").value.trim()
+    };
+    const s = sliceStats(ctxStatsData.files, opts);
+    const total = ctxStatsData.totalTokens;
+    const saved = total ? Math.round(s.droppedToks / total * 100) : 0;
+    $("ctxSliceOut").textContent = "Slice keeps " + s.kept + " files / \u2248 " + s.keptToks.toLocaleString() + " tokens; drops " + s.dropped + " files / \u2248 " + s.droppedToks.toLocaleString() + " tokens (" + saved + "% saved).";
+    const budget = parseInt($("ctxWindow").value, 10);
+    const fit = fitWindow(ctxStatsData.files, budget);
+    $("ctxFitOut").textContent = "A " + budget / 1024 + "k window fits the " + fit.inside + " biggest files (\u2248 " + fit.used.toLocaleString() + " tokens); " + fit.outside + " files stay outside.";
+  }
+  async function openContextLab() {
+    hideTools();
+    $("ctxPanel").classList.remove("hidden");
+    $("ctxTitle").textContent = "\u{1F9EA} Context lab";
+    $("ctxSummary").textContent = "Counting what Ghost sees\u2026";
+    try {
+      const r = await fetch("/api/context/stats");
+      ctxStatsData = await r.json();
+      $("ctxMethod").textContent = ctxStatsData.method + " Lockfiles are counted (GhostSlice counts them too) and can be sliced out below.";
+      renderCtx();
+    } catch (e) {
+      $("ctxSummary").textContent = "Context lab failed: " + e;
+    }
+  }
+  $("toolContext").onclick = openContextLab;
+  $("ctxRefresh").onclick = openContextLab;
+  $("ctxClose").onclick = () => $("ctxPanel").classList.add("hidden");
+  for (const id2 of [
+    "ctxSkipTests",
+    "ctxSkipDocs",
+    "ctxSkipLocks",
+    "ctxMaxSize",
+    "ctxWindow"
+  ]) {
+    $(id2).onchange = renderCtxSlice;
+  }
+  $("ctxPrefix").oninput = renderCtxSlice;
   var IMG_EXTS = [
     "png",
     "jpg",

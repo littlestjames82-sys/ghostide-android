@@ -757,3 +757,27 @@ mutable-default / bare-except / eval bugs caught,
 commented-out code and debug print flagged, the clean
 file silent, and a fully clean diff returns zero
 findings - 10/10 harness assertions.
+
+## v1.35.0 (versionCode 39) - Oct 19, 2026 - Roadmap G27
+Context lab (Tools -> Context lab, or the palette):
+- GET /api/context/stats on both builds runs a faithful
+  port of GhostSlice's estimator (tokens.py method v2:
+  BPE-like split, per-language calibration factors,
+  minified-JS family, scanner walk rules - skip dirs,
+  binary exts out, lockfiles counted and flagged, 5 MB
+  per-file cap). The lab therefore shows the same numbers
+  `ghostslice scan` prints for the same tree.
+- Panel: workspace totals, a token heatmap (tile colour
+  and weight by share, tap opens the file), the 30 most
+  expensive files with % of total, what-if slice controls
+  (skip tests / docs / lockfiles, max file size, folder
+  prefix) with kept-vs-dropped token math, and a window
+  fit readout (greedy biggest-first into 8k/32k/128k).
+Proven: the endpoint matches GhostSlice's own scan
+EXACTLY on two trees - the benchmark fixture (705 tokens;
+min.js 484 with the minified factor, per-file counts all
+equal) and the docs fixture (2360). Slice-math harness
+7/7 (its first run caught a test_a.py pattern miss and an
+unsorted fitWindow; both fixed). Caught at build: a Java
+lambda in the phone port (metafactory) - replaced with an
+anonymous Comparator per house rules.

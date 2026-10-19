@@ -242,6 +242,7 @@ setTimeout(function () {
     <button id="toolApi">API client</button>
     <button id="toolDocs">Export docs site</button>
     <button id="toolAssets">Asset browser</button>
+    <button id="toolContext">Context lab</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>
@@ -345,6 +346,41 @@ setTimeout(function () {
       <div id="iconMsg" class="dim"></div>
     </div>
   </div>
+</div>
+<div id="ctxPanel" class="hidden">
+  <div class="run-head">
+    <span id="ctxTitle">🧪 Context lab</span>
+    <span>
+      <button id="ctxRefresh">↻ Rescan</button>
+      <button id="ctxClose">✕</button>
+    </span>
+  </div>
+  <div id="ctxSummary" class="dbInfo"></div>
+  <div id="ctxHeat"></div>
+  <div id="ctxList"></div>
+  <div class="ctxSlice">
+    <div class="ctxSliceTitle">What-if slices</div>
+    <label><input type="checkbox" id="ctxSkipTests"> Skip tests</label>
+    <label><input type="checkbox" id="ctxSkipDocs"> Skip docs (.md)</label>
+    <label><input type="checkbox" id="ctxSkipLocks" checked> Skip lockfiles</label>
+    <label>Max file size
+      <select id="ctxMaxSize">
+        <option value="0">any</option>
+        <option value="20000">20 KB</option>
+        <option value="5000">5 KB</option>
+        <option value="1000">1 KB</option>
+      </select></label>
+    <label>Folder prefix <input id="ctxPrefix" placeholder="e.g. src/"></label>
+    <div id="ctxSliceOut"></div>
+    <div id="ctxFitOut"></div>
+    <label>Window fit
+      <select id="ctxWindow">
+        <option value="8192">8k window</option>
+        <option value="32768" selected>32k window</option>
+        <option value="131072">128k window</option>
+      </select></label>
+  </div>
+  <div id="ctxMethod" class="dbInfo"></div>
 </div>
 <div id="reviewPanel" class="hidden">
   <div class="run-head">

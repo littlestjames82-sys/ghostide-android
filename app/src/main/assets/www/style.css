@@ -489,3 +489,23 @@ body.zen #files, body.zen #chat { display: none; }
   white-space: pre-wrap; color: #cfd3e0; max-height: 260px;
   overflow-y: auto;
 }
+
+/* Roadmap G27: context lab */
+#ctxPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#ctxHeat {
+  display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px;
+}
+.ctxTile {
+  min-width: 54px; padding: 8px 6px; border-radius: 6px;
+  color: #eef1f8; font-size: 10.5px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ctxRow {
+  padding: 4px 10px; font-size: 12px; cursor: pointer;
+  border-bottom: 1px solid #22242e;
+}
+.ctxSlice { padding: 8px 10px; font-size: 12.5px; }
+.ctxSlice label { display: inline-block; margin: 3px 10px 3px 0; }
+.ctxSliceTitle { font-weight: 700; margin-bottom: 4px; }
+#ctxSliceOut, #ctxFitOut { margin-top: 5px; color: #cfd3e0; }
+#ctxPrefix { width: 110px; }

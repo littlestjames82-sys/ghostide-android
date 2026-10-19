@@ -690,6 +690,12 @@ public final class IdeServer {
             sendJson(out, g1b.toString());
             return;
         }
+        if (path.equals("/api/context/stats")) {
+            // Roadmap G27: context lab data; the estimator
+            // mirrors the desktop port of GhostSlice method v2.
+            sendJson(out, buildContextStats());
+            return;
+        }
         if (path.equals("/api/repomap")) {
             ensureSymbolIndex();
             int g2Budget = 6000;
@@ -2265,6 +2271,230 @@ public final class IdeServer {
         if (!f.getPath().startsWith(root.getPath()))
             throw new IOException("path escapes workspace");
         return f;
+    }
+
+    // ---- Roadmap G27: context lab (GhostSlice port) ----
+    // Mirrors server.py's port of ghostslice tokens.py +
+    // scanner.py (method v2). Keep the two in sync.
+    private static final java.util.Set<String> GS_TEXT =
+        new java.util.HashSet<>(java.util.Arrays.asList(
+            ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+            ".md", ".markdown", ".txt", ".json", ".yaml", ".yml",
+            ".toml", ".cfg", ".ini", ".html", ".css", ".sh",
+            ".rb", ".go", ".rs", ".java", ".c", ".h", ".cpp",
+            ".hpp", ".cc", ".cxx", ".hh", ".cs", ".php",
+            ".swift", ".kt", ".kts", ".sql", ".xml", ".scala",
+            ".sc", ".bash", ".zsh", ".ps1", ".psm1", ".ipynb"));
+    private static final java.util.Set<String> GS_BIN =
+        new java.util.HashSet<>(java.util.Arrays.asList(
+            ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp",
+            ".bmp", ".svgz", ".pdf", ".zip", ".tar", ".gz",
+            ".bz2", ".xz", ".7z", ".rar", ".exe", ".dll", ".so",
+            ".dylib", ".o", ".a", ".class", ".wasm", ".mp3",
+            ".mp4", ".mov", ".avi", ".woff", ".woff2", ".ttf",
+            ".eot", ".pyc", ".pyo", ".db", ".sqlite",
+            ".sqlite3"));
+    private static final java.util.Set<String> GS_SKIP =
+        new java.util.HashSet<>(java.util.Arrays.asList(
+            ".git", ".hg", ".svn", "node_modules", "dist",
+            "build", "out", "__pycache__", ".venv", "venv",
+            "env", ".tox", ".mypy_cache"));
+    private static final java.util.Set<String> GS_LOCKS =
+        new java.util.HashSet<>(java.util.Arrays.asList(
+            "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+            "poetry.lock", "Pipfile.lock", "Cargo.lock",
+            "composer.lock", "Gemfile.lock", "go.sum",
+            "uv.lock"));
+
+    private static String gsLang(String ext) {
+        switch (ext) {
+            case ".py": return "python";
+            case ".ts": case ".tsx": return "typescript";
+            case ".js": case ".jsx": case ".mjs": case ".cjs":
+                return "javascript";
+            case ".md": case ".markdown": return "markdown";
+            case ".txt": return "text";
+            case ".json": return "json";
+            case ".go": return "go";
+            case ".rs": return "rust";
+            case ".java": return "java";
+            case ".cs": return "csharp";
+            case ".php": return "php";
+            case ".rb": return "ruby";
+            case ".kt": case ".kts": return "kotlin";
+            case ".swift": return "swift";
+            case ".c": case ".h": return "c";
+            case ".cpp": case ".cc": case ".cxx": case ".hpp":
+            case ".hh": return "cpp";
+            case ".scala": case ".sc": return "scala";
+            case ".yaml": case ".yml": return "yaml";
+            case ".toml": return "toml";
+            case ".sql": return "sql";
+            case ".sh": case ".bash": case ".zsh": return "shell";
+            case ".ps1": case ".psm1": return "powershell";
+            case ".ipynb": return "notebook";
+            default: return null;
+        }
+    }
+
+    private static double gsFactor(String lang, String text) {
+        String fam = "other";
+        if (lang != null) {
+            switch (lang) {
+                case "python": case "notebook": fam = "python"; break;
+                case "typescript": case "javascript": fam = "ts-js"; break;
+                case "go": fam = "go"; break;
+                case "rust": fam = "rust"; break;
+                case "c": case "cpp": case "java": case "csharp":
+                case "scala": case "kotlin": case "swift":
+                case "php": case "ruby": fam = "c-family"; break;
+                case "markdown": fam = "prose"; break;
+                case "json": case "yaml": case "toml":
+                    fam = "json-data"; break;
+                default: fam = "other";
+            }
+        }
+        if (fam.equals("ts-js") && gsMinified(text))
+            fam = "minified-js";
+        switch (fam) {
+            case "prose": return 0.85;
+            case "python": return 0.86;
+            case "ts-js": return 0.75;
+            case "go": return 0.73;
+            case "rust": return 0.89;
+            case "c-family": return 0.87;
+            case "json-data": return 0.95;
+            case "minified-js": return 0.65;
+            default: return 1.00;
+        }
+    }
+
+    private static boolean gsMinified(String text) {
+        if (text.length() < 400) return false;
+        String[] lines = text.split("\n", -1);
+        if (lines.length == 0) return false;
+        int longest = 0;
+        for (String ln : lines)
+            longest = Math.max(longest, ln.length());
+        return longest >= 300
+            && (double) text.length() / lines.length >= 200;
+    }
+
+    private static long gsRaw(String text) {
+        long total = 0;
+        int run = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '_' || Character.isLetterOrDigit(ch)) {
+                run++;
+                continue;
+            }
+            if (run > 0) {
+                total += run <= 4 ? 1 : (run + 3) / 4;
+                run = 0;
+            }
+            if (!Character.isWhitespace(ch)) total += 1;
+        }
+        if (run > 0) total += run <= 4 ? 1 : (run + 3) / 4;
+        return total;
+    }
+
+    private static long gsEstimate(String text, String lang) {
+        long raw = gsRaw(text);
+        if (raw == 0) return 0;
+        double factor = gsFactor(lang, text);
+        if (factor == 1.0) return raw;
+        return (long) (raw * factor + 0.5);
+    }
+
+    private void gsCollect(File dir, List<File> acc) {
+        File[] kids = dir.listFiles();
+        if (kids == null) return;
+        java.util.Arrays.sort(kids);
+        for (File k : kids) {
+            String nm = k.getName();
+            if (k.isDirectory()) {
+                if (GS_SKIP.contains(nm) || nm.startsWith("."))
+                    continue;
+                gsCollect(k, acc);
+            } else {
+                acc.add(k);
+            }
+        }
+    }
+
+    private String buildContextStats() {
+        List<File> all = new ArrayList<>();
+        gsCollect(workspace, all);
+        StringBuilder b = new StringBuilder("{\"files\":[");
+        long totalTokens = 0, totalBytes = 0;
+        int count = 0;
+        // Sort by tokens desc after computing: two passes.
+        List<String[]> rows = new ArrayList<>();
+        for (File f : all) {
+            if (count >= 5000) break;
+            String name = f.getName();
+            String ext = "";
+            int dot = name.lastIndexOf('.');
+            if (dot > 0) ext = name.substring(dot).toLowerCase();
+            else if (dot == 0) ext = "";
+            if (GS_BIN.contains(ext)) continue;
+            if (!ext.isEmpty() && !GS_TEXT.contains(ext))
+                continue;
+            long size = f.length();
+            String rel = workspace.toURI().relativize(
+                f.toURI()).getPath();
+            if (size > 5_000_000L) {
+                rows.add(new String[]{rel,
+                    String.valueOf(size), null,
+                    GS_LOCKS.contains(name) ? "1" : ""});
+                totalBytes += size;
+                count++;
+                continue;
+            }
+            String text;
+            try { text = readFile(f); }
+            catch (Exception e) { continue; }
+            if (ext.isEmpty() && text.indexOf('\0') >= 0)
+                continue;
+            long tokens = gsEstimate(text, gsLang(ext));
+            rows.add(new String[]{rel, String.valueOf(size),
+                String.valueOf(tokens),
+                GS_LOCKS.contains(name) ? "1" : ""});
+            totalTokens += tokens;
+            totalBytes += size;
+            count++;
+        }
+        java.util.Collections.sort(rows,
+            new java.util.Comparator<String[]>() {
+                @Override public int compare(String[] x,
+                        String[] y) {
+                    long xv = x[2] == null ? -1
+                        : Long.parseLong(x[2]);
+                    long yv = y[2] == null ? -1
+                        : Long.parseLong(y[2]);
+                    return Long.compare(yv, xv);
+                }
+            });
+        for (int i = 0; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            if (i > 0) b.append(',');
+            b.append("{\"path\":").append(Json.quote(r[0]))
+             .append(",\"bytes\":").append(r[1])
+             .append(",\"tokens\":")
+             .append(r[2] == null ? "null" : r[2]);
+            if ("1".equals(r[3])) b.append(",\"lock\":true");
+            b.append('}');
+        }
+        b.append("],\"totalTokens\":").append(totalTokens)
+         .append(",\"totalBytes\":").append(totalBytes)
+         .append(",\"fileCount\":").append(rows.size())
+         .append(",\"method\":").append(Json.quote(
+             "GhostSlice estimates (BPE-like split v2, "
+             + "per-language calibrated, not exact "
+             + "tokenizer counts)"))
+         .append('}');
+        return b.toString();
     }
 
     private void walk(File root, File dir, List<String> out) {
