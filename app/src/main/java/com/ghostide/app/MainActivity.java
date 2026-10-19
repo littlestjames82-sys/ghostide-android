@@ -63,6 +63,9 @@ public class MainActivity extends Activity {
     private static final int MENU_SHARE = 8;
     private static final int REQ_IMPORT = 101;
     private static final int REQ_EXPORT = 102;
+    private static final int REQ_SPEECH = 103;
+    private static final int REQ_MIC_PERM = 104;
+    private String voiceTarget = "chat";
     private File pendingExport;
 
     private static final int BG = Color.rgb(23, 24, 28);
@@ -385,6 +388,8 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        webView.addJavascriptInterface(new VoiceBridge(),
+            "GhostVoice");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView view, int errorCode,
@@ -723,9 +728,94 @@ public class MainActivity extends Activity {
         }
     }
 
+    /* ---------------- Roadmap G13: voice dictation ----------------
+       The web UI calls GhostVoice.dictate("chat"|"editor"); the
+       system speech recognizer does the listening (nothing is
+       recorded by the app itself), and the transcript returns
+       to the page through window.__ghostVoiceResult. */
+    public class VoiceBridge {
+        @android.webkit.JavascriptInterface
+        public void dictate(final String target) {
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    startDictation(target);
+                }
+            });
+        }
+    }
+
+    private void startDictation(String target) {
+        voiceTarget = target == null ? "chat" : target;
+        if (checkSelfPermission(
+                android.Manifest.permission.RECORD_AUDIO)
+                != android.content.pm.PackageManager
+                    .PERMISSION_GRANTED) {
+            requestPermissions(new String[]{
+                android.Manifest.permission.RECORD_AUDIO},
+                REQ_MIC_PERM);
+            return;
+        }
+        fireSpeechIntent();
+    }
+
+    private void fireSpeechIntent() {
+        Intent i = new Intent(
+            android.speech.RecognizerIntent
+                .ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(android.speech.RecognizerIntent
+                .EXTRA_LANGUAGE_MODEL,
+            android.speech.RecognizerIntent
+                .LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT,
+            "Speak - GhostIDE is listening");
+        try {
+            startActivityForResult(i, REQ_SPEECH);
+        } catch (Exception e) {
+            deliverVoice(null);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req,
+            String[] perms, int[] grants) {
+        super.onRequestPermissionsResult(req, perms, grants);
+        if (req == REQ_MIC_PERM) {
+            if (grants.length > 0 && grants[0]
+                    == android.content.pm.PackageManager
+                        .PERMISSION_GRANTED) {
+                fireSpeechIntent();
+            } else {
+                deliverVoice(null);
+            }
+        }
+    }
+
+    private void deliverVoice(String text) {
+        if (webView == null) return;
+        String js = "window.__ghostVoiceResult && "
+            + "window.__ghostVoiceResult("
+            + org.json.JSONObject.quote(voiceTarget) + ", "
+            + (text == null ? "null"
+               : org.json.JSONObject.quote(text)) + ")";
+        webView.evaluateJavascript(js, null);
+    }
+
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == REQ_SPEECH) {
+            String heard = null;
+            if (res == RESULT_OK && data != null) {
+                java.util.ArrayList<String> all =
+                    data.getStringArrayListExtra(
+                        android.speech.RecognizerIntent
+                            .EXTRA_RESULTS);
+                if (all != null && !all.isEmpty())
+                    heard = all.get(0);
+            }
+            deliverVoice(heard);
+            return;
+        }
         if (res != RESULT_OK || data == null || data.getData() == null) return;
         final Uri uri = data.getData();
         if (req == REQ_IMPORT) {

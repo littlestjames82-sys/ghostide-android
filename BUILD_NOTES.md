@@ -481,3 +481,18 @@ downloaded models use, and Delete reclaims it (that flow
 already existed per variant). APK 19202051 bytes md5 089f90c2fe1d895df3180fb5aec4415d,
 versionCode 26, same signer. Downloading a second store
 model on-device is part of Ryan's device pass.
+
+## v1.23.0 (Oct 19, 2026) - Roadmap G13: voice coding
+Mic buttons in chat and the editor header. On the phone
+they open the system speech recognizer through a
+GhostVoice JavascriptInterface (RECORD_AUDIO requested at
+tap time; the app records nothing itself) and the
+transcript lands in the chat box or at the editor cursor.
+Spoken commands: "save file", "run it", "new file", and
+"Ask Ghost ..." which sends straight to chat. Desktop has
+no bridge, so its buttons show a polite phone-feature note,
+as the roadmap specifies. Verified: gates + javac, dex and
+manifest carry the bridge and permission, voice-command
+patterns unit-checked. Speaking proof is Ryan's phone.
+Arc C (phone power) complete pending device proofs.
+APK 19202053 bytes md5 85cd7e61d7bc2b5d84f0a139271c8bb6, versionCode 27, same signer.

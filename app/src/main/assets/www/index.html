@@ -53,6 +53,7 @@ setTimeout(function () {
     <span id="modelPill" class="pill down">model: checking…</span>
     <button id="startModelBtn" class="hidden">Start model</button>
     <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
+    <button id="voiceBtn" title="Dictate into the editor (phone)">🎤</button>
     <button id="splitBtn" title="Split view - pick a file for the second pane">◫ Split</button>
     <button id="toolsBtn" title="Tools">🧰</button>
     <button id="zenBtn" title="Focus mode - hide the side panels">⛶</button>
@@ -135,6 +136,7 @@ setTimeout(function () {
     <div class="chat-input">
       <textarea id="chatText" rows="3" placeholder="Ask about your code… (Enter to send, Shift+Enter for newline)"></textarea>
       <button id="mentionBtn" title="Attach a file to the message (@file)">@ File</button>
+      <button id="chatMic" title="Dictate a message (phone)">🎤</button>
       <button id="chatSend">Send</button>
     </div>
     <label class="ctx-toggle"><input type="checkbox" id="ctxToggle" checked> Include context:

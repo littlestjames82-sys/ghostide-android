@@ -35289,6 +35289,48 @@
     hideTools();
     runFixLoop();
   };
+  function startDictation(target) {
+    if (window.GhostVoice && window.GhostVoice.dictate) {
+      window.GhostVoice.dictate(target);
+    } else {
+      alert("Voice dictation uses the phone's speech recognizer, so it is a phone feature. On desktop, typing is the way.");
+    }
+  }
+  $("chatMic").onclick = () => startDictation("chat");
+  $("voiceBtn").onclick = () => startDictation("editor");
+  var VOICE_COMMANDS = [
+    [/^save( file)?\.?$/i, () => saveFile()],
+    [/^run( it| the file| file)?\.?$/i, () => $("runBtn").click()],
+    [/^new file\.?$/i, () => $("newFileBtn").click()]
+  ];
+  window.__ghostVoiceResult = (target, text) => {
+    if (!text) return;
+    const said = text.trim();
+    const ask = said.match(/^ask ghost[:,]?\s+(.+)$/i);
+    if (ask) {
+      $("chatText").value = ask[1];
+      sendChat();
+      return;
+    }
+    for (const [re, fn] of VOICE_COMMANDS) {
+      if (re.test(said)) {
+        fn();
+        return;
+      }
+    }
+    if (target === "editor") {
+      const sel = view.state.selection.main;
+      view.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: text },
+        selection: { anchor: sel.from + text.length }
+      });
+      view.focus();
+    } else {
+      const box = $("chatText");
+      box.value = box.value ? box.value + " " + text : text;
+      box.focus();
+    }
+  };
   loadFiles();
   refreshWsLabel();
   window.__ghostBooted = true;
