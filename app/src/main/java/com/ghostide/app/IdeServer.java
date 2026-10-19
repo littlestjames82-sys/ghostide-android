@@ -850,6 +850,102 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/http")
+                && method.equals("POST")) {
+            // Roadmap G23: API client, mirroring desktop. The
+            // app sends the request so CORS never applies.
+            try {
+                Map<String, Object> hD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String hMethod = Json.str(hD, "method", "GET")
+                    .toUpperCase(java.util.Locale.US);
+                String hUrl = Json.str(hD, "url", "");
+                if (!hUrl.startsWith("http://")
+                        && !hUrl.startsWith("https://")) {
+                    throw new Exception(
+                        "URL must start with http:// or https://");
+                }
+                String hBody = Json.str(hD, "body", "");
+                java.net.HttpURLConnection hConn =
+                    (java.net.HttpURLConnection)
+                    new java.net.URL(hUrl).openConnection();
+                hConn.setRequestMethod(hMethod);
+                hConn.setConnectTimeout(15000);
+                hConn.setReadTimeout(15000);
+                Object hHv = hD.get("headers");
+                if (hHv instanceof Map) {
+                    for (Map.Entry<String, Object> hE
+                            : Json.obj(hHv).entrySet()) {
+                        hConn.setRequestProperty(hE.getKey(),
+                            String.valueOf(hE.getValue()));
+                    }
+                }
+                long hT0 = System.currentTimeMillis();
+                if (!hBody.isEmpty()
+                        && !hMethod.equals("GET")
+                        && !hMethod.equals("HEAD")) {
+                    hConn.setDoOutput(true);
+                    java.io.OutputStream hOs =
+                        hConn.getOutputStream();
+                    hOs.write(hBody.getBytes(
+                        StandardCharsets.UTF_8));
+                    hOs.close();
+                }
+                int hStatus = hConn.getResponseCode();
+                java.io.InputStream hIn = hStatus >= 400
+                    ? hConn.getErrorStream()
+                    : hConn.getInputStream();
+                java.io.ByteArrayOutputStream hBuf =
+                    new java.io.ByteArrayOutputStream();
+                if (hIn != null) {
+                    byte[] hChunk = new byte[8192];
+                    int hN;
+                    int hCap = 512 * 1024 + 1;
+                    while ((hN = hIn.read(hChunk)) != -1
+                            && hBuf.size() < hCap) {
+                        hBuf.write(hChunk, 0, Math.min(
+                            hN, hCap - hBuf.size()));
+                    }
+                    hIn.close();
+                }
+                byte[] hRaw = hBuf.toByteArray();
+                boolean hTrunc = hRaw.length > 512 * 1024;
+                int hShow = Math.min(hRaw.length, 512 * 1024);
+                StringBuilder hSb = new StringBuilder(
+                    "{\"ok\":true,\"status\":");
+                hSb.append(hStatus).append(",\"headers\":[");
+                boolean hFirst = true;
+                for (Map.Entry<String,
+                        java.util.List<String>> hE
+                        : hConn.getHeaderFields().entrySet()) {
+                    if (hE.getKey() == null) continue;
+                    for (String hV : hE.getValue()) {
+                        if (!hFirst) hSb.append(",");
+                        hFirst = false;
+                        hSb.append("[")
+                            .append(Json.quote(hE.getKey()))
+                            .append(",")
+                            .append(Json.quote(hV))
+                            .append("]");
+                    }
+                }
+                hSb.append("],\"body\":")
+                    .append(Json.quote(new String(hRaw, 0, hShow,
+                        StandardCharsets.UTF_8)))
+                    .append(",\"size\":").append(hRaw.length)
+                    .append(",\"truncated\":").append(hTrunc)
+                    .append(",\"ms\":")
+                    .append(System.currentTimeMillis() - hT0)
+                    .append("}");
+                hConn.disconnect();
+                sendJson(out, hSb.toString());
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("request failed: " + msg(e))
+                    + "}");
+            }
+            return;
+        }
         if (path.equals("/api/db/info")
                 && method.equals("POST")) {
             // Roadmap G22: SQLite studio, mirroring desktop.

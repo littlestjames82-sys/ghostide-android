@@ -397,3 +397,26 @@ body.zen #files, body.zen #chat { display: none; }
   max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #dbGrid th { background: #17181f; color: #9fe8bb; }
+
+/* Roadmap G23: API client */
+#apiPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+.apiRow { display: flex; gap: 6px; padding: 6px 10px; }
+.apiRow select, .apiRow input {
+  background: #17181f; color: #e6e8f0; border: 1px solid #2e3038;
+  border-radius: 6px; padding: 6px 8px; font-size: 13px;
+}
+.apiRow input { flex: 1; font-family: ui-monospace, monospace; }
+.apiCols { display: flex; gap: 6px; padding: 0 10px; }
+.apiCols textarea {
+  flex: 1; background: #17181f; color: #e6e8f0; border: 1px solid #2e3038;
+  border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px;
+  padding: 6px 8px; resize: vertical;
+}
+.apiList { padding: 4px 10px; font-size: 12px; }
+.apiList button { font-size: 11px; padding: 2px 7px; margin: 2px 2px 2px 0; }
+#apiStatus { padding: 4px 10px; font-size: 12px; }
+#apiRespHeaders, #apiResp {
+  margin: 0; padding: 4px 10px; overflow: auto; font-size: 12px;
+  white-space: pre-wrap; word-break: break-word; max-height: 220px;
+  font-family: ui-monospace, monospace; color: #cfd3e0;
+}

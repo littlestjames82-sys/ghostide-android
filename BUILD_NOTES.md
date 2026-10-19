@@ -666,3 +666,25 @@ returns the seeded rows, a write in read-only mode
 fails with SQLite's own error and does not persist, a
 write with the toggle on lands (rowcount 1) and reads
 back. Phone proof joins the device pass.
+
+## v1.31.0 (versionCode 35) - Oct 19, 2026 - Roadmap G23
+API client (Postman-lite), Tools -> API client:
+- Requests are sent by the app's own server (POST
+  /api/http on both builds: urllib on desktop,
+  HttpURLConnection on the phone), so local dev servers
+  without CORS headers just work. Method, URL, headers,
+  body; response shows status, ms, size, headers, and a
+  pretty-printed JSON body; bodies cap at 512 KB.
+- Saved requests per project in .ghostide/api-requests
+  .json; history (last 20) in localStorage, click to
+  refill the form.
+- Proven end to end against a local target API: GET
+  with response-header inspection, POST echo with a
+  custom header received, 404 passthrough, plain
+  connection-refused error, saved-request round trip.
+- Build note: the first cut imported urllib inside
+  do_POST, which made Python treat urllib as a local
+  and broke EVERY desktop POST (UnboundLocalError).
+  Caught by the fixture tests before shipping; imports
+  now live at module level. Lesson: no inline imports
+  of module names the handler also uses.

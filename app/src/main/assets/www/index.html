@@ -238,6 +238,7 @@ setTimeout(function () {
     <button id="toolTemplates">New project from template</button>
     <button id="toolPair">Pair mode</button>
     <button id="toolBackup">Encrypted backup</button>
+    <button id="toolApi">API client</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>
@@ -288,6 +289,32 @@ setTimeout(function () {
   </div>
   <div id="dbMsg" class="dim"></div>
   <div id="dbGridWrap"><table id="dbGrid"></table></div>
+</div>
+<div id="apiPanel" class="hidden">
+  <div class="run-head">
+    <span>🌐 API client</span>
+    <span>
+      <button id="apiSaveBtn">💾 Save request</button>
+      <button id="apiClose">✕</button>
+    </span>
+  </div>
+  <div class="apiRow">
+    <select id="apiMethod">
+      <option>GET</option><option>POST</option><option>PUT</option>
+      <option>PATCH</option><option>DELETE</option><option>HEAD</option>
+    </select>
+    <input id="apiUrl" type="text" placeholder="http://127.0.0.1:8000/api/hello">
+    <button id="apiSend">Send</button>
+  </div>
+  <div class="apiCols">
+    <textarea id="apiHeaders" rows="4" placeholder="Headers, one per line:&#10;Content-Type: application/json"></textarea>
+    <textarea id="apiBody" rows="4" placeholder="Request body (for POST / PUT / PATCH)"></textarea>
+  </div>
+  <div id="apiSaved" class="apiList"></div>
+  <div id="apiStatus" class="dim"></div>
+  <pre id="apiRespHeaders"></pre>
+  <pre id="apiResp"></pre>
+  <div id="apiHistory" class="apiList"></div>
 </div>
 <div id="todoPanel" class="hidden">
   <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>

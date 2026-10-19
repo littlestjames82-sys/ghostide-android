@@ -35297,6 +35297,7 @@
     { title: "New project from template", run: () => $("toolTemplates").click() },
     { title: "Pair mode", run: () => $("toolPair").click() },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
+    { title: "API client", run: () => $("toolApi").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {
@@ -36646,6 +36647,167 @@
   $("toolFix").onclick = () => {
     hideTools();
     runFixLoop();
+  };
+  var API_SAVE_PATH = ".ghostide/api-requests.json";
+  var apiSavedList = [];
+  function apiParseHeaders(text) {
+    const out = {};
+    for (const line of (text || "").split("\n")) {
+      const i2 = line.indexOf(":");
+      if (i2 > 0) out[line.slice(0, i2).trim()] = line.slice(i2 + 1).trim();
+    }
+    return out;
+  }
+  function apiForm() {
+    return {
+      method: $("apiMethod").value,
+      url: $("apiUrl").value.trim(),
+      headers: apiParseHeaders($("apiHeaders").value),
+      headersText: $("apiHeaders").value,
+      body: $("apiBody").value
+    };
+  }
+  function apiFill(r) {
+    $("apiMethod").value = r.method || "GET";
+    $("apiUrl").value = r.url || "";
+    $("apiHeaders").value = r.headersText || Object.entries(r.headers || {}).map(([k, v]) => k + ": " + v).join("\n");
+    $("apiBody").value = r.body || "";
+  }
+  function apiHistory() {
+    try {
+      return JSON.parse(
+        localStorage.getItem("ghostide-api-history") || "[]"
+      );
+    } catch (e) {
+      return [];
+    }
+  }
+  function apiRenderHistory() {
+    const wrap = $("apiHistory");
+    wrap.innerHTML = "";
+    const hist = apiHistory();
+    if (!hist.length) return;
+    const label = document.createElement("span");
+    label.className = "dim";
+    label.textContent = "History: ";
+    wrap.appendChild(label);
+    for (const h of hist) {
+      const b = document.createElement("button");
+      b.textContent = h.method + " " + h.status + " " + (h.url.length > 42 ? h.url.slice(0, 42) + "\u2026" : h.url);
+      b.title = h.url;
+      b.onclick = () => apiFill(h);
+      wrap.appendChild(b);
+    }
+  }
+  function apiRenderSaved() {
+    const wrap = $("apiSaved");
+    wrap.innerHTML = "";
+    if (!apiSavedList.length) return;
+    const label = document.createElement("span");
+    label.className = "dim";
+    label.textContent = "Saved in this project: ";
+    wrap.appendChild(label);
+    apiSavedList.forEach((r, i2) => {
+      const b = document.createElement("button");
+      b.textContent = r.name;
+      b.onclick = () => apiFill(r);
+      wrap.appendChild(b);
+      const x = document.createElement("button");
+      x.textContent = "\u2715";
+      x.title = "Delete " + r.name;
+      x.onclick = async () => {
+        apiSavedList.splice(i2, 1);
+        await apiPersistSaved();
+        apiRenderSaved();
+      };
+      wrap.appendChild(x);
+    });
+  }
+  async function apiLoadSaved() {
+    try {
+      const r = await fetch("/api/file?path=" + encodeURIComponent(API_SAVE_PATH));
+      const d = await r.json();
+      if (d.content) {
+        apiSavedList = JSON.parse(d.content).requests || [];
+      }
+    } catch (e) {
+      apiSavedList = [];
+    }
+    apiRenderSaved();
+  }
+  async function apiPersistSaved() {
+    await fetch("/api/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: API_SAVE_PATH,
+        content: JSON.stringify({ requests: apiSavedList }, null, 2)
+      })
+    });
+  }
+  async function apiSendNow() {
+    const form = apiForm();
+    if (!form.url) {
+      $("apiStatus").textContent = "Enter a URL first.";
+      return;
+    }
+    $("apiStatus").textContent = "Sending\u2026";
+    $("apiResp").textContent = "";
+    $("apiRespHeaders").textContent = "";
+    const r = await fetch("/api/http", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
+    });
+    const d = await r.json();
+    if (d.error) {
+      $("apiStatus").textContent = "\u26A0 " + d.error;
+      return;
+    }
+    $("apiStatus").textContent = "Status " + d.status + " \xB7 " + d.ms + " ms \xB7 " + d.size + " bytes" + (d.truncated ? " (body capped at 512 KB)" : "");
+    $("apiRespHeaders").textContent = (d.headers || []).map(([k, v]) => k + ": " + v).join("\n");
+    let body = d.body || "";
+    try {
+      body = JSON.stringify(JSON.parse(body), null, 2);
+    } catch (e) {
+    }
+    $("apiResp").textContent = body;
+    const hist = apiHistory();
+    hist.unshift({
+      ...form,
+      status: d.status,
+      t: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    localStorage.setItem(
+      "ghostide-api-history",
+      JSON.stringify(hist.slice(0, 20))
+    );
+    apiRenderHistory();
+  }
+  function openApi() {
+    $("apiPanel").classList.remove("hidden");
+    $("toolsPanel").classList.add("hidden");
+    apiLoadSaved();
+    apiRenderHistory();
+  }
+  $("toolApi").onclick = openApi;
+  $("apiClose").onclick = () => $("apiPanel").classList.add("hidden");
+  $("apiSend").onclick = apiSendNow;
+  $("apiSaveBtn").onclick = async () => {
+    const form = apiForm();
+    if (!form.url) {
+      $("apiStatus").textContent = "Enter a URL first.";
+      return;
+    }
+    const name2 = prompt(
+      "Name this request:",
+      form.method + " " + form.url.split("/").slice(-1)[0]
+    );
+    if (!name2) return;
+    apiSavedList.push({ name: name2, ...form });
+    await apiPersistSaved();
+    apiRenderSaved();
+    $("apiStatus").textContent = 'Saved "' + name2 + '" to ' + API_SAVE_PATH;
   };
   var dbState = { path: null, write: false, tables: [] };
   async function dbPost(url, body) {
