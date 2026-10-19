@@ -1396,6 +1396,20 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.equals("/api/semsearch") && method.equals("POST")) {
+            // Roadmap G29: meaning search; mirrors server.py.
+            try {
+                Map<String, Object> semD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                String semQ = Json.str(semD, "query", "");
+                sendJson(out, "{\"results\":"
+                    + semSearchJson(semQ) + "}");
+            } catch (Exception e) {
+                sendJson(out, "{\"error\":" + Json.quote(
+                    String.valueOf(e.getMessage())) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/search") && method.equals("POST")) {
             try {
                 Map<String, Object> d = Json.obj(Json.parse(
@@ -2299,6 +2313,287 @@ public final class IdeServer {
         if (!f.getPath().startsWith(root.getPath()))
             throw new IOException("path escapes workspace");
         return f;
+    }
+
+    // ---- Roadmap G29: semantic (meaning) code search ----
+    // Mirrors server.py: chunks from the symbol index,
+    // identifier splitting, light stemming, coding-concept
+    // expansion. Lexical-semantic ranking, honestly not a
+    // neural embedding model.
+    private static final String[][] SEM_GROUPS = {
+        {"download", "fetch", "retrieve", "request", "pull"},
+        {"retry", "attempt", "backoff", "again", "repeat"},
+        {"fail", "failure", "error", "exception", "except",
+         "crash", "timeout", "broken"},
+        {"send", "deliver", "email", "mail", "notify",
+         "message"},
+        {"welcome", "greet", "hello", "onboard"},
+        {"price", "cost", "total", "amount", "sum", "charge",
+         "due", "owe", "bill"},
+        {"tax", "vat", "fee", "rate", "levy", "duty"},
+        {"save", "store", "persist", "write", "dump"},
+        {"read", "parse", "load", "decode", "scan"},
+        {"delete", "remove", "erase", "drop", "clear"},
+        {"create", "make", "build", "generate"},
+        {"update", "change", "edit", "modify", "rename"},
+        {"search", "find", "lookup", "query", "filter"},
+        {"sort", "order", "rank", "arrange"},
+        {"check", "validate", "verify", "test", "assert"},
+        {"start", "begin", "launch", "run", "boot", "init"},
+        {"stop", "end", "halt", "kill", "close", "shutdown"},
+        {"user", "account", "customer", "member", "signup",
+         "register"},
+        {"pay", "payment", "checkout", "card", "invoice",
+         "billing"},
+        {"image", "picture", "photo", "icon", "thumbnail"},
+        {"time", "date", "clock", "schedule", "delay", "sleep",
+         "wait"},
+        {"password", "login", "auth", "token", "session",
+         "credential"},
+        {"encrypt", "decrypt", "hash", "cipher", "secure"},
+        {"compress", "archive", "zip", "backup", "export",
+         "import"},
+        {"print", "log", "display", "render", "show", "draw"},
+        {"connect", "socket", "network", "server", "client",
+         "port"},
+        {"database", "table", "record", "sql", "storage"},
+        {"string", "text", "word", "char", "format",
+         "template"},
+        {"number", "count", "compute", "calculate", "math"},
+        {"file", "path", "directory", "folder", "extension"},
+    };
+    private static final java.util.Set<String> SEM_STOP =
+        new java.util.HashSet<>(java.util.Arrays.asList(
+            "the", "a", "an", "and", "or", "of", "to", "in",
+            "on", "for", "with", "that", "this", "it", "is",
+            "are", "be", "by", "at", "from", "into", "when",
+            "where", "which", "what", "does", "do", "how",
+            "code", "function", "file", "me", "find", "show"));
+    private static final Map<String, java.util.Set<String>>
+        SEM_EXPAND = new java.util.HashMap<>();
+    static {
+        for (String[] grp : SEM_GROUPS) {
+            java.util.Set<String> stems =
+                new java.util.HashSet<>();
+            for (String w : grp) stems.add(semStem(w));
+            for (String w : stems) {
+                java.util.Set<String> cur = SEM_EXPAND.get(w);
+                if (cur == null) {
+                    cur = new java.util.HashSet<>();
+                    SEM_EXPAND.put(w, cur);
+                }
+                cur.addAll(stems);
+            }
+        }
+    }
+
+    private static String semStem(String w) {
+        if (w.length() > 4 && w.endsWith("ies"))
+            return w.substring(0, w.length() - 3) + "y";
+        if (w.length() > 5 && w.endsWith("ing"))
+            return w.substring(0, w.length() - 3);
+        if (w.length() > 4 && w.endsWith("ed"))
+            return w.substring(0, w.length() - 2);
+        if (w.length() > 4 && w.endsWith("es"))
+            return w.substring(0, w.length() - 2);
+        if (w.length() > 3 && w.endsWith("s")
+                && !w.endsWith("ss"))
+            return w.substring(0, w.length() - 1);
+        return w;
+    }
+
+    private static List<String> semWords(String text) {
+        List<String> words = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        boolean prevLower = false;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (Character.isLetterOrDigit(ch)) {
+                if (Character.isUpperCase(ch) && prevLower
+                        && cur.length() > 0) {
+                    words.add(cur.toString());
+                    cur.setLength(0);
+                }
+                cur.append(ch);
+                prevLower = Character.isLowerCase(ch)
+                    || Character.isDigit(ch);
+            } else {
+                if (cur.length() > 0) {
+                    words.add(cur.toString());
+                    cur.setLength(0);
+                }
+                prevLower = false;
+            }
+        }
+        if (cur.length() > 0) words.add(cur.toString());
+        List<String> out = new ArrayList<>();
+        for (String w : words) {
+            String lw = w.toLowerCase();
+            if (lw.length() > 1) out.add(lw);
+        }
+        return out;
+    }
+
+    private String semSearchJson(String q) {
+        ensureSymbolIndex();
+        List<String> qStems = new ArrayList<>();
+        for (String w : semWords(q == null ? "" : q)) {
+            if (SEM_STOP.contains(w)) continue;
+            String st = semStem(w);
+            if (!SEM_STOP.contains(st) && !qStems.contains(st))
+                qStems.add(st);
+        }
+        if (qStems.isEmpty()) return "[]";
+        // Group defs per file.
+        Map<String, List<String[]>> byFile =
+            new java.util.LinkedHashMap<>();
+        for (String[] d : symCacheDefs) {
+            List<String[]> lst = byFile.get(d[2]);
+            if (lst == null) {
+                lst = new ArrayList<>();
+                byFile.put(d[2], lst);
+            }
+            lst.add(d);
+        }
+        // rows: [score, path, line, name, kind, snippet, why]
+        List<Object[]> rows = new ArrayList<>();
+        for (Map.Entry<String, List<String[]>> fe
+                : byFile.entrySet()) {
+            String text = symCacheTexts.get(fe.getKey());
+            if (text == null) continue;
+            String[] lines = text.split("\n", -1);
+            List<String[]> defs = fe.getValue();
+            java.util.Collections.sort(defs,
+                new java.util.Comparator<String[]>() {
+                    @Override public int compare(String[] x,
+                            String[] y) {
+                        return Integer.compare(
+                            Integer.parseInt(x[3]),
+                            Integer.parseInt(y[3]));
+                    }
+                });
+            for (int di = 0; di < defs.size(); di++) {
+                String[] d = defs.get(di);
+                int start = Integer.parseInt(d[3]);
+                int end = di + 1 < defs.size()
+                    ? Integer.parseInt(defs.get(di + 1)[3]) - 1
+                    : lines.length;
+                end = Math.min(end, start + 79);
+                StringBuilder bodyB = new StringBuilder();
+                for (int li = start - 1; li < end
+                        && li < lines.length; li++) {
+                    if (li >= 0) bodyB.append(lines[li])
+                        .append('\n');
+                }
+                Map<String, Integer> freq =
+                    new java.util.HashMap<>();
+                for (String w : semWords(bodyB.toString())) {
+                    String st = semStem(w);
+                    if (SEM_STOP.contains(st)) continue;
+                    Integer c = freq.get(st);
+                    freq.put(st, c == null ? 1 : c + 1);
+                }
+                java.util.Set<String> nameStems =
+                    new java.util.HashSet<>();
+                for (String w : semWords(d[0]))
+                    nameStems.add(semStem(w));
+                int score = 0;
+                int covered = 0;
+                List<String> matched = new ArrayList<>();
+                for (String t : qStems) {
+                    boolean hit = false;
+                    if (nameStems.contains(t)) {
+                        score += 12;
+                        matched.add(t);
+                        hit = true;
+                    } else if (freq.containsKey(t)) {
+                        score += 3 + Math.min(2,
+                            freq.get(t) - 1);
+                        matched.add(t);
+                        hit = true;
+                    }
+                    java.util.Set<String> exps =
+                        SEM_EXPAND.get(t);
+                    if (exps != null) {
+                        for (String e : exps) {
+                            if (e.equals(t)) continue;
+                            if (nameStems.contains(e)) {
+                                score += 6;
+                                if (!matched.contains(e))
+                                    matched.add(e);
+                                hit = true;
+                            } else if (freq.containsKey(e)) {
+                                score += 2;
+                                if (!matched.contains(e))
+                                    matched.add(e);
+                                hit = true;
+                            }
+                        }
+                    }
+                    if (hit) covered++;
+                }
+                if (covered > 1) score += 5 * (covered - 1);
+                if (score > 0) {
+                    String snip = start - 1 < lines.length
+                        ? lines[start - 1].trim() : "";
+                    if (snip.length() > 160)
+                        snip = snip.substring(0, 160);
+                    StringBuilder why = new StringBuilder();
+                    for (int mi = 0; mi < matched.size()
+                            && mi < 8; mi++) {
+                        if (mi > 0) why.append(", ");
+                        why.append(matched.get(mi));
+                    }
+                    rows.add(new Object[]{
+                        Integer.valueOf(score), d[2],
+                        Integer.valueOf(start), d[0], d[1],
+                        snip, why.toString()});
+                }
+            }
+        }
+        java.util.Collections.sort(rows,
+            new java.util.Comparator<Object[]>() {
+                @Override public int compare(Object[] x,
+                        Object[] y) {
+                    int xs = ((Integer) x[0]).intValue();
+                    int ys = ((Integer) y[0]).intValue();
+                    if (ys != xs)
+                        return Integer.compare(ys, xs);
+                    int pc = ((String) x[1]).compareTo(
+                        (String) y[1]);
+                    if (pc != 0) return pc;
+                    return Integer.compare(
+                        ((Integer) x[2]).intValue(),
+                        ((Integer) y[2]).intValue());
+                }
+            });
+        StringBuilder b = new StringBuilder("[");
+        int limit = Math.min(12, rows.size());
+        for (int i = 0; i < limit; i++) {
+            Object[] r = rows.get(i);
+            if (i > 0) b.append(',');
+            b.append("{\"name\":").append(Json.quote(
+                    (String) r[3]))
+             .append(",\"kind\":").append(Json.quote(
+                    (String) r[4]))
+             .append(",\"path\":").append(Json.quote(
+                    (String) r[1]))
+             .append(",\"line\":").append(r[2])
+             .append(",\"snippet\":").append(Json.quote(
+                    (String) r[5]))
+             .append(",\"score\":").append(r[0])
+             .append(",\"matched\":[");
+            String why = (String) r[6];
+            if (!why.isEmpty()) {
+                String[] parts = why.split(", ");
+                for (int pi = 0; pi < parts.length; pi++) {
+                    if (pi > 0) b.append(',');
+                    b.append(Json.quote(parts[pi]));
+                }
+            }
+            b.append("]}");
+        }
+        return b.append(']').toString();
     }
 
     // ---- Roadmap G28: offline reference docs ----

@@ -805,3 +805,27 @@ discards the rest). Generator lessons banked in its
 comments: stdlib alias layers (posix/genericpath) defeat
 owner filters, and module constants carry their type's
 doc string - callables/classes only.
+
+## v1.37.0 (versionCode 41) - Oct 19, 2026 - Roadmap G29
+Semantic code search (find panel -> Meaning button):
+- POST /api/semsearch on both builds ranks FUNCTIONS (the
+  G1 symbol index, chunked def-to-def) for plain-English
+  queries: identifier splitting (snake/camel), light
+  stemming, and a curated coding-concept table (download ~
+  fetch/retrieve; retry ~ attempt/backoff; owe ~ total/
+  sum/price) plus coverage bonuses. Each result carries
+  its matched terms as the "why". Plain text Find stays
+  beside it in the same panel.
+- Honest scope, stated in the UI: this is lexical-semantic
+  ranking, not a neural embedding model.
+Proven on test-fixtures/sem with the roadmap's own bar:
+three plain-English queries verified to share ZERO word
+stems with their target functions (checked with the
+server's own tokenizer) all rank the right function
+FIRST - retries failed downloads -> fetch_with_backoff,
+greets newcomers by mail -> send_welcome_email, what does
+the customer owe with tax included -> compute_cart_total
+(6/6, harness at test-fixtures/sem-harness.py). The proof
+rounds caught a stopword-after-stemming slip ("does" ->
+"doe") and a concept group missing its own query word
+("owe"); both fixed.
