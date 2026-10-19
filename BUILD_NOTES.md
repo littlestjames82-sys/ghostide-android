@@ -451,3 +451,20 @@ multi-line block executing on the blank line) - both live
 against the real endpoints. Phone REPL is Java-mirrored and
 rides on G9's device proof. APK 14470365 bytes md5 67192dd36846c9749525db533bee321c,
 versionCode 24, same signer. Upload links still pending.
+
+## v1.21.0 (Oct 19, 2026) - Roadmap G11: full git on phone
+The phone's /api/git/* stubs are gone. A bundled Termux git
+2.56 (assemble_git.py, same pattern as G9's Python) backs
+status, diff, log, diff-all, blame, init, stage, checkout
+and commit with response shapes identical to desktop.
+GIT_EXEC_PATH is a symlink farm giving the multicall
+binaries their dashed names; commit falls back to a
+GhostIDE identity only when the repo has none configured.
+The git panel gains an Init button (endpoint added to BOTH
+builds - desktop never had one). Remote helpers are staged
+too (libgitremotehttp.so), so clone/fetch/push over https
+have their machinery, subject to on-device proof.
+Verified: assembler closure over the union lib set, APK
+contents (all 109 libs + templates), desktop init endpoint
+live. On-device git proof rides with G9's. APK 19202053 bytes
+md5 e4a020716f836ff3eae47d7bfed95b26, versionCode 25, same signer.

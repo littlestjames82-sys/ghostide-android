@@ -1159,7 +1159,212 @@ public final class IdeServer {
                 return;
             }
         }
-        if (path.startsWith("/api/git/") || path.equals("/api/run")
+        if (path.startsWith("/api/git/")) {
+            // Roadmap G11: real git on the bundled binary.
+            // Shapes mirror the desktop endpoints exactly.
+            try {
+                if (path.equals("/api/git/status")) {
+                    ProcResult gr = gitRun(gitArgs("status",
+                        "--porcelain=v1", "--branch"));
+                    if (gr.code != 0) {
+                        sendJson(out, "{\"repo\":false,\"error\":"
+                            + Json.quote(trimTo(gr.stderr, 200))
+                            + "}");
+                        return;
+                    }
+                    String branch = "";
+                    StringBuilder ch = new StringBuilder();
+                    for (String ln : gr.stdout.split("\n")) {
+                        if (ln.startsWith("## ")) {
+                            String b = ln.substring(3);
+                            int dots = b.indexOf("...");
+                            branch = (dots >= 0
+                                ? b.substring(0, dots) : b).trim();
+                        } else if (ln.length() > 3) {
+                            if (ch.length() > 0) ch.append(",");
+                            ch.append("{\"index\":")
+                              .append(Json.quote(
+                                  ln.substring(0, 1)))
+                              .append(",\"worktree\":")
+                              .append(Json.quote(
+                                  ln.substring(1, 2)))
+                              .append(",\"path\":")
+                              .append(Json.quote(
+                                  ln.substring(3).trim()))
+                              .append("}");
+                        }
+                    }
+                    sendJson(out, "{\"repo\":true,\"branch\":"
+                        + Json.quote(branch) + ",\"changes\":["
+                        + ch + "]}");
+                    return;
+                }
+                if (path.equals("/api/git/diff")) {
+                    String rel = queryParam(query, "path");
+                    safe(rel);
+                    ProcResult gr = gitRun(gitArgs("diff",
+                        "HEAD", "--", rel));
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(gr.stderr,
+                            300));
+                    sendJson(out, "{\"path\":" + Json.quote(rel)
+                        + ",\"diff\":" + Json.quote(gr.stdout)
+                        + "}");
+                    return;
+                }
+                if (path.equals("/api/git/log")) {
+                    ProcResult gr = gitRun(gitArgs("log",
+                        "--oneline", "-20"));
+                    StringBuilder cm = new StringBuilder();
+                    if (gr.code == 0) {
+                        for (String ln : gr.stdout.split("\n")) {
+                            if (ln.trim().isEmpty()) continue;
+                            int sp = ln.indexOf(' ');
+                            if (cm.length() > 0) cm.append(",");
+                            cm.append("{\"hash\":")
+                              .append(Json.quote(sp >= 0
+                                  ? ln.substring(0, sp) : ln))
+                              .append(",\"subject\":")
+                              .append(Json.quote(sp >= 0
+                                  ? ln.substring(sp + 1) : ""))
+                              .append("}");
+                        }
+                    }
+                    sendJson(out, "{\"commits\":[" + cm + "]}");
+                    return;
+                }
+                if (path.equals("/api/git/diff-all")) {
+                    ProcResult gr = gitRun(gitArgs("diff",
+                        "HEAD", "--no-color"));
+                    if (gr.code != 0)
+                        gr = gitRun(gitArgs("diff", "--cached",
+                            "--no-color"));
+                    if (gr.code != 0) {
+                        sendJson(out, "{\"repo\":false}");
+                        return;
+                    }
+                    String diff = gr.stdout;
+                    if (diff.length() > 8000)
+                        diff = diff.substring(0, 8000);
+                    sendJson(out, "{\"diff\":"
+                        + Json.quote(diff) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/blame")) {
+                    String rel = queryParam(query, "path");
+                    String lineS = queryParam(query, "line");
+                    int lineNo = 1;
+                    try { lineNo = Integer.parseInt(lineS); }
+                    catch (Exception ignored) {}
+                    ProcResult gr = gitRun(gitArgs("blame",
+                        "--porcelain", "-L",
+                        lineNo + "," + lineNo, "--", rel));
+                    if (gr.code != 0) {
+                        sendJson(out, "{\"ok\":false}");
+                        return;
+                    }
+                    String author = "";
+                    String summary = "";
+                    long when = 0;
+                    for (String ln : gr.stdout.split("\n")) {
+                        if (ln.startsWith("author "))
+                            author = ln.substring(7);
+                        else if (ln.startsWith("author-time ")) {
+                            try {
+                                when = Long.parseLong(
+                                    ln.substring(12).trim());
+                            } catch (Exception ignored) {}
+                        } else if (ln.startsWith("summary "))
+                            summary = ln.substring(8);
+                    }
+                    sendJson(out, "{\"ok\":true,\"author\":"
+                        + Json.quote(author) + ",\"time\":" + when
+                        + ",\"summary\":" + Json.quote(summary)
+                        + "}");
+                    return;
+                }
+                if (path.equals("/api/git/init")
+                        && method.equals("POST")) {
+                    ProcResult gr = gitRun(gitArgs("init"));
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(gr.stderr,
+                            300));
+                    sendJson(out, "{\"ok\":true,\"output\":"
+                        + Json.quote(gr.stdout.trim()) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/stage")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String rel = Json.str(gd, "path", "");
+                    if (!rel.equals(".")) safe(rel);
+                    ProcResult gr = gitRun(gitArgs("add",
+                        "--", rel));
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(gr.stderr,
+                            300));
+                    sendJson(out, "{\"ok\":true}");
+                    return;
+                }
+                if (path.equals("/api/git/checkout")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String rel = Json.str(gd, "path", "");
+                    safe(rel);
+                    ProcResult gr = gitRun(gitArgs("checkout",
+                        "HEAD", "--", rel));
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(gr.stderr,
+                            300));
+                    sendJson(out, "{\"ok\":true}");
+                    return;
+                }
+                if (path.equals("/api/git/commit")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String gmsg = Json.str(gd, "message", "")
+                        .trim();
+                    if (gmsg.isEmpty())
+                        throw new IOException(
+                            "commit message is empty");
+                    Map<String, String> extra = null;
+                    ProcResult probe = gitRun(gitArgs("config",
+                        "user.name"));
+                    if (probe.code != 0
+                            || probe.stdout.trim().isEmpty()) {
+                        extra = new HashMap<>();
+                        extra.put("GIT_AUTHOR_NAME", "GhostIDE");
+                        extra.put("GIT_AUTHOR_EMAIL",
+                            "ghostide@localhost");
+                        extra.put("GIT_COMMITTER_NAME",
+                            "GhostIDE");
+                        extra.put("GIT_COMMITTER_EMAIL",
+                            "ghostide@localhost");
+                    }
+                    ProcResult gr = gitRun(gitArgs("commit",
+                        "-m", gmsg), extra);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            (gr.stderr == null
+                                || gr.stderr.trim().isEmpty())
+                                ? gr.stdout : gr.stderr, 400));
+                    sendJson(out, "{\"ok\":true,\"output\":"
+                        + Json.quote(gr.stdout.trim()) + "}");
+                    return;
+                }
+                sendJson(out, 400, "{\"error\":\"unknown git "
+                    + "endpoint\"}");
+                return;
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+                return;
+            }
+        }
+        if (path.equals("/api/run")
                 || path.equals("/api/context")) {
             String what = path.equals("/api/run")
                 ? "Running this file type isn't available in the "
@@ -2184,6 +2389,141 @@ public final class IdeServer {
             StandardCharsets.UTF_8);
         r.ms = System.currentTimeMillis() - t0;
         return r;
+    }
+
+    /* ---------------- Roadmap G11: bundled git ----------------
+       Termux git 2.56 staged exactly like the Python runtime:
+       libgitbin.so (multicall binary) + libgitremotehttp.so in
+       nativeLibraryDir, GIT_EXEC_PATH a filesDir directory of
+       symlinks giving the binaries their dashed names, and
+       GIT_TEMPLATE_DIR the unpacked templates asset. */
+
+    private File gitTemplatesDir() {
+        return new File(ctx.getFilesDir(), "git-templates");
+    }
+
+    private File gitExecDir() {
+        return new File(ctx.getFilesDir(), "gitexec");
+    }
+
+    private String gitBin() {
+        return new File(ctx.getApplicationInfo().nativeLibraryDir,
+            "libgitbin.so").getAbsolutePath();
+    }
+
+    private synchronized boolean ensureGitAssets() {
+        File tdir = gitTemplatesDir();
+        File stamp = new File(tdir, ".ready-2.56");
+        File edir = gitExecDir();
+        if (!stamp.isFile()) {
+            java.util.zip.ZipInputStream zin = null;
+            try {
+                if (tdir.exists()) deleteRecursive(tdir);
+                tdir.mkdirs();
+                zin = new java.util.zip.ZipInputStream(
+                    ctx.getAssets().open("git-templates.zip"));
+                java.util.zip.ZipEntry e;
+                byte[] buf = new byte[16384];
+                while ((e = zin.getNextEntry()) != null) {
+                    File f = new File(tdir, e.getName());
+                    if (!f.getCanonicalPath().startsWith(
+                            tdir.getCanonicalPath())) continue;
+                    if (e.isDirectory()) { f.mkdirs(); continue; }
+                    if (f.getParentFile() != null)
+                        f.getParentFile().mkdirs();
+                    FileOutputStream fo = new FileOutputStream(f);
+                    int n;
+                    while ((n = zin.read(buf)) > 0)
+                        fo.write(buf, 0, n);
+                    fo.close();
+                }
+                zin.close();
+                zin = null;
+                FileOutputStream so = new FileOutputStream(stamp);
+                so.write(1);
+                so.close();
+            } catch (Exception ex) {
+                if (zin != null) {
+                    try { zin.close(); } catch (Exception z) {}
+                }
+                return false;
+            }
+        }
+        try {
+            edir.mkdirs();
+            String nl = ctx.getApplicationInfo().nativeLibraryDir;
+            String[][] links = {
+                {"git", "libgitbin.so"},
+                {"git-upload-pack", "libgitbin.so"},
+                {"git-receive-pack", "libgitbin.so"},
+                {"git-upload-archive", "libgitbin.so"},
+                {"git-remote-http", "libgitremotehttp.so"},
+                {"git-remote-https", "libgitremotehttp.so"},
+            };
+            for (String[] l : links) {
+                File link = new File(edir, l[0]);
+                if (!link.exists()) {
+                    try {
+                        android.system.Os.symlink(
+                            new File(nl, l[1]).getAbsolutePath(),
+                            link.getAbsolutePath());
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (Exception ignored) {}
+        return true;
+    }
+
+    private Map<String, String> gitEnv() {
+        Map<String, String> env = new HashMap<>();
+        String nl = ctx.getApplicationInfo().nativeLibraryDir;
+        env.put("LD_LIBRARY_PATH", nl);
+        env.put("GIT_EXEC_PATH",
+            gitExecDir().getAbsolutePath());
+        env.put("GIT_TEMPLATE_DIR",
+            gitTemplatesDir().getAbsolutePath());
+        env.put("GIT_CONFIG_NOSYSTEM", "1");
+        env.put("HOME", ctx.getFilesDir().getAbsolutePath());
+        env.put("GIT_PAGER", "cat");
+        env.put("PAGER", "cat");
+        return env;
+    }
+
+    /* Runs the bundled git in the workspace. Throws with a
+       plain message when git cannot start at all. */
+    private ProcResult gitRun(List<String> args,
+            Map<String, String> extraEnv) throws IOException {
+        if (!ensureGitAssets())
+            throw new IOException("git assets could not be "
+                + "unpacked");
+        List<String> cmd = new ArrayList<>();
+        cmd.add(gitBin());
+        cmd.addAll(args);
+        Map<String, String> env = gitEnv();
+        if (extraEnv != null) env.putAll(extraEnv);
+        try {
+            return runProcess(cmd, workspace, 30, env);
+        } catch (IOException ioe) {
+            throw new IOException("bundled git failed to start "
+                + "on this device: " + msg(ioe));
+        }
+    }
+
+    private ProcResult gitRun(List<String> args)
+            throws IOException {
+        return gitRun(args, null);
+    }
+
+    private static List<String> gitArgs(String... a) {
+        List<String> l = new ArrayList<>();
+        for (String s : a) l.add(s);
+        return l;
+    }
+
+    private static String trimTo(String s, int n) {
+        if (s == null) return "";
+        s = s.trim();
+        return s.length() > n ? s.substring(0, n) : s;
     }
 
     /* ---------------- Roadmap G10: phone REPL ----------------

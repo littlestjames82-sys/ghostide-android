@@ -36,6 +36,12 @@ echo '[0.6/8] staging bundled Python stdlib asset (Roadmap G9)'
 cp ~/workspace/ghostide-apk-build/python-runtime/stage/assets/pyhome.zip "$SRC/assets/pyhome.zip"
 ls -lh "$SRC/assets/pyhome.zip"
 
+echo '[0.7/8] staging git templates asset (Roadmap G11)'
+# stage/ is produced by python-runtime/assemble.py THEN
+# python-runtime/assemble_git.py (order matters).
+cp ~/workspace/ghostide-apk-build/python-runtime/stage/assets/git-templates.zip "$SRC/assets/git-templates.zip"
+ls -lh "$SRC/assets/git-templates.zip"
+
 echo '[1/8] compiling resources'
 "$BT/aapt2" compile --dir "$SRC/res" -o "$OUT/compiled_res.zip"
 
