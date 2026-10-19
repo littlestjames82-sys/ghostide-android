@@ -593,3 +593,26 @@ ok"). Windows/Mac packages are scripted and
 workflow-ready; their first builds run on those OSes.
 Phone: version parity + honest stubs. APK 19218438 bytes
 md5 588339521da3a39b1fa4a338b29b6532, versionCode 32, same signer.
+
+## Oct 19, 2026 - Roadmap G19 store prep (app stays v1.28.0)
+Everything Ryan-independent is built and proven:
+- Production upload key generated (RSA 4096, alias
+  ghostide-upload, cert SHA-256 e7acb19c...). Keystore +
+  password live only in ~/workspace/ghostide-apk/
+  (chmod 600 password file), never in git.
+- build-release.sh: proto-format aapt2 link -> base
+  module zip -> bundletool build-bundle -> jarsigner
+  with the upload key -> ghostide-release.aab (19.2 MB),
+  and bundletool build-apks --mode=universal ->
+  ghostide-universal.apk, the tester-equivalent build,
+  verified (package/version/libs match the sideload APK;
+  production cert). Note: production-signed builds can
+  not update debug-signed installs; a one-time reinstall
+  is expected when Ryan moves to the store build.
+- Privacy policy text: PRIVACY.md in the ghost-ide repo
+  (honest to the app: no collection; per-feature network
+  disclosures incl. system speech recognition).
+- Listing draft: store/LISTING.md (no em dashes,
+  screenshot slots left for real captures only).
+Still Ryan's: $25 Play fee + account, policy hosting,
+screenshots, closed-track creation, rollout call.
