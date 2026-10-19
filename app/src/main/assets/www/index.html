@@ -121,6 +121,7 @@ setTimeout(function () {
     <div id="statusBar">
       <span id="cursorPos">Ln 1, Col 1</span>
       <span id="branchChip" class="hidden"></span>
+      <span id="testChip" class="hidden"></span>
       <button id="todoChip" class="hidden" title="Open TODO / FIXME scan">TODO 0</button>
       <button id="probChip" class="hidden" title="Open Problems">⚠ problem</button>
       <button id="acceptChip" class="hidden">✓ Accept suggestion</button>
@@ -227,6 +228,7 @@ setTimeout(function () {
     <button id="toolSlice">Save slice as file</button>
     <button id="toolHistory">Local history</button>
     <button id="toolRepoMap">Repo map</button>
+    <button id="toolTests">Test runner</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolZip">Download workspace (.zip)</button>
@@ -283,6 +285,7 @@ setTimeout(function () {
   <label><input type="checkbox" id="setWrap"> Word wrap</label>
   <label><input type="checkbox" id="setShort"> Short answers (saves battery/heat)</label>
   <label><input type="checkbox" id="setRepoMap"> Include repo map in chat (Ghost sees the whole project shape)</label>
+  <label><input type="checkbox" id="setTestOnSave"> Run related tests on save (desktop)</label>
   <label>Editor text size
     <select id="setFont">
       <option value="12.5px">Small</option>

@@ -915,6 +915,13 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.startsWith("/api/tests/")) {
+            sendJson(out, 400, "{\"error\":\"Tests run on the "
+                + "desktop build (the phone has no Python/Node "
+                + "runtime). Open this project on the desktop "
+                + "to run its suite.\"}");
+            return;
+        }
         if (path.equals("/api/check-content")
                 && method.equals("POST")) {
             // The phone build has no syntax checkers; agent mode

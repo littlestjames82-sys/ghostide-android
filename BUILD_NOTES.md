@@ -374,3 +374,20 @@ applied result computed exactly right (200 cart -> tax ->
 10% off -> "charged 192.60"). Gates passed. APK 3233905 bytes
 md5 7cc2db79fd1c4dca80c537adcea161c9, versionCode 19, same
 signer. Upload links still pending the stuck upload service.
+
+## v1.16.0 (Oct 19, 2026) - Roadmap G6: test runner panel
+Desktop: GET /api/tests/discover (test_*.py, *_test.py,
+*.test.js with per-test def lines) and POST /api/tests/run
+(one file or all). Python runs through a stdlib mini-runner
+(plain test_* functions + unittest classes, JSON per test -
+no pytest dependency); Node uses node --test with a parser
+handling both TAP and the spec reporter (incl. harvesting
+fail lines from its failing-tests section). Panel lists
+per-test pass/fail; tapping a failure jumps to its line.
+Optional run-related-tests-on-save with a failing chip in
+the status bar. Phone: honest stub (no runtime there yet).
+Verified on a fixture suite with planted failures: reported
+EXACTLY those - py 3 pass/2 fail with assert lines and
+messages, node 1/1 with the right line. Gates passed.
+APK 3233902 bytes md5 72e2f7469011cd607ce4fac926473e46, versionCode 20, same signer.
+Upload links still pending the stuck upload service.
