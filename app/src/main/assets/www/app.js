@@ -33939,6 +33939,7 @@
     { title: "Run tests", run: () => $("toolTests").click() },
     { title: "Debug this file", run: () => $("toolDebug").click() },
     { title: "Fix my tests (AI)", run: () => $("toolFix").click() },
+    { title: "New project from template", run: () => $("toolTemplates").click() },
     { title: "Local history (previous versions)", run: () => $("toolHistory").click() },
     { title: "Check whole project (Problems)", run: () => $("toolCheckAll").click() },
     { title: "Reopen closed tab", run: () => {
@@ -35331,6 +35332,290 @@
       box.focus();
     }
   };
+  var TEMPLATES = [
+    {
+      id: "python-cli",
+      label: "Python CLI",
+      blurb: "argparse skeleton that runs today",
+      main: "main.py",
+      starter: "This is {{name}}, a new Python CLI. Read main.py, then suggest the first real feature to build and start on it.",
+      files: [
+        ["main.py", `#!/usr/bin/env python3
+"""{{name}} - a command-line tool.
+
+Run: python3 main.py --help
+"""
+import argparse
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="{{name}}")
+    ap.add_argument("name", nargs="?", default="world",
+                    help="who to greet")
+    ap.add_argument("--shout", action="store_true",
+                    help="say it loudly")
+    args = ap.parse_args()
+    msg = "hello, " + args.name
+    print(msg.upper() if args.shout else msg)
+
+
+if __name__ == "__main__":
+    main()
+`],
+        ["README.md", `# {{name}}
+
+A Python command-line tool.
+
+Run it:
+
+    python3 main.py your-name
+    python3 main.py your-name --shout
+`]
+      ]
+    },
+    {
+      id: "python-lib",
+      label: "Python library + tests",
+      blurb: "package layout with a passing test suite",
+      main: "{{pkg}}/core.py",
+      starter: "This is {{name}}, a new Python library. The package is in {{pkg}}/ with tests in tests/. Suggest a first useful function to add, with tests.",
+      files: [
+        ["{{pkg}}/__init__.py", `"""{{name}} package."""
+
+from .core import greet
+
+__all__ = ["greet"]
+`],
+        ["{{pkg}}/core.py", `"""Core logic for {{name}}."""
+
+
+def greet(name):
+    return "hello, " + name
+`],
+        ["tests/test_core.py", `import os
+import sys
+
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), ".."))
+
+from {{pkg}}.core import greet
+
+
+def test_greet():
+    assert greet("ghost") == "hello, ghost"
+
+
+def test_greet_empty():
+    assert greet("") == "hello, "
+`],
+        ["README.md", `# {{name}}
+
+A Python library. Run its tests from the project folder
+with GhostIDE's test runner (or any test runner you like).
+`]
+      ]
+    },
+    {
+      id: "static-site",
+      label: "Static site",
+      blurb: "one-page site skeleton (the studio pattern)",
+      main: "index.html",
+      starter: "This is {{name}}, a new static site. Read index.html and style.css, then help me write the real copy for the 'What we do' section.",
+      files: [
+        ["index.html", `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{name}}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>{{name}}</h1>
+  <p>Your tagline goes here.</p>
+</header>
+<main>
+  <section>
+    <h2>What we do</h2>
+    <p>Describe the offer in two honest sentences.</p>
+  </section>
+  <section>
+    <h2>Contact</h2>
+    <p>Phone: <a href="tel:">(555) 000-0000</a></p>
+  </section>
+</main>
+<footer><small>&copy; {{year}} {{name}}</small></footer>
+</body>
+</html>
+`],
+        ["style.css", `body {
+  font-family: system-ui, sans-serif;
+  margin: 0 auto; max-width: 44rem; padding: 1rem;
+  line-height: 1.55; color: #1c1e24; background: #fafafc;
+}
+header { padding: 2rem 0 1rem; }
+h1 { margin: 0 0 .25rem; }
+section { margin: 1.5rem 0; }
+footer { margin-top: 3rem; color: #666; }
+a { color: #5b4bc4; }
+`],
+        ["README.md", `# {{name}}
+
+A static one-page site. Open index.html in a browser, or
+use GhostIDE's Preview on the desktop build.
+`]
+      ]
+    },
+    {
+      id: "node-cli",
+      label: "Node CLI",
+      blurb: "dependency-free Node tool (ES modules)",
+      main: "index.mjs",
+      starter: "This is {{name}}, a new Node CLI with no dependencies. Read index.mjs, then suggest the first real feature to build.",
+      files: [
+        ["index.mjs", `#!/usr/bin/env node
+// {{name}} - a dependency-free Node CLI.
+const args = process.argv.slice(2);
+const name = args.find((a) => !a.startsWith("-")) || "world";
+const shout = args.includes("--shout");
+const msg = "hello, " + name;
+console.log(shout ? msg.toUpperCase() : msg);
+`],
+        ["package.json", `{
+  "name": "{{name}}",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": { "{{name}}": "./index.mjs" },
+  "scripts": { "start": "node index.mjs" }
+}
+`],
+        ["README.md", `# {{name}}
+
+A dependency-free Node CLI.
+
+    node index.mjs your-name --shout
+`]
+      ]
+    },
+    {
+      id: "gguf-tool",
+      label: "GGUF tool script",
+      blurb: "Python script that talks to your local model",
+      main: "gguf_tool.py",
+      starter: "This is {{name}}, a small tool that talks to a local llama.cpp server. Read gguf_tool.py and suggest one improvement.",
+      files: [
+        ["gguf_tool.py", `#!/usr/bin/env python3
+"""{{name}} - ask the local model a question.
+
+Needs a llama.cpp server on 127.0.0.1:8080 (GhostIDE's
+desktop model, or any llama-server):
+    python3 gguf_tool.py "your question"
+"""
+import json
+import sys
+import urllib.request
+
+URL = "http://127.0.0.1:8080/v1/chat/completions"
+
+
+def ask(prompt):
+    body = json.dumps({
+        "model": "local",
+        "messages": [
+            {"role": "system",
+             "content": "You are helpful and brief."},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": 512,
+    }).encode()
+    req = urllib.request.Request(
+        URL, data=body,
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = json.load(r)
+    return data["choices"][0]["message"]["content"]
+
+
+if __name__ == "__main__":
+    q = " ".join(sys.argv[1:]) or "Say hello in one line."
+    print(ask(q))
+`],
+        ["README.md", `# {{name}}
+
+Ask your local model a question from the command line.
+Start a llama.cpp server first (GhostIDE's desktop model
+works), then:
+
+    python3 gguf_tool.py "explain recursion simply"
+`]
+      ]
+    },
+    {
+      id: "blank",
+      label: "Blank",
+      blurb: "just a README and a starter prompt",
+      main: "README.md",
+      starter: "This is {{name}}, a blank project. Ask me what I want to build, then help me plan the first files.",
+      files: [
+        ["README.md", `# {{name}}
+
+A fresh project. Ask Ghost where to start, or just start.
+`]
+      ]
+    }
+  ];
+  function openTemplates() {
+    hideTools();
+    $("todoTitle").textContent = "New project from template";
+    const box = $("todoResults");
+    box.innerHTML = "";
+    $("todoPanel").classList.remove("hidden");
+    for (const t2 of TEMPLATES) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = "\u{1F4C1} " + t2.label + " - " + t2.blurb;
+      row.onclick = () => createFromTemplate(t2);
+      box.appendChild(row);
+    }
+  }
+  async function createFromTemplate(t2) {
+    let name2 = prompt("Project name (letters, numbers, dashes):", t2.id);
+    if (!name2) return;
+    name2 = name2.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, "-").replace(/^-+|-+$/g, "");
+    if (!name2) {
+      alert("That name has no usable characters in it.");
+      return;
+    }
+    try {
+      const fr = await fetch("/api/files");
+      const fd = await fr.json();
+      const clash = (fd.files || []).some((f) => (f.path || "").startsWith(name2 + "/"));
+      if (clash) {
+        alert("A folder named " + name2 + " already has files here. Pick another name.");
+        return;
+      }
+    } catch (e) {
+    }
+    const pkg = name2.replace(/-/g, "_");
+    const subst = (s) => s.split("{{name}}").join(name2).split("{{pkg}}").join(pkg).split("{{year}}").join(String((/* @__PURE__ */ new Date()).getFullYear()));
+    for (const [rel, content2] of t2.files) {
+      const d = await postJson("/api/file", {
+        path: name2 + "/" + subst(rel),
+        content: subst(content2)
+      });
+      if (d.error) {
+        alert("Could not create " + rel + ": " + d.error);
+        return;
+      }
+    }
+    await loadFiles();
+    $("todoPanel").classList.add("hidden");
+    await openFile(name2 + "/" + subst(t2.main));
+    $("chatText").value = subst(t2.starter);
+    addMsg("SYSTEM", "\u{1F4C1} Created " + name2 + " from the " + t2.label + " template. Its starter prompt is in the chat box - edit it or just press Send.");
+  }
+  $("toolTemplates").onclick = openTemplates;
   loadFiles();
   refreshWsLabel();
   window.__ghostBooted = true;

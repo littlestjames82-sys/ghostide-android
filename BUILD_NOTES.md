@@ -496,3 +496,18 @@ manifest carry the bridge and permission, voice-command
 patterns unit-checked. Speaking proof is Ryan's phone.
 Arc C (phone power) complete pending device proofs.
 APK 19202053 bytes md5 85cd7e61d7bc2b5d84f0a139271c8bb6, versionCode 27, same signer.
+
+## v1.24.0 (Oct 19, 2026) - Roadmap G14: project templates
+Tools -> "New project from template": six starters defined
+once in the frontend and created via /api/file, so they
+work identically on phone and desktop - Python CLI, Python
+library + tests, static site, Node CLI, GGUF tool script,
+blank. Name substitution (project/package/year), an
+existing-folder guard, the main file opens ready to edit,
+and a starter prompt is placed in the chat box (not sent).
+Verified on desktop by creating all six through the real
+API: the Python CLI runs, the library's suite passes 2/2
+in the test runner, the Node CLI runs, the GGUF tool
+passes its syntax check, substitution leaves no
+placeholders. APK 19206150 bytes md5 05d71b0abeb88f836311e2d1c4b81866, versionCode 28,
+same signer. Upload links still pending.
