@@ -74,6 +74,7 @@ setTimeout(function () {
       <div class="git-commit">
         <input id="commitMsg" placeholder="Commit message">
         <button id="commitBtn">Commit staged</button>
+        <button id="gitReview" title="Pre-commit review: secrets, bug risks, dead code">🔍 Review</button>
         <button id="gitAiMsg" disabled title="Let Ghost write the commit message from the diff (desktop git)">✨ AI</button>
       </div>
       <div id="gitLog" class="dim"></div>
@@ -344,6 +345,17 @@ setTimeout(function () {
       <div id="iconMsg" class="dim"></div>
     </div>
   </div>
+</div>
+<div id="reviewPanel" class="hidden">
+  <div class="run-head">
+    <span id="reviewTitle">🔍 Pre-commit review</span>
+    <span>
+      <button id="reviewAiBtn">🤖 Ask Ghost</button>
+      <button id="reviewClose">✕</button>
+    </span>
+  </div>
+  <div id="reviewOut"></div>
+  <pre id="reviewAiOut"></pre>
 </div>
 <div id="todoPanel" class="hidden">
   <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>

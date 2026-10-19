@@ -1782,8 +1782,10 @@ public final class IdeServer {
                         return;
                     }
                     String diff = gr.stdout;
-                    if (diff.length() > 8000)
-                        diff = diff.substring(0, 8000);
+                    // Roadmap G26: generous cap like desktop;
+                    // the pre-commit review reads this too.
+                    if (diff.length() > 60000)
+                        diff = diff.substring(0, 60000);
                     sendJson(out, "{\"diff\":"
                         + Json.quote(diff) + "}");
                     return;

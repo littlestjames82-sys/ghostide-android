@@ -732,3 +732,28 @@ Proven: /api/files sizes exact against the fixture
 round trip is byte-identical by md5 with a valid PNG
 header and IHDR. The canvas drawing itself runs in the
 browser; Arc F closes with this goal.
+
+## v1.34.0 (versionCode 38) - Oct 19, 2026 - Roadmap G26
+Pre-commit AI review (git panel -> Review, or the palette):
+- A deterministic rules scan over the added lines of the
+  diff: secrets (AWS key ids, GitHub tokens, sk- keys,
+  private keys, hardcoded credential assignments), bug
+  risks (eval/exec, bare except, mutable default args,
+  shell=True, pickle, innerHTML), dead code (commented-out
+  code), debug leftovers and new TODOs.
+- Findings are anchored to file + new-file line (the diff
+  parser tracks hunk offsets), jump to the line on tap,
+  and are dismissible (persisted per finding id).
+- Committing with un-dismissed secret findings asks once
+  with the locations listed; the review can advise but
+  never hard-blocks.
+- Ask Ghost sends the diff to the model for its own
+  anchored read on top of the rules.
+- /api/git/diff-all cap raised 8000 -> 60000 on both
+  builds so reviews see whole diffs.
+Proven on test-fixtures/review (a real git repo): both
+planted secrets caught at their exact lines, the planted
+mutable-default / bare-except / eval bugs caught,
+commented-out code and debug print flagged, the clean
+file silent, and a fully clean diff returns zero
+findings - 10/10 harness assertions.
