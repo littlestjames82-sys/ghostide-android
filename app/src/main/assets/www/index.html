@@ -245,6 +245,7 @@ setTimeout(function () {
     <button id="toolAssets">Asset browser</button>
     <button id="toolContext">Context lab</button>
     <button id="toolRefdocs">Reference docs</button>
+    <button id="toolErrorMem">Error memory</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>
@@ -348,6 +349,16 @@ setTimeout(function () {
       <div id="iconMsg" class="dim"></div>
     </div>
   </div>
+</div>
+<div id="emPanel" class="hidden">
+  <div class="run-head">
+    <span>🧠 Error memory</span>
+    <span>
+      <button id="emClear">Forget all</button>
+      <button id="emClose">✕</button>
+    </span>
+  </div>
+  <div id="emList"></div>
 </div>
 <div id="rdPanel" class="hidden">
   <div class="run-head">

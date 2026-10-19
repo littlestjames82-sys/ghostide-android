@@ -829,3 +829,23 @@ the customer owe with tax included -> compute_cart_total
 rounds caught a stopword-after-stemming slip ("does" ->
 "doe") and a concept group missing its own query word
 ("owe"); both fixed.
+
+## v1.38.0 (versionCode 42) - Oct 19, 2026 - Roadmap G30
+Error memory (closes Arc G):
+- Errors from Run and Check are fingerprinted by a
+  normalized signature (error line with paths, numbers,
+  hex addresses and quoted names skeletonized, so the
+  same error in another file at another line matches).
+- A pending error whose file later runs/checks clean
+  after edits becomes a memory: the fix is the trimmed
+  before/after change summary. Unchanged content records
+  nothing.
+- A repeat anywhere prepends the run pane with "Seen
+  before. Last time, this fixed it (in <file>):" plus the
+  stored change - before any new guessing. Tools -> Error
+  memory lists everything remembered (60 most recent)
+  with a Forget all. All local (localStorage).
+Proven by a 9/9 harness running the exact scenario from
+the roadmap: NameError fixed in a.py, then the same error
+(new variable name, new path, new line) in b.py surfaces
+a.py's fix; different errors never collide.

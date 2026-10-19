@@ -33819,6 +33819,17 @@
     }
     $("runTitle").textContent = "$ " + d.cmd + "  \xB7  exit " + d.code + "  \xB7  " + d.ms + " ms";
     $("runOut").textContent = (d.stdout || "") + (d.stderr ? "\n\u2014 stderr \u2014\n" + d.stderr : "") || "(no output)";
+    const runContent = view.state.doc.toString();
+    if (d.code !== 0) {
+      const banner = emBannerFor(
+        d.stderr || d.stdout || "",
+        currentFile,
+        runContent
+      );
+      if (banner) $("runOut").textContent = banner + $("runOut").textContent;
+    } else {
+      emRecordClean(currentFile, runContent);
+    }
   };
   $("runClose").onclick = () => $("runPane").classList.add("hidden");
   async function refreshGit() {
@@ -35033,6 +35044,7 @@
       alert("Open a file first.");
       return;
     }
+    if (dirty) await saveFile();
     hideTools();
     $("runPane").classList.remove("hidden");
     $("runTitle").textContent = "Checking " + currentFile + " \u2026";
@@ -35050,6 +35062,17 @@
     }
     $("runTitle").textContent = (d.ok ? "\u2713 Syntax OK \xB7 " : "\u2717 Syntax problem \xB7 ") + currentFile;
     $("runOut").textContent = d.output;
+    const chkContent = view.state.doc.toString();
+    if (d.ok === false) {
+      const banner = emBannerFor(
+        d.output || "",
+        currentFile,
+        chkContent
+      );
+      if (banner) $("runOut").textContent = banner + $("runOut").textContent;
+    } else if (d.ok === true) {
+      emRecordClean(currentFile, chkContent);
+    }
   };
   $("toolDup").onclick = async () => {
     if (!currentFile) {
@@ -37494,6 +37517,139 @@
     $(id2).onchange = renderCtxSlice;
   }
   $("ctxPrefix").oninput = renderCtxSlice;
+  function emErrorLine(text) {
+    const lines = String(text).split("\n").map((s) => s.trim()).filter(Boolean);
+    for (let i2 = lines.length - 1; i2 >= 0; i2--) {
+      if (/(Error|Exception|error:|SyntaxError|Traceback)/.test(lines[i2])) return lines[i2];
+    }
+    return lines[lines.length - 1] || "";
+  }
+  function emSignature(text) {
+    let line = emErrorLine(text);
+    line = line.replace(/(["']).*?\1/g, "\u2026").replace(/[A-Za-z]:[\\/][^\s]+/g, "<path>").replace(/(?:[\w.-]+\/)+[\w.-]+/g, "<path>").replace(/0x[0-9a-fA-F]+/g, "#").replace(/\b\d+\b/g, "#").replace(/\s+/g, " ").trim().slice(0, 180);
+    return line;
+  }
+  function emFixSummary(before, after) {
+    const A = String(before).split("\n");
+    const B = String(after).split("\n");
+    let i2 = 0;
+    while (i2 < A.length && i2 < B.length && A[i2] === B[i2]) i2++;
+    let j = 0;
+    while (j < A.length - i2 && j < B.length - i2 && A[A.length - 1 - j] === B[B.length - 1 - j]) j++;
+    const oldPart = A.slice(i2, A.length - j).slice(0, 6);
+    const newPart = B.slice(i2, B.length - j).slice(0, 6);
+    if (!oldPart.length && !newPart.length)
+      return "(the file was rewritten)";
+    return oldPart.map((l) => "- " + l).concat(newPart.map((l) => "+ " + l)).join("\n");
+  }
+  function emStore() {
+    try {
+      return JSON.parse(localStorage.getItem(
+        "ghostide-error-memory"
+      ) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+  function emSave(store) {
+    localStorage.setItem(
+      "ghostide-error-memory",
+      JSON.stringify(store)
+    );
+  }
+  function emLookup(sig) {
+    const store = emStore();
+    return (store.entries || {})[sig] || null;
+  }
+  function emRecordError(errorText, file, beforeContent) {
+    const sig = emSignature(errorText);
+    if (!sig) return null;
+    const store = emStore();
+    store.pending = store.pending || {};
+    const list = (store.pending[file] || []).filter(
+      (p) => p.sig !== sig
+    );
+    list.push({
+      sig,
+      sample: emErrorLine(errorText),
+      before: beforeContent,
+      ts: Date.now()
+    });
+    store.pending[file] = list.slice(-3);
+    emSave(store);
+    return emLookup(sig);
+  }
+  function emRecordClean(file, afterContent) {
+    const store = emStore();
+    const pend = (store.pending || {})[file] || [];
+    if (!pend.length) return;
+    store.entries = store.entries || {};
+    for (const p of pend) {
+      if (p.before === afterContent) continue;
+      const prev = store.entries[p.sig];
+      store.entries[p.sig] = {
+        sig: p.sig,
+        sample: p.sample,
+        file,
+        fix: emFixSummary(p.before, afterContent),
+        ts: Date.now(),
+        count: (prev ? prev.count : 0) + 1
+      };
+    }
+    const keys2 = Object.keys(store.entries);
+    if (keys2.length > 60) {
+      keys2.sort((a, b) => store.entries[a].ts - store.entries[b].ts);
+      for (const k of keys2.slice(0, keys2.length - 60))
+        delete store.entries[k];
+    }
+    store.pending[file] = [];
+    emSave(store);
+  }
+  window.__ghostEM = {
+    emSignature,
+    emFixSummary,
+    emRecordError,
+    emRecordClean,
+    emLookup
+  };
+  function renderEmPanel() {
+    const store = emStore();
+    const entries = Object.values(store.entries || {}).sort((a, b) => b.ts - a.ts);
+    const box = $("emList");
+    box.innerHTML = "";
+    if (!entries.length) {
+      box.innerHTML = '<div class="dim">Nothing remembered yet. When an error gets fixed by an edit and the file runs clean, the fix lands here.</div>';
+      return;
+    }
+    for (const e of entries) {
+      const row = document.createElement("div");
+      row.className = "reviewRow";
+      const head = document.createElement("span");
+      head.textContent = e.sample + "  \xB7  first fixed in " + e.file + "  \xB7  " + new Date(e.ts).toLocaleDateString();
+      const fix = document.createElement("div");
+      fix.className = "revSnip";
+      fix.textContent = e.fix;
+      row.append(head, fix);
+      box.appendChild(row);
+    }
+  }
+  $("toolErrorMem").onclick = () => {
+    hideTools();
+    $("emPanel").classList.remove("hidden");
+    renderEmPanel();
+  };
+  $("emClose").onclick = () => $("emPanel").classList.add("hidden");
+  $("emClear").onclick = () => {
+    if (!confirm("Forget every remembered error and fix?"))
+      return;
+    localStorage.removeItem("ghostide-error-memory");
+    renderEmPanel();
+  };
+  function emBannerFor(errorText, file, beforeContent) {
+    const mem = emRecordError(errorText, file, beforeContent);
+    if (!mem) return "";
+    return "\u26A1 Seen before. Last time, this fixed it (in " + mem.file + "):\n" + mem.fix + "\n\n\u2014 this time \u2014\n";
+  }
   var IMG_EXTS = [
     "png",
     "jpg",
