@@ -1248,3 +1248,72 @@ On-device extraction + panel proof is Ryan's.
 - APK 20,177,512 bytes, md5 ab54e51accc004b33b4f92c5ff493640,
   same signer (8ea8684a...). On-device proof is
   Ryan's device pass.
+
+## v1.54.0 (versionCode 59) - Oct 20, 2026 - GhostPrimer + GhostHandoff (Roadmap ECO E4)
+
+- Two chat actions land in the chat panel:
+  "Prime this project" and "Draft handoff", backed
+  by POST /api/eco/prime and /api/eco/handoff in both
+  server.py (eco_prime / eco_handoff) and the phone
+  IdeServer (handleEco branches). Both run the
+  ecosystem tools THEMSELVES against the workspace;
+  nothing is reimplemented.
+- Prime: ghostprimer build <ws> -o
+  <ws>/.ghostide/primer, then the tool's own check on
+  that bundle. Check exit 0/1/2 are all verdicts
+  carried in its JSON report; the endpoint returns
+  the verdict + PRIMER.md. The frontend starts a
+  NEW chat (history cleared) whose first context is
+  the bundle: primerContext rides in the system
+  message on every send of that chat, the check
+  verdict shows as a system line, and PRIMER.md
+  renders as the fresh chat's first message.
+  Session-scoped: a reload starts unprimed, and
+  Clear chat drops the primer context.
+- Handoff: ghosthandoff pack <ws> -o
+  <ws>/.ghostide/handoff --force, HANDOFF.md
+  rendered in the chat. Propose-only and read-only
+  on the project per the tool's hard rule; the pack
+  is a draft the user reads, sent nowhere. On the
+  phone the bundled git (gitexec dir) is put on PATH
+  + gitEnv() merged in, so the tool finds git
+  exactly as the IDE's own git panel runs it.
+- Proven (all foreground): new E4 harness
+  (test-fixtures/eco-prime-harness.py) 16/16 - an
+  IDE-built bundle passes an independent CLI
+  `ghostprimer check` (exit 0) with verdict parity;
+  the IDE handoff pack equals the CLI's own pack on
+  the same project modulo the drafted-at timestamp;
+  git status + diffs byte-identical before/after
+  the pack; re-prime and re-handoff both fine. New
+  UI harness (eco-prime-ui-harness.mjs) 17/17 on
+  the pure state step (new chat, bundle as first
+  context, verdict carry-through) + static wiring
+  checks; the live click-through remains the
+  device pass. Regressions: E1 eco-harness ALL
+  PASS (13/13), E3 eco-search harness ALL PASS
+  (11/11), i18n harness 7/7 (two new buttons are
+  in the table, en matches HTML). DOM-stub gate:
+  bundle constructs the EditorView, ends only on
+  the known defaultView stub artifact.
+  Undefined-call scan: every function the new
+  handlers call is defined (primerChatState,
+  handoffText, postJson, addMsg, renderRich,
+  saveHistory); zero closeOverlays in source and
+  bundle. (Scan residuals are pre-existing: class
+  names, callback params, a typeof-guarded debug
+  hook, and getJson - called at 5 older sites with
+  no definition in the web sources, unchanged by
+  E4 and present identically in v1.53.0.)
+- Note: with the pack output inside the project at
+  .ghostide/handoff, a later pack's marker scan can
+  cite the previous draft's own lines (the CLI
+  behaves the same with an in-project -o; parity
+  holds). Projects that gitignore .ghostide/ see
+  none of it.
+- APK 20,177,515 bytes, md5 e4d27bd4daa5a878bd956d1f39622adf,
+  badging 59/1.54.0 verified, dex carries both
+  1.54.0 route() literals and /api/eco/prime, the
+  staged www/app.js carries both new actions; same
+  signer (8ea8684a...). On-device proof is Ryan's
+  device pass.

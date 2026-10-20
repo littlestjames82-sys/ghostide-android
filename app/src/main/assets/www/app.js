@@ -33718,6 +33718,7 @@
     syncViewBar();
   }
   var history2 = [];
+  var primerContext = null;
   var GREETING = "Hey - I'm Ghost, your offline coding partner. Open a file and ask about it, or pause while typing for inline suggestions. Nothing leaves this device.";
   var historyScope = null;
   function historyKey() {
@@ -33839,6 +33840,9 @@
           }
         }
       }
+    }
+    if (primerContext) {
+      sysContent += "\n\nProject primer (GhostPrimer starter bundle for this project, built in this IDE and verified by the tool's own check):\n" + primerContext;
     }
     const attachedNames = [];
     if (text.includes("@")) {
@@ -34728,9 +34732,67 @@
   $("clearChatBtn").onclick = () => {
     if (!confirm("Clear this project's chat history?")) return;
     history2.length = 0;
+    primerContext = null;
     saveHistory();
     $("chatLog").innerHTML = "";
     addMsg("GHOST", GREETING);
+  };
+  function primerChatState(resp) {
+    if (!resp || resp.error || !resp.primer) return null;
+    const chk = resp.check || {};
+    return {
+      history: [],
+      primerContext: resp.primer,
+      passed: chk.ok === true,
+      filesChecked: chk.files_checked || 0,
+      errors: chk.errors || []
+    };
+  }
+  function handoffText(resp) {
+    if (!resp || resp.error || !resp.handoff) return null;
+    return resp.handoff;
+  }
+  $("primeBtn").onclick = async () => {
+    const btn = $("primeBtn");
+    btn.disabled = true;
+    addMsg("SYSTEM", "\u{1F9ED} Building a starter bundle for this project with GhostPrimer\u2026");
+    try {
+      const d = await postJson("/api/eco/prime", {});
+      const st = primerChatState(d);
+      if (!st) {
+        addMsg("SYSTEM", "Primer failed: " + (d.error || "the tool could not run."));
+        return;
+      }
+      history2.length = 0;
+      primerContext = st.primerContext;
+      saveHistory();
+      $("chatLog").innerHTML = "";
+      addMsg("SYSTEM", "\u{1F9ED} New chat, primed with this project. GhostPrimer check " + (st.passed ? "passed" : "FAILED") + " (" + st.filesChecked + " bundle file(s) verified). The bundle below is this chat's first context; it is saved in the project at .ghostide/primer/.");
+      renderRich(addMsg("GHOST", ""), st.primerContext);
+    } catch (e) {
+      addMsg("SYSTEM", "Primer failed to reach the server.");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  $("handoffBtn").onclick = async () => {
+    const btn = $("handoffBtn");
+    btn.disabled = true;
+    addMsg("SYSTEM", "\u{1F4E6} Drafting a handoff pack from repo facts with GhostHandoff (propose-only: nothing is committed, sent, or changed)\u2026");
+    try {
+      const d = await postJson("/api/eco/handoff", {});
+      const md = handoffText(d);
+      if (!md) {
+        addMsg("SYSTEM", "Handoff failed: " + (d.error || "the tool could not build a pack."));
+        return;
+      }
+      addMsg("SYSTEM", "\u{1F4E6} Handoff draft saved in the project at .ghostide/handoff/HANDOFF.md - a draft for you to read; nothing was sent anywhere.");
+      renderRich(addMsg("GHOST", ""), md);
+    } catch (e) {
+      addMsg("SYSTEM", "Handoff failed to reach the server.");
+    } finally {
+      btn.disabled = false;
+    }
   };
   $("setWrap").checked = settings.wrap;
   $("setWrap").onchange = (e) => {
@@ -34835,6 +34897,8 @@
     newFileBtn: { en: "+ New", es: "+ Nuevo" },
     mentionBtn: { en: "@ File", es: "@ Archivo" },
     clearChatBtn: { en: "Clear chat", es: "Borrar chat" },
+    primeBtn: { en: "\u{1F9ED} Prime this project", es: "\u{1F9ED} Preparar este proyecto" },
+    handoffBtn: { en: "\u{1F4E6} Draft handoff", es: "\u{1F4E6} Borrador de traspaso" },
     findGo: { en: "Find", es: "Buscar" },
     findSemantic: { en: "\u{1F9E0} Meaning", es: "\u{1F9E0} Significado" },
     findIndexed: { en: "\u{1F50E} Indexed", es: "\u{1F50E} Indexado" },

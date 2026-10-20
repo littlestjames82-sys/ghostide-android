@@ -627,14 +627,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"1.53.0\""
+                + ",\"version\":\"1.54.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"1.53.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"1.54.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -2774,6 +2774,139 @@ public final class IdeServer {
             }
             sendJson(out, "{\"ok\":true,"
                 + sJson.substring(1));
+            return;
+        }
+        if (path.equals("/api/eco/prime") && method.equals("POST")) {
+            // Roadmap ECO E4: the "Prime this project" chat
+            // action. Builds a starter bundle for the
+            // workspace with the bundled GhostPrimer tool
+            // itself, verifies it with the tool's own check,
+            // and returns the verdict plus PRIMER.md so the
+            // frontend can open a new chat with the bundle
+            // as its first context. Check exit codes: 0
+            // pass, 1 fail, 2 could not check - all three
+            // are verdicts carried in its JSON report, not
+            // transport errors; build exit 2 = could not
+            // build at all.
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            File pDir = new File(workspace, ".ghostide/primer");
+            pDir.mkdirs();
+            Map<String, String> pEnv = pythonEnv();
+            pEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            ProcResult pB = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostprimer", "build",
+                workspace.getAbsolutePath(), "-o",
+                pDir.getAbsolutePath()), workspace, 120, pEnv);
+            if (pB.code != 0) {
+                String pText = (pB.stdout == null ? ""
+                    : pB.stdout) + (pB.stderr == null ? ""
+                    : pB.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + pText.trim().substring(0, Math.min(
+                            300, pText.trim().length())))
+                    + "}");
+                return;
+            }
+            ProcResult pC = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostprimer", "check",
+                pDir.getAbsolutePath()), workspace, 120, pEnv);
+            String pJson = pC.stdout == null ? ""
+                : pC.stdout.trim();
+            boolean pValid = pJson.startsWith("{");
+            if (pValid) {
+                try {
+                    Json.obj(Json.parse(pJson));
+                } catch (Exception pBad) {
+                    pValid = false;
+                }
+            }
+            if (!pValid) {
+                sendJson(out, 400, "{\"error\":\"the tool's "
+                    + "check output could not be read\"}");
+                return;
+            }
+            String pMd;
+            try {
+                pMd = readFile(new File(pDir, "PRIMER.md"));
+            } catch (Exception pRead) {
+                sendJson(out, 400, "{\"error\":\"the bundle "
+                    + "was built but PRIMER.md could not be "
+                    + "read\"}");
+                return;
+            }
+            sendJson(out, "{\"ok\":true,\"check_code\":"
+                + pC.code + ",\"check\":" + pJson
+                + ",\"primer\":" + Json.quote(pMd)
+                + ",\"bundle\":\".ghostide/primer\"}");
+            return;
+        }
+        if (path.equals("/api/eco/handoff") && method.equals("POST")) {
+            // Roadmap ECO E4: the "Draft handoff" chat
+            // action. Builds a handoff pack for the
+            // workspace with the bundled GhostHandoff tool
+            // itself and returns HANDOFF.md for display.
+            // The tool is propose-only and read-only on the
+            // project (never commits, pushes, sends, edits,
+            // or runs project code); the pack lands in
+            // .ghostide/handoff and goes nowhere else.
+            // --force lets a fresh draft replace the
+            // previous one in that same output dir. Exit 2
+            // = could not build. The bundled git is put on
+            // PATH so the tool finds it, exactly as the
+            // IDE's own git panel runs it.
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            File hDir = new File(workspace, ".ghostide/handoff");
+            hDir.mkdirs();
+            Map<String, String> hEnv = pythonEnv();
+            hEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            if (ensureGitAssets()) {
+                hEnv.putAll(gitEnv());
+                String hPath = System.getenv("PATH");
+                hEnv.put("PATH", gitExecDir().getAbsolutePath()
+                    + ":" + (hPath == null
+                        ? "/system/bin:/system/xbin" : hPath));
+            }
+            ProcResult hR = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghosthandoff", "pack",
+                workspace.getAbsolutePath(), "-o",
+                hDir.getAbsolutePath(), "--force"),
+                workspace, 120, hEnv);
+            if (hR.code != 0) {
+                String hText = (hR.stdout == null ? ""
+                    : hR.stdout) + (hR.stderr == null ? ""
+                    : hR.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + hText.trim().substring(0, Math.min(
+                            300, hText.trim().length())))
+                    + "}");
+                return;
+            }
+            String hMd;
+            try {
+                hMd = readFile(new File(hDir, "HANDOFF.md"));
+            } catch (Exception hRead) {
+                sendJson(out, 400, "{\"error\":\"the pack "
+                    + "was built but HANDOFF.md could not be "
+                    + "read\"}");
+                return;
+            }
+            sendJson(out, "{\"ok\":true,\"handoff\":"
+                + Json.quote(hMd)
+                + ",\"pack\":\".ghostide/handoff\"}");
             return;
         }
         sendJson(out, 400, "{\"error\":\"unknown eco path\"}");

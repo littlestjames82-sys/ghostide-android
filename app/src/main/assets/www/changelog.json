@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.54.0",
+   "date": "Oct 20, 2026",
+   "goal": "GhostPrimer + GhostHandoff (Roadmap ECO E4)",
+   "summary": "Two chat actions: Prime this project builds a GhostPrimer starter bundle in the IDE, verifies it with the tool's own check, and opens a new chat with the bundle as its first context. Draft handoff writes a propose-only GhostHandoff pack from repo facts and shows the draft in chat; nothing is committed, sent, or changed."
+  },
+  {
    "version": "1.53.0",
    "date": "Oct 20, 2026",
    "goal": "GhostIndex search (Roadmap ECO E3)",
