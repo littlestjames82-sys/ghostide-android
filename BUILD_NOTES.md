@@ -1317,3 +1317,86 @@ On-device extraction + panel proof is Ryan's.
   staged www/app.js carries both new actions; same
   signer (8ea8684a...). On-device proof is Ryan's
   device pass.
+
+## v1.55.0 (versionCode 60) - Oct 20, 2026 - GhostRecall + GhostAtlas (Roadmap ECO E5)
+
+- The repo map gains the Atlas view and chat gains
+  Recall, backed by POST /api/eco/atlas and
+  POST /api/eco/recall in both server.py (eco_atlas /
+  eco_recall) and the phone IdeServer (handleEco
+  branches). Both run the ecosystem tools THEMSELVES
+  against the workspace; nothing is reimplemented.
+- Atlas: ghostatlas scan <ws> prints the atlas data
+  as JSON (no artifacts written); the endpoint
+  returns it untouched and the repo-map panel draws
+  it in a second tab: packages with token shares,
+  every file with the tool's estimated tokens,
+  symbol counts and importer counts (tap a file to
+  open it), dead-code candidates, and the git
+  activity line. On the phone the bundled git is
+  bridged (PATH + gitEnv(), as in the handoff
+  branch) for the git section; without git the tool
+  reports git unavailable - it is never faked.
+- Recall: a "Recall memory" chat action. The task is
+  whatever is in the chat box (empty = scan mode).
+  With a task the endpoint returns the tool's own
+  recall --json untouched (ranked selection, pinned
+  rules first, scores, estimated token costs,
+  provenance); scan returns its full item list by
+  estimated cost. "Add the selected memory to chat
+  context" builds the tool's bundle
+  (ghostrecall bundle --task <task> --fit <chat
+  context budget> -o <ws>/.ghostide/recall) and the
+  bundle's PROMPT.md rides in the system message
+  behind the primer, the E4 carriage pattern;
+  Clear chat drops it. Token counts are the tool's
+  estimates and are labelled as such in the UI.
+  Phone git bridging gives Recall its git-history
+  items on-device the same way.
+- Bundle: eco.zip grows from 22 packages / 220 files
+  to 25 packages / 251 files. The bundle gate
+  (tools/eco_bundle_gate.py) re-ran green for every
+  package in watched foreground chunks: 2,642 tests
+  passed, 0 failed against the vendored copies.
+  New: GhostRecall (68 tests) and GhostAtlas (47).
+  ALSO FIXED: GhostHandoff's package was missing
+  from eco.zip in v1.54.0 - its /api/eco/handoff
+  endpoint shipped but the module was not
+  on-device, so Draft handoff could not run on the
+  phone. The gate now covers it (58 tests green)
+  and it ships in this build. To make updated
+  installs pick up the larger tool set, the eco
+  extraction stamp moves .ready-e2 -> .ready-e5
+  (filesDir survives app updates; the new stamp
+  forces re-extraction).
+- Panel honesty: recall + atlas show as on-device
+  with their verified counts; the /api/eco/run
+  runnable flag stays GhostIndex + GhostDeps only -
+  recall and atlas run through their dedicated
+  endpoints, not the generic runner.
+- Proven (all foreground): new E5 harness
+  (test-fixtures/eco-recall-harness.py) 21/21 on a
+  fixture git project - atlas JSON deep-equals the
+  CLI's `ghostatlas scan` (minus run_stamp /
+  generated_at, the fields the CLI itself varies),
+  recall selected/not_selected/conflicts and scan
+  items deep-equal the CLI's --json, pinned rule
+  selected, superseded decision never selected,
+  git-history items present, and the context call
+  returns the bundle's own PROMPT.md with manifest
+  totals. New UI harness (eco-recall-ui-harness.mjs)
+  26/26 on the pure state steps + static wiring.
+  Regressions: E1 eco-harness 13/13, E3
+  eco-search harness 11/11, E4 eco-prime harness
+  16/16, i18n harness 7/7 (recall button in the
+  table, en matches HTML). DOM-stub gate: bundle
+  constructs the EditorView, ends only on the known
+  defaultView stub artifact. Undefined-call scan
+  over the new code: every callee defined; zero
+  closeOverlays in source and bundle.
+- APK 20,267,624 bytes, md5 da83c059781fe26f3a3c6e4bd66f7dde,
+  badging 60/1.55.0 verified, dex carries both
+  1.55.0 route() literals and both new endpoints,
+  the staged eco-manifest lists 25 packages /
+  2,642 tests; same signer (8ea8684a...).
+  On-device proof is Ryan's device pass.

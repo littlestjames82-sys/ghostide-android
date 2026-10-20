@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.55.0",
+   "date": "Oct 20, 2026",
+   "goal": "GhostRecall + GhostAtlas (Roadmap ECO E5)",
+   "summary": "The repo map gains an Atlas view drawn from the GhostAtlas tool's own scan (packages, per-file token estimates, importers, dead-code candidates, git activity), and chat gains Recall memory: GhostRecall ranks the project's decisions, notes and git history for the task in the chat box, with its estimated token costs and provenance, and the selected memory can be added to chat context as the tool's own bundle export. Both tools join the on-device bundle, and GhostHandoff's package joins it too (its E4 endpoint was already on the phone; the module now is as well)."
+  },
+  {
    "version": "1.54.0",
    "date": "Oct 20, 2026",
    "goal": "GhostPrimer + GhostHandoff (Roadmap ECO E4)",

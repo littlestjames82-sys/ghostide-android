@@ -627,14 +627,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"1.54.0\""
+                + ",\"version\":\"1.55.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"1.54.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"1.55.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -2523,6 +2523,11 @@ public final class IdeServer {
     // The E2 audited bundle: suites green against the
     // vendored copies (tools/eco_bundle_gate.py). GhostSlice
     // rides as the shared library several tools import.
+    // E5 adds GhostRecall + GhostAtlas (their suites green
+    // against the vendored copies too) and GhostHandoff,
+    // whose package the E4 build left out of the zip - its
+    // endpoint existed but the module was not on-device
+    // until now.
     private static final java.util.Set<String> ECO_BUNDLED =
         new java.util.HashSet<>(Arrays.asList(
             "ghostslice", "ghostindex", "ghostdeps",
@@ -2532,7 +2537,8 @@ public final class IdeServer {
             "ghostdata", "ghostapprove", "ghostledger",
             "ghostrecipes", "ghostenv", "ghostmcpdoctor",
             "ghostleads", "quoteshot", "ghostreplay",
-            "ghostconsole"));
+            "ghostconsole", "ghosthandoff", "ghostrecall",
+            "ghostatlas"));
 
     private File ecoDir() {
         return new File(ctx.getFilesDir(), "eco");
@@ -2540,7 +2546,11 @@ public final class IdeServer {
 
     private synchronized boolean ensureEco() {
         File dir = ecoDir();
-        File stamp = new File(dir, ".ready-e2");
+        // E5: the stamp name carries the bundle generation.
+        // v1.55.0 adds packages to eco.zip; a fresh stamp
+        // forces re-extraction on updated installs, whose
+        // filesDir otherwise survives with the old tool set.
+        File stamp = new File(dir, ".ready-e5");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -2572,6 +2582,36 @@ public final class IdeServer {
             if (zin != null) try { zin.close(); } catch (Exception z) {}
             return false;
         }
+    }
+
+    // Extracts the "totals" sub-object (raw JSON text) from
+    // a GhostRecall bundle manifest, or returns null. The
+    // scan is string-aware so braces inside quoted values
+    // do not unbalance it.
+    private static String ecoTotalsJson(String manifest) {
+        int k = manifest.indexOf("\"totals\"");
+        if (k < 0) return null;
+        int start = manifest.indexOf('{', k);
+        if (start < 0) return null;
+        int depth = 0;
+        boolean inStr = false, esc = false;
+        for (int i = start; i < manifest.length(); i++) {
+            char c = manifest.charAt(i);
+            if (inStr) {
+                if (esc) esc = false;
+                else if (c == '\\') esc = true;
+                else if (c == '"') inStr = false;
+                continue;
+            }
+            if (c == '"') inStr = true;
+            else if (c == '{') depth++;
+            else if (c == '}') {
+                depth--;
+                if (depth == 0)
+                    return manifest.substring(start, i + 1);
+            }
+        }
+        return null;
     }
 
     private void handleEco(String path, String method, byte[] body,
@@ -2907,6 +2947,223 @@ public final class IdeServer {
             sendJson(out, "{\"ok\":true,\"handoff\":"
                 + Json.quote(hMd)
                 + ",\"pack\":\".ghostide/handoff\"}");
+            return;
+        }
+        if (path.equals("/api/eco/atlas") && method.equals("POST")) {
+            // Roadmap ECO E5: the Atlas view of the repo
+            // map. Runs the bundled GhostAtlas tool itself
+            // (`scan`, which prints the atlas data as JSON
+            // and writes no artifacts) and returns its JSON
+            // untouched, so the map the IDE draws is the
+            // tool's map. Atlas is built on GhostSlice data;
+            // both packages sit side by side in the eco dir
+            // on PYTHONPATH. The bundled git is bridged
+            // exactly like the handoff branch, for the
+            // tool's git-activity section; without it the
+            // tool reports git unavailable, never fakes it.
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            Map<String, String> aEnv = pythonEnv();
+            aEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            if (ensureGitAssets()) {
+                aEnv.putAll(gitEnv());
+                String aPath = System.getenv("PATH");
+                aEnv.put("PATH", gitExecDir().getAbsolutePath()
+                    + ":" + (aPath == null
+                        ? "/system/bin:/system/xbin" : aPath));
+            }
+            ProcResult aR = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostatlas", "scan",
+                workspace.getAbsolutePath()),
+                workspace, 120, aEnv);
+            if (aR.code != 0) {
+                String aText = (aR.stdout == null ? ""
+                    : aR.stdout) + (aR.stderr == null ? ""
+                    : aR.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + aText.trim().substring(0, Math.min(
+                            300, aText.trim().length())))
+                    + "}");
+                return;
+            }
+            String aJson = aR.stdout == null ? ""
+                : aR.stdout.trim();
+            boolean aValid = aJson.startsWith("{");
+            if (aValid) {
+                try {
+                    Json.obj(Json.parse(aJson));
+                } catch (Exception aBad) {
+                    aValid = false;
+                }
+            }
+            if (!aValid) {
+                sendJson(out, 400, "{\"error\":\"the tool's "
+                    + "scan output could not be read\"}");
+                return;
+            }
+            sendJson(out, "{\"ok\":true,"
+                + aJson.substring(1));
+            return;
+        }
+        if (path.equals("/api/eco/recall") && method.equals("POST")) {
+            // Roadmap ECO E5: chat Recall of the project's
+            // memory. Runs the bundled GhostRecall tool
+            // itself. With a task: `recall --json` (the
+            // tool's ranked selection, returned untouched -
+            // items, order, scores and its estimated token
+            // costs are the CLI's). Without: `scan --json`
+            // (every item by estimated cost). With
+            // context=true: `bundle --task <task> --fit
+            // <budget>` into .ghostide/recall, and PROMPT.md
+            // (the tool's own merged export of the selected
+            // memory) comes back as the context text. Token
+            // counts are the tool's estimates everywhere.
+            // The bundled git is bridged like the handoff
+            // branch, for the tool's git-history items;
+            // without it the tool simply has no history
+            // items, exactly as on a desktop without git.
+            Map<String, Object> rReq = Json.obj(Json.parse(
+                new String(body, "UTF-8")));
+            String rTask = Json.str(rReq, "task", "").trim();
+            int rBudget = Json.num(rReq, "budget", 6000);
+            if (rBudget < 200) rBudget = 200;
+            if (rBudget > 50000) rBudget = 50000;
+            Object rCtxObj = rReq.get("context");
+            boolean rWantCtx = rCtxObj instanceof Boolean
+                && (Boolean) rCtxObj;
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            Map<String, String> rEnv = pythonEnv();
+            rEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            if (ensureGitAssets()) {
+                rEnv.putAll(gitEnv());
+                String rPath = System.getenv("PATH");
+                rEnv.put("PATH", gitExecDir().getAbsolutePath()
+                    + ":" + (rPath == null
+                        ? "/system/bin:/system/xbin" : rPath));
+            }
+            if (rWantCtx) {
+                File rcDir = new File(workspace,
+                    ".ghostide/recall");
+                rcDir.mkdirs();
+                ProcResult rcR = runProcess(Arrays.asList(
+                    pythonBin(), "-m", "ghostrecall", "bundle",
+                    workspace.getAbsolutePath(), "--task",
+                    rTask, "--fit", String.valueOf(rBudget),
+                    "-o", rcDir.getAbsolutePath()),
+                    workspace, 120, rEnv);
+                if (rcR.code != 0) {
+                    String rcText = (rcR.stdout == null ? ""
+                        : rcR.stdout) + (rcR.stderr == null ? ""
+                        : rcR.stderr);
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote("the tool could not run: "
+                            + rcText.trim().substring(0,
+                                Math.min(300,
+                                    rcText.trim().length())))
+                        + "}");
+                    return;
+                }
+                String rcPrompt;
+                try {
+                    rcPrompt = readFile(new File(rcDir,
+                        "PROMPT.md"));
+                } catch (Exception rcRead) {
+                    sendJson(out, 400, "{\"error\":\"the "
+                        + "bundle was built but its PROMPT.md "
+                        + "could not be read\"}");
+                    return;
+                }
+                String rcTotals = null;
+                File rcMf = new File(rcDir, "manifest.json");
+                if (rcMf.isFile()) {
+                    try {
+                        rcTotals = ecoTotalsJson(
+                            readFile(rcMf));
+                    } catch (Exception ignored) {}
+                }
+                sendJson(out, "{\"ok\":true,\"mode\":\"context\""
+                    + ",\"context\":" + Json.quote(rcPrompt)
+                    + ",\"totals\":"
+                    + (rcTotals == null ? "null" : rcTotals)
+                    + ",\"bundle\":\".ghostide/recall\"}");
+                return;
+            }
+            boolean rScan = rTask.isEmpty();
+            List<String> rCmd = new ArrayList<>(Arrays.asList(
+                pythonBin(), "-m", "ghostrecall"));
+            if (rScan) {
+                rCmd.add("scan");
+                rCmd.add(workspace.getAbsolutePath());
+                rCmd.add("--json");
+            } else {
+                rCmd.add("recall");
+                rCmd.add(workspace.getAbsolutePath());
+                rCmd.add("--task");
+                rCmd.add(rTask);
+                rCmd.add("--json");
+            }
+            ProcResult rR = runProcess(rCmd, workspace, 120,
+                rEnv);
+            if (rR.code != 0) {
+                String rText = (rR.stdout == null ? ""
+                    : rR.stdout) + (rR.stderr == null ? ""
+                    : rR.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + rText.trim().substring(0, Math.min(
+                            300, rText.trim().length())))
+                    + "}");
+                return;
+            }
+            String rJson = rR.stdout == null ? ""
+                : rR.stdout.trim();
+            if (rScan) {
+                boolean rValid = rJson.startsWith("[");
+                if (rValid) {
+                    try {
+                        Json.arr(Json.parse(rJson));
+                    } catch (Exception rBad) {
+                        rValid = false;
+                    }
+                }
+                if (!rValid) {
+                    sendJson(out, 400, "{\"error\":\"the "
+                        + "tool's scan output could not be "
+                        + "read\"}");
+                    return;
+                }
+                sendJson(out, "{\"ok\":true,\"mode\":\"scan\""
+                    + ",\"items\":" + rJson + "}");
+                return;
+            }
+            boolean rValid = rJson.startsWith("{");
+            if (rValid) {
+                try {
+                    Json.obj(Json.parse(rJson));
+                } catch (Exception rBad) {
+                    rValid = false;
+                }
+            }
+            if (!rValid) {
+                sendJson(out, 400, "{\"error\":\"the tool's "
+                    + "recall output could not be read\"}");
+                return;
+            }
+            sendJson(out, "{\"ok\":true,\"mode\":\"recall\""
+                + ",\"task\":" + Json.quote(rTask) + ","
+                + rJson.substring(1));
             return;
         }
         sendJson(out, 400, "{\"error\":\"unknown eco path\"}");
