@@ -522,3 +522,11 @@ body.zen #files, body.zen #chat { display: none; }
   padding: 6px 10px; flex-wrap: wrap;
 }
 #rdEntryTitle { font-weight: 700; }
+
+/* Roadmap G31: macros */
+#macroPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#macroLog {
+  margin: 0; padding: 6px 10px; font-size: 12px;
+  white-space: pre-wrap; color: #cfd3e0; max-height: 200px;
+  overflow-y: auto;
+}

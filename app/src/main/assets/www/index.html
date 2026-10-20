@@ -246,6 +246,7 @@ setTimeout(function () {
     <button id="toolContext">Context lab</button>
     <button id="toolRefdocs">Reference docs</button>
     <button id="toolErrorMem">Error memory</button>
+    <button id="toolMacros">Macros</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>
@@ -349,6 +350,41 @@ setTimeout(function () {
       <div id="iconMsg" class="dim"></div>
     </div>
   </div>
+</div>
+<div id="macroPanel" class="hidden">
+  <div class="run-head">
+    <span>⏵ Macros</span>
+    <span>
+      <button id="macroRecordBtn">⏺ Record</button>
+      <button id="macroClose">✕</button>
+    </span>
+  </div>
+  <div class="apiRow">
+    <select id="macroSelect" style="flex:1"></select>
+    <button id="macroDelete">Delete macro</button>
+  </div>
+  <div id="macroSteps"></div>
+  <div class="apiRow">
+    <select id="macroStepKind">
+      <option value="replace">Find &amp; replace</option>
+      <option value="trim">Trim trailing whitespace</option>
+      <option value="detab">Leading tabs → spaces</option>
+      <option value="newline">Ensure final newline</option>
+    </select>
+    <input id="macroFind" placeholder="Find">
+    <input id="macroReplace" placeholder="Replace">
+    <label><input type="checkbox" id="macroRegex"> regex</label>
+    <button id="macroAddStep">+ Step</button>
+  </div>
+  <div class="apiRow">
+    <select id="macroScope">
+      <option value="file">Current file</option>
+      <option value="folder">Folder (prefix)</option>
+    </select>
+    <input id="macroPrefix" placeholder="folder prefix, e.g. src/">
+    <button id="macroRun">▶ Run macro</button>
+  </div>
+  <pre id="macroLog"></pre>
 </div>
 <div id="emPanel" class="hidden">
   <div class="run-head">

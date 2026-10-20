@@ -32859,7 +32859,13 @@
         { key: "Alt-ArrowDown", run: moveLineDown },
         { key: "Shift-Alt-ArrowDown", run: copyLineDown },
         { key: "Mod-Shift-k", run: deleteLine },
-        { key: "Mod-d", run: selectNextOccurrence }
+        { key: "Mod-d", run: selectNextOccurrence },
+        /* Roadmap G31: multi-cursor pack completion -
+           add cursor above/below and select all occurrences
+           (Mod-d step-by-step and Mod-Shift-d for all). */
+        { key: "Mod-Alt-ArrowUp", run: (v) => addCursorLine(v, -1) },
+        { key: "Mod-Alt-ArrowDown", run: (v) => addCursorLine(v, 1) },
+        { key: "Mod-Shift-d", run: selectAllOccurrences }
       ]),
       wrapComp.of(wrapExt()),
       indentComp.of(indentExt()),
@@ -34139,6 +34145,12 @@
       alert(d.error);
       return;
     }
+    macroCapture({
+      kind: "replace",
+      find: q,
+      replace: $("findReplacement").value,
+      regex: false
+    });
     $("findResults").textContent = "Replaced " + d.replacements + " occurrence(s) in " + d.filesChanged + " file(s).";
     loadFiles();
   };
@@ -35718,6 +35730,9 @@
     { title: "Review changes (pre-commit)", run: () => $("gitReview").click() },
     { title: "Context lab", run: () => $("toolContext").click() },
     { title: "Reference docs", run: () => $("toolRefdocs").click() },
+    { title: "Macros", run: () => $("toolMacros").click() },
+    { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
+    { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
     { title: "API client", run: () => $("toolApi").click() },
     { title: "Export docs site", run: () => $("toolDocs").click() },
@@ -37650,6 +37665,328 @@
     if (!mem) return "";
     return "\u26A1 Seen before. Last time, this fixed it (in " + mem.file + "):\n" + mem.fix + "\n\n\u2014 this time \u2014\n";
   }
+  function addCursorLine(v, dir) {
+    const sel = v.state.selection;
+    const main = sel.main;
+    const line = v.state.doc.lineAt(main.head);
+    const targetNo = line.number + dir;
+    if (targetNo < 1 || targetNo > v.state.doc.lines)
+      return false;
+    const target = v.state.doc.line(targetNo);
+    const col = Math.min(
+      main.head - line.from,
+      target.length
+    );
+    const pos = target.from + col;
+    const ranges = sel.ranges.slice();
+    if (!ranges.some((r) => r.head === pos)) {
+      ranges.push(EditorSelection.cursor(pos));
+    }
+    v.dispatch({ selection: EditorSelection.create(
+      ranges,
+      ranges.length - 1
+    ) });
+    return true;
+  }
+  function selectAllOccurrences(v) {
+    const sel = v.state.selection;
+    const main = sel.main;
+    let needle = v.state.sliceDoc(main.from, main.to);
+    if (!needle) {
+      const word = v.state.wordAt(main.head);
+      if (!word) return false;
+      needle = v.state.sliceDoc(word.from, word.to);
+    }
+    if (!needle) return false;
+    const doc2 = v.state.doc.toString();
+    const ranges = [];
+    let idx = 0;
+    while (ranges.length < 500) {
+      const hit = doc2.indexOf(needle, idx);
+      if (hit < 0) break;
+      ranges.push(EditorSelection.range(
+        hit,
+        hit + needle.length
+      ));
+      idx = hit + Math.max(1, needle.length);
+    }
+    if (!ranges.length) return false;
+    v.dispatch({ selection: EditorSelection.create(
+      ranges,
+      0
+    ) });
+    return true;
+  }
+  function cursorsOnSelectedLines(v) {
+    const sel = v.state.selection;
+    const main = sel.main;
+    const first = v.state.doc.lineAt(main.from);
+    const last2 = v.state.doc.lineAt(main.to);
+    if (last2.number - first.number < 1) return false;
+    const ranges = [];
+    for (let n = first.number; n <= last2.number; n++) {
+      ranges.push(EditorSelection.cursor(
+        v.state.doc.line(n).to
+      ));
+    }
+    v.dispatch({ selection: EditorSelection.create(
+      ranges,
+      0
+    ) });
+    return true;
+  }
+  function macroApply(content2, steps) {
+    let text = String(content2);
+    const counts = [];
+    for (const step of steps) {
+      let n = 0;
+      if (step.kind === "replace") {
+        if (step.regex) {
+          const re = new RegExp(step.find, "gm");
+          text = text.replace(re, () => {
+            n++;
+            return step.replace;
+          });
+        } else {
+          const parts = text.split(step.find);
+          n = parts.length - 1;
+          text = parts.join(step.replace);
+        }
+      } else if (step.kind === "trim") {
+        const lines = text.split("\n");
+        for (let i2 = 0; i2 < lines.length; i2++) {
+          const t2 = lines[i2].replace(/[ \t]+$/, "");
+          if (t2 !== lines[i2]) {
+            lines[i2] = t2;
+            n++;
+          }
+        }
+        text = lines.join("\n");
+      } else if (step.kind === "detab") {
+        const width = step.width || 2;
+        text = text.replace(/^\t+/gm, (m) => {
+          n += m.length;
+          return " ".repeat(m.length * width);
+        });
+      } else if (step.kind === "newline") {
+        const fixed = text.replace(/\s*$/, "") + "\n";
+        n = fixed === text ? 0 : 1;
+        text = fixed;
+      }
+      counts.push(n);
+    }
+    return { content: text, counts };
+  }
+  window.__ghostMacro = macroApply;
+  function macroStore() {
+    try {
+      return JSON.parse(localStorage.getItem(
+        "ghostide-macros"
+      ) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+  function macroSaveAll(all) {
+    localStorage.setItem(
+      "ghostide-macros",
+      JSON.stringify(all)
+    );
+  }
+  var macroRecording = null;
+  function macroCapture(step) {
+    if (!macroRecording) return;
+    macroRecording.push(step);
+    renderMacroPanel();
+  }
+  function macroStepLabel(step) {
+    if (step.kind === "replace")
+      return (step.regex ? "regex replace " : "replace ") + JSON.stringify(step.find) + " \u2192 " + JSON.stringify(step.replace);
+    if (step.kind === "trim") return "trim trailing whitespace";
+    if (step.kind === "detab")
+      return "leading tabs \u2192 " + (step.width || 2) + " spaces";
+    if (step.kind === "newline")
+      return "ensure single final newline";
+    return step.kind;
+  }
+  function renderMacroPanel() {
+    $("macroRecordBtn").textContent = macroRecording ? "\u23F9 Stop & save" : "\u23FA Record";
+    const all = macroStore();
+    const sel = $("macroSelect");
+    const cur2 = sel.value;
+    sel.innerHTML = "";
+    for (const name3 of Object.keys(all)) {
+      const opt = document.createElement("option");
+      opt.value = name3;
+      opt.textContent = name3;
+      sel.appendChild(opt);
+    }
+    if (cur2 && all[cur2]) sel.value = cur2;
+    const name2 = sel.value;
+    const steps = macroRecording || (name2 ? all[name2] : []) || [];
+    const box = $("macroSteps");
+    box.innerHTML = "";
+    if (macroRecording) {
+      const note = document.createElement("div");
+      note.className = "dim";
+      note.textContent = "\u23FA Recording: " + steps.length + " step(s) so far. Project Find & Replace adds steps; or add steps below, then Stop & save.";
+      box.appendChild(note);
+    }
+    steps.forEach((step, i2) => {
+      const row = document.createElement("div");
+      row.className = "reviewRow";
+      const label = document.createElement("span");
+      label.textContent = i2 + 1 + ". " + macroStepLabel(step);
+      const del = document.createElement("button");
+      del.textContent = "\u2715";
+      del.onclick = () => {
+        if (macroRecording) {
+          macroRecording.splice(i2, 1);
+        } else if (name2) {
+          all[name2].splice(i2, 1);
+          macroSaveAll(all);
+        }
+        renderMacroPanel();
+      };
+      row.append(label, del);
+      box.appendChild(row);
+    });
+    if (!steps.length && !macroRecording) {
+      box.innerHTML = '<div class="dim">No steps yet. Record some edits or add steps below.</div>';
+    }
+  }
+  async function macroRunOnFiles(name2, paths) {
+    const all = macroStore();
+    const steps = all[name2];
+    if (!steps || !steps.length) {
+      alert("That macro has no steps.");
+      return;
+    }
+    const log = [];
+    let changed = 0;
+    for (const path of paths) {
+      try {
+        const r = await fetch("/api/file?path=" + encodeURIComponent(path));
+        const d = await r.json();
+        if (typeof d.content !== "string") continue;
+        const out = macroApply(d.content, steps);
+        if (out.content !== d.content) {
+          if (path === currentFile) {
+            view.dispatch({ changes: {
+              from: 0,
+              to: view.state.doc.length,
+              insert: out.content
+            } });
+          } else {
+            await postJson(
+              "/api/file",
+              { path, content: out.content }
+            );
+          }
+          changed++;
+          log.push(path + " \u2713 (" + out.counts.reduce((a, b) => a + b, 0) + " edits)");
+        } else {
+          log.push(path + " \xB7 no change");
+        }
+      } catch (e) {
+        log.push(path + " \u2717 " + e);
+      }
+    }
+    $("macroLog").textContent = 'Macro "' + name2 + '": ' + changed + "/" + paths.length + " file(s) changed.\n" + log.join("\n");
+    loadFiles();
+  }
+  $("toolMacros").onclick = () => {
+    hideTools();
+    $("macroPanel").classList.remove("hidden");
+    renderMacroPanel();
+  };
+  $("macroClose").onclick = () => $("macroPanel").classList.add("hidden");
+  $("macroSelect").onchange = renderMacroPanel;
+  $("macroRecordBtn").onclick = () => {
+    if (macroRecording) {
+      const name2 = prompt(
+        "Name this macro:",
+        "cleanup"
+      );
+      if (name2) {
+        const all = macroStore();
+        all[name2] = macroRecording;
+        macroSaveAll(all);
+      }
+      macroRecording = null;
+    } else {
+      macroRecording = [];
+    }
+    renderMacroPanel();
+  };
+  $("macroAddStep").onclick = () => {
+    const kind = $("macroStepKind").value;
+    let step = null;
+    if (kind === "replace") {
+      const find2 = $("macroFind").value;
+      if (!find2) {
+        alert("A replace step needs Find text.");
+        return;
+      }
+      step = {
+        kind,
+        find: find2,
+        replace: $("macroReplace").value,
+        regex: $("macroRegex").checked
+      };
+    } else if (kind === "detab") {
+      step = { kind, width: 2 };
+    } else {
+      step = { kind };
+    }
+    if (macroRecording) {
+      macroRecording.push(step);
+    } else {
+      const name2 = $("macroSelect").value || prompt("Name the new macro:", "cleanup");
+      if (!name2) return;
+      const all = macroStore();
+      all[name2] = all[name2] || [];
+      all[name2].push(step);
+      macroSaveAll(all);
+    }
+    renderMacroPanel();
+  };
+  $("macroDelete").onclick = () => {
+    const name2 = $("macroSelect").value;
+    if (!name2) return;
+    if (!confirm('Delete macro "' + name2 + '"?')) return;
+    const all = macroStore();
+    delete all[name2];
+    macroSaveAll(all);
+    renderMacroPanel();
+  };
+  $("macroRun").onclick = async () => {
+    const name2 = $("macroSelect").value;
+    if (!name2) {
+      alert("Pick or record a macro first.");
+      return;
+    }
+    const scope = $("macroScope").value;
+    if (scope === "file") {
+      if (!currentFile) {
+        alert("Open a file first.");
+        return;
+      }
+      macroRunOnFiles(name2, [currentFile]);
+      return;
+    }
+    const prefix = $("macroPrefix").value.trim();
+    const r = await fetch("/api/files");
+    const d = await r.json();
+    const paths = d.files.filter((f) => f.type === "file" && (!prefix || f.path.startsWith(prefix)) && /\.(py|js|mjs|ts|tsx|jsx|md|txt|json|html|css|go|rs|java|c|h|cpp|sh|sql)$/i.test(f.path)).map((f) => f.path).slice(0, 200);
+    if (!paths.length) {
+      alert("No text files under that prefix.");
+      return;
+    }
+    if (!confirm('Run macro "' + name2 + '" across ' + paths.length + " file(s)? This edits them on disk."))
+      return;
+    macroRunOnFiles(name2, paths);
+  };
   var IMG_EXTS = [
     "png",
     "jpg",

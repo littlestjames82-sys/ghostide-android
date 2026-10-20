@@ -849,3 +849,25 @@ Proven by a 9/9 harness running the exact scenario from
 the roadmap: NameError fixed in a.py, then the same error
 (new variable name, new path, new line) in b.py surfaces
 a.py's fix; different errors never collide.
+
+## v1.39.0 (versionCode 43) - Oct 19, 2026 - Roadmap G31
+Macros and the multi-cursor pack:
+- Macros (Tools -> Macros): steps are find & replace
+  (plain or line-anchored regex), trim trailing
+  whitespace, leading tabs -> spaces, ensure single final
+  newline. Record mode captures project Find & Replace
+  operations as steps; steps can also be added by hand.
+  Macros persist in localStorage and run on the current
+  file or across a folder prefix (200-file cap, confirm
+  first, per-file report).
+- Multi-cursor: basicSetup already carried multiple
+  selections, Mod-d next-occurrence and Alt-drag column
+  selection; G31 adds Mod-Alt-Up/Down (cursor above/
+  below), Mod-Shift-d (select all occurrences), and a
+  palette command placing cursors on every selected line.
+Proven on test-fixtures/macro (harness 8/8): a recorded
+cleanup macro (regex print-line removal + detab + trim +
+final newline) transforms three dirty files to their
+exact goldens, is idempotent, reports honest step counts,
+and every output passes py_compile. The first harness run
+caught regex steps missing the multiline flag.
