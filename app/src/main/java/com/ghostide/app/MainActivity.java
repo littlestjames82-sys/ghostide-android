@@ -878,6 +878,23 @@ public class MainActivity extends Activity {
     }
 
     public class NativeBridge {
+        /* Roadmap G40: the OS thermal status (0 none ..
+           6 shutdown), or -1 where unavailable. Read by
+           the frontend's generation thermal guard. */
+        @android.webkit.JavascriptInterface
+        public int thermalStatus() {
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    android.os.PowerManager pm =
+                        (android.os.PowerManager)
+                            getSystemService(POWER_SERVICE);
+                    if (pm != null)
+                        return pm.getCurrentThermalStatus();
+                }
+            } catch (Exception ignored) {}
+            return -1;
+        }
+
         @android.webkit.JavascriptInterface
         public void jobDone(final String title, final String body) {
             runOnUiThread(new Runnable() {

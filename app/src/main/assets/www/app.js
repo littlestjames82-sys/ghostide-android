@@ -31235,7 +31235,7 @@
   var LineComment2 = 1;
   var BlockComment2 = 2;
   var String$12 = 3;
-  var Number = 4;
+  var Number2 = 4;
   var Bool2 = 5;
   var Null = 6;
   var ParenL2 = 7;
@@ -31511,15 +31511,15 @@
           input.advance();
         if (quoted && input.next == 39)
           input.advance();
-        input.acceptToken(Number);
+        input.acceptToken(Number2);
       } else if (next == 46 && input.next >= 48 && input.next <= 57) {
         readNumber(input, true);
-        input.acceptToken(Number);
+        input.acceptToken(Number2);
       } else if (next == 46) {
         input.acceptToken(Dot);
       } else if (next >= 48 && next <= 57) {
         readNumber(input, false);
-        input.acceptToken(Number);
+        input.acceptToken(Number2);
       } else if (inString(next, d.operatorChars)) {
         while (inString(input.next, d.operatorChars))
           input.advance();
@@ -32151,7 +32151,7 @@
   var identifier4 = 184;
   var String2 = 12;
   var closeParen$1 = 13;
-  var Number2 = 17;
+  var Number3 = 17;
   var Rune = 20;
   var closeBrace$1 = 25;
   var closeBracket = 53;
@@ -32180,7 +32180,7 @@
     identifier4,
     Rune,
     String2,
-    Number2,
+    Number3,
     _break,
     _continue,
     _return,
@@ -33753,7 +33753,15 @@
     const chatT0 = Date.now();
     const body = addMsg("GHOST", "");
     let full = "";
+    thermalWarned = false;
+    let thermalStopped = false;
     chatAbort = new AbortController();
+    const thermTimer = setInterval(() => {
+      if (thermalWatchdog() === "stop") {
+        thermalStopped = true;
+        if (chatAbort) chatAbort.abort();
+      }
+    }, 8e3);
     const sendBtn = $("chatSend");
     sendBtn.textContent = "\u25A0 Stop";
     sendBtn.onclick = () => {
@@ -33801,6 +33809,9 @@
         full = full || "(error talking to the model: " + e + ")";
       }
     }
+    clearInterval(thermTimer);
+    if (thermalStopped)
+      addMsg("SYSTEM", "\u{1F321} Generation stopped: the device reached severe heat. Let it cool, then ask again. (Thermal guard, Roadmap G40.)");
     chatAbort = null;
     sendBtn.textContent = "Send";
     sendBtn.onclick = sendChat;
@@ -34651,6 +34662,7 @@
     toolRegistry: { en: "Registry", es: "Registro" },
     toolClassroom: { en: "Classroom view", es: "Vista de aula" },
     toolTour: { en: "Take the tour", es: "Hacer el recorrido" },
+    toolChangelog: { en: "What's new", es: "Novedades" },
     handRun: { en: "\u25B6 Run", es: "\u25B6 Ejecutar" },
     handSave: { en: "Save", es: "Guardar" },
     handSend: { en: "Send", es: "Enviar" }
@@ -35897,6 +35909,7 @@
     { title: "Registry", run: () => $("toolRegistry").click() },
     { title: "Classroom view", run: () => $("toolClassroom").click() },
     { title: "Take the tour", run: () => $("toolTour").click() },
+    { title: "What's new", run: () => $("toolChangelog").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -36715,6 +36728,10 @@
     let summary = "";
     let nudges = 0;
     for (let step = 1; step <= AGENT_MAX_STEPS; step++) {
+      if (thermalWatchdog() === "stop") {
+        addMsg("SYSTEM", "\u{1F321} Agent stopped: the device reached severe heat. (Thermal guard.)");
+        agentStop = true;
+      }
       if (agentStop) {
         outcome = "stopped";
         break;
@@ -37112,6 +37129,10 @@
     let prevFailed = res.failed;
     const touched = /* @__PURE__ */ new Set();
     for (let round = 1; round <= FIX_MAX_ROUNDS; round++) {
+      if (thermalWatchdog() === "stop") {
+        note("\u{1F321} Stopped: the device reached severe heat. (Thermal guard.)");
+        agentStop = true;
+      }
       if (agentStop) {
         outcome = "stopped";
         break;
@@ -39042,6 +39063,84 @@
     }
   } catch (e) {
   }
+  function thermalAction(status) {
+    if (typeof status !== "number" || status < 0) return "ok";
+    if (status >= 4) return "stop";
+    if (status >= 3) return "warn";
+    return "ok";
+  }
+  function thermalStatus() {
+    try {
+      if (window.GhostNative && window.GhostNative.thermalStatus)
+        return window.GhostNative.thermalStatus();
+    } catch (e) {
+    }
+    return -1;
+  }
+  try {
+    window.__ghostThermal = { thermalAction };
+  } catch (e) {
+  }
+  var thermalWarned = false;
+  function thermalWatchdog() {
+    const act = thermalAction(thermalStatus());
+    if (act === "warn" && !thermalWarned) {
+      thermalWarned = true;
+      addMsg("SYSTEM", "\u{1F321} The device is getting warm. If it reaches severe heat, Ghost will pause generation to protect the battery.");
+    }
+    return act;
+  }
+  $("toolChangelog").onclick = async () => {
+    hideTools();
+    $("todoTitle").textContent = "\u{1F4CB} What's new";
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Loading\u2026</div>';
+    $("todoPanel").classList.remove("hidden");
+    try {
+      const r = await fetch("changelog.json");
+      const d = await r.json();
+      box.textContent = "";
+      for (const e of d.entries || []) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "v" + e.version + " \xB7 " + e.date + " \xB7 " + e.goal + " - " + e.summary;
+        box.appendChild(row);
+      }
+      if (!box.children.length)
+        box.textContent = "No changelog entries yet.";
+    } catch (e) {
+      box.textContent = "Changelog unavailable here.";
+    }
+  };
+  async function quietUpdateCheck() {
+    try {
+      const last2 = Number(localStorage.getItem(
+        "ghostide-update-check"
+      ) || 0);
+      if (Date.now() - last2 < 24 * 3600 * 1e3) return;
+      localStorage.setItem(
+        "ghostide-update-check",
+        String(Date.now())
+      );
+      const r = await fetch("/api/update/check");
+      const d = await r.json();
+      if (!d.ok || !d.updateAvailable) return;
+      if (localStorage.getItem("ghostide-update-dismissed") === d.latest) return;
+      const pill = $("updatePill");
+      pill.textContent = "\u2B06 v" + d.latest + " available";
+      pill.classList.remove("hidden");
+      pill.onclick = () => {
+        if (d.url) window.open(d.url, "_blank", "noopener");
+        localStorage.setItem(
+          "ghostide-update-dismissed",
+          d.latest
+        );
+        pill.classList.add("hidden");
+      };
+    } catch (e) {
+    }
+  }
+  setTimeout(quietUpdateCheck, 5e3);
   var IMG_EXTS = [
     "png",
     "jpg",

@@ -1,0 +1,120 @@
+{
+ "app": "ghostide",
+ "kind": "changelog",
+ "entries": [
+  {
+   "version": "1.47.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G39",
+   "summary": "First-run tour (Tools -> Take the tour; offered once on"
+  },
+  {
+   "version": "1.46.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G38",
+   "summary": "Classroom view (Tools -> Classroom view):"
+  },
+  {
+   "version": "1.45.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G37",
+   "summary": "Registry (Tools -> Registry):"
+  },
+  {
+   "version": "1.44.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G36",
+   "summary": "Language and access pass:"
+  },
+  {
+   "version": "1.43.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G35",
+   "summary": "Companion touches (closes Arc H):"
+  },
+  {
+   "version": "1.42.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G34",
+   "summary": "App-state carry (Tools -> Export / Import app state):"
+  },
+  {
+   "version": "1.41.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G33",
+   "summary": "Big-screen mode (frontend + CSS):"
+  },
+  {
+   "version": "1.40.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G32",
+   "summary": "Verify pipeline (Tools -> Verify pipeline, palette):"
+  },
+  {
+   "version": "1.39.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G31",
+   "summary": "Macros and the multi-cursor pack:"
+  },
+  {
+   "version": "1.38.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G30",
+   "summary": "Error memory (closes Arc G):"
+  },
+  {
+   "version": "1.37.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G29",
+   "summary": "Semantic code search (find panel -> Meaning button):"
+  },
+  {
+   "version": "1.36.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G28",
+   "summary": "Offline reference docs (Tools -> Reference docs, palette):"
+  },
+  {
+   "version": "1.35.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G27",
+   "summary": "Context lab (Tools -> Context lab, or the palette):"
+  },
+  {
+   "version": "1.34.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G26",
+   "summary": "Pre-commit AI review (git panel -> Review, or the palette):"
+  },
+  {
+   "version": "1.33.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G25",
+   "summary": "Asset tools (Tools -> Asset browser):"
+  },
+  {
+   "version": "1.32.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G24",
+   "summary": "Docs mode:"
+  },
+  {
+   "version": "1.31.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G23",
+   "summary": "API client (Postman-lite), Tools -> API client:"
+  },
+  {
+   "version": "1.30.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G22",
+   "summary": "SQLite studio: opening a .db/.sqlite/.sqlite3 file opens"
+  },
+  {
+   "version": "1.29.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G21",
+   "summary": "Language packs: first-class HTML, CSS, JSON, Markdown,"
+  }
+ ]
+}

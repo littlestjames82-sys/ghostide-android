@@ -1043,3 +1043,31 @@ Proven 16/16 by tour-harness (full scripted walk in
 order, plus every no-credit case). The roadmap's final
 bar (a first-time tester completing it unaided) is a
 human test.
+
+## v1.48.0 (versionCode 52) - Oct 19, 2026 - Roadmap G40
+1.0 hardening, all five items:
+- Crash budget: zero known startup crashers. The two
+  historical killers stay fixed and every build passes
+  the execution gate (real bundle, DOM stub, must reach
+  past editor construction). Full regression sweep
+  re-run green for this release: error memory 9/9,
+  macros 8/8, state 10/10, pings 6/6, i18n 7/7,
+  registry 10/10, tour 16/16, thermal units 6/6,
+  classroom 13/13 (at its ship), verify 15/15 (at its
+  ship). Budget + method documented in KNOWN_ISSUES.md.
+- Cold start: bundle parses and reaches editor
+  construction in ~0.42 s in the harness (budget: under
+  1 s); the desktop server answers health in ~0.19 s.
+- Generation thermal guard: the frontend reads the OS
+  thermal status through the native bridge during
+  chat/agent/fix-tests generation; at LIGHT it warns
+  once, at SEVERE it stops the generation with a plain
+  explanation. No bridge (desktop) = guard off, stated.
+- In-app changelog: Tools -> What's new renders
+  changelog.json (19 versions), generated from these
+  notes by tools/gen_changelog.py.
+- Quiet update check: at most one check a day; when a
+  newer version exists a small dismissible header pill
+  appears; dismissal is remembered per version; it
+  never downloads or installs anything itself.
+This closes ROADMAP_20 (G1-G40).
