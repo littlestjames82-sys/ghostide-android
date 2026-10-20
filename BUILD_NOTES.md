@@ -912,3 +912,25 @@ Big-screen mode (frontend + CSS):
 Status: BUILT. The done-when asks for a tablet/fold
 proof, which needs a real wide screen (desktop browser,
 tablet, or DeX) - Ryan-side check.
+
+## v1.42.0 (versionCode 46) - Oct 19, 2026 - Roadmap G34
+App-state carry (Tools -> Export / Import app state):
+- Export gathers every ghostide-* localStorage entry by
+  prefix (settings, snippets, bookmarks, breakpoints,
+  macros, error memory, API history, saved requests'
+  dismissals, pair identity, pane layout, big-screen pref,
+  open-tabs session) into one ghostide-state.json written
+  to the workspace root. Prefix enumeration means state
+  added in future versions carries automatically.
+- Import validates the envelope (app + kind markers,
+  non-empty, keys inside the namespace, string values),
+  confirms with the entry count and export date, applies,
+  and reloads so every subsystem re-reads its state.
+- Honest scope, stated in the export message and code:
+  chat transcripts are never stored (session-only) and
+  file-history snapshots live with the project files, so
+  neither is in the carry file.
+Proven 10/10 by test-fixtures/state-harness.mjs: collect
+skips foreign keys, a wiped store restores field by field
+to identical values, and foreign/empty/out-of-namespace
+files are refused.
