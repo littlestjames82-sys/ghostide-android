@@ -1024,3 +1024,22 @@ Classroom view (Tools -> Classroom view):
 Proven 13/13 by classroom-harness (full loop incl.
 wrong-token refusal and sub-second edit visibility)
 plus snapshot cap unit checks.
+
+## v1.47.0 (versionCode 51) - Oct 19, 2026 - Roadmap G39
+First-run tour (Tools -> Take the tour; offered once on
+first run via a chip):
+- A guided lap inside a sample project the tour creates
+  (tour/hello.py): eight steps teaching the four moves -
+  run, break, fix with Ghost, restore from history.
+- Every step is verified by its outcome, not by trust:
+  the run step needs a real exit-0 run of the tour file;
+  the error step needs the actual NameError run; the
+  fix needs the corrected text AND a clean run; the
+  restore is two-phase (the deletion must be observed
+  before the return of main() counts). Skip and Exit
+  are always available; finishing or exiting marks the
+  tour done so it never nags.
+Proven 16/16 by tour-harness (full scripted walk in
+order, plus every no-credit case). The roadmap's final
+bar (a first-time tester completing it unaided) is a
+human test.

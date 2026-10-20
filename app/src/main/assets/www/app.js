@@ -33838,6 +33838,12 @@
     }
     $("runTitle").textContent = "$ " + d.cmd + "  \xB7  exit " + d.code + "  \xB7  " + d.ms + " ms";
     $("runOut").textContent = (d.stdout || "") + (d.stderr ? "\n\u2014 stderr \u2014\n" + d.stderr : "") || "(no output)";
+    tourObserve({
+      type: "run",
+      file: currentFile,
+      code: d.code,
+      text: (d.stderr || "") + (d.stdout || "")
+    });
     const runContent = view.state.doc.toString();
     if (d.code !== 0) {
       const banner = emBannerFor(
@@ -34644,6 +34650,7 @@
     toolPluginsManage: { en: "Manage plugins\u2026", es: "Gestionar plugins\u2026" },
     toolRegistry: { en: "Registry", es: "Registro" },
     toolClassroom: { en: "Classroom view", es: "Vista de aula" },
+    toolTour: { en: "Take the tour", es: "Hacer el recorrido" },
     handRun: { en: "\u25B6 Run", es: "\u25B6 Ejecutar" },
     handSave: { en: "Save", es: "Guardar" },
     handSend: { en: "Send", es: "Enviar" }
@@ -35889,6 +35896,7 @@
     { title: "Toggle completion ping", run: () => $("toolNotify").click() },
     { title: "Registry", run: () => $("toolRegistry").click() },
     { title: "Classroom view", run: () => $("toolClassroom").click() },
+    { title: "Take the tour", run: () => $("toolTour").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -38856,6 +38864,184 @@
     } else renderClassPanel(null);
   }
   $("toolClassroom").onclick = openClassroom;
+  var TOUR_FILE = "tour/hello.py";
+  var TOUR_ORIGINAL = '# GhostIDE tour project. A tiny script we will run,\n# break, fix with Ghost, and restore from history.\ndef add(a, b):\n    return a + b\n\n\ndef main():\n    total = add(2, 3)\n    print("2 + 3 =", total)\n    print("Hello from your first GhostIDE run.")\n\n\nmain()\n';
+  var TOUR_STEPS = [
+    {
+      id: "open",
+      title: "Open the tour file",
+      text: "Welcome to GhostIDE. This short tour teaches the four moves that matter: run, break, fix with Ghost, and restore from history. First, open tour/hello.py from the Files list."
+    },
+    {
+      id: "run",
+      title: "Move 1: Run",
+      text: "Tap \u25B6 Run at the top. The code runs right here, on this device, nothing uploaded. Watch the output pane."
+    },
+    {
+      id: "break",
+      title: "Move 2: Break it",
+      text: 'Break it on purpose. In add(), change "return a + b" to "return a + c", then save (Ctrl/\u2318 S).'
+    },
+    {
+      id: "error",
+      title: "See the error",
+      text: "Run it again. It should fail with a NameError. That output is useful: Ghost remembers errors and their fixes (Tools \u2192 Error memory)."
+    },
+    {
+      id: "fix",
+      title: "Move 3: Fix with Ghost",
+      text: `Now fix it with Ghost's help: select the broken line and use the inline AI fix, or ask in chat: "fix the NameError in tour/hello.py". Then Run until it passes again.`
+    },
+    {
+      id: "restore-break",
+      title: "Move 4: Restore (setup)",
+      text: "Last move: history. Delete the main() line at the very bottom of the file, and save."
+    },
+    {
+      id: "restored",
+      title: "Move 4: Restore",
+      text: "Open Tools \u2192 Local history, choose the snapshot from before the deletion, and restore it. The main() call should come back."
+    },
+    {
+      id: "done",
+      title: "You have the moves",
+      text: "That is the whole loop: run it, break it, let Ghost help fix it, and rewind with history when anything goes wrong. The sample stays in tour/ if you want to play more."
+    }
+  ];
+  function tourStepDone(stepId, ctx) {
+    const hasCall = /(^|\n)main\(\)/.test(ctx.content || "");
+    switch (stepId) {
+      case "open":
+        return ctx.file === TOUR_FILE;
+      case "run":
+        return !!ctx.lastRun && ctx.lastRun.file === TOUR_FILE && ctx.lastRun.code === 0;
+      case "break":
+        return (ctx.content || "").includes("a + c");
+      case "error":
+        return !!ctx.lastRun && ctx.lastRun.file === TOUR_FILE && ctx.lastRun.code !== 0 && /NameError/.test(ctx.lastRun.text || "");
+      case "fix":
+        return (ctx.content || "").includes("a + b") && !(ctx.content || "").includes("a + c") && !!ctx.lastRun && ctx.lastRun.file === TOUR_FILE && ctx.lastRun.code === 0;
+      case "restore-break":
+        return ctx.file === TOUR_FILE && !hasCall;
+      case "restored":
+        return !!ctx.sawDelete && hasCall;
+      default:
+        return false;
+    }
+  }
+  try {
+    window.__ghostTour = {
+      TOUR_FILE,
+      TOUR_ORIGINAL,
+      TOUR_STEPS,
+      tourStepDone
+    };
+  } catch (e) {
+  }
+  var tour = {
+    active: false,
+    idx: 0,
+    ctx: {
+      file: "",
+      content: "",
+      lastRun: null,
+      sawDelete: false
+    },
+    timer: null
+  };
+  function tourObserve(ev) {
+    if (ev && ev.type === "run") tour.ctx.lastRun = ev;
+  }
+  function tourRender() {
+    const step = TOUR_STEPS[tour.idx];
+    if (!step) return;
+    $("tourTitle").textContent = "\u{1F393} " + step.title;
+    $("tourStep").textContent = "Step " + (tour.idx + 1) + " of " + TOUR_STEPS.length;
+    $("tourBody").textContent = step.text;
+    $("tourCard").classList.remove("hidden");
+  }
+  function tourTick() {
+    if (!tour.active) return;
+    tour.ctx.file = currentFile || "";
+    try {
+      tour.ctx.content = view.state.doc.toString();
+    } catch (e) {
+      tour.ctx.content = "";
+    }
+    const step = TOUR_STEPS[tour.idx];
+    if (!step || step.id === "done") return;
+    if (tourStepDone(step.id, tour.ctx)) {
+      if (step.id === "restore-break")
+        tour.ctx.sawDelete = true;
+      tour.idx++;
+      if (TOUR_STEPS[tour.idx] && TOUR_STEPS[tour.idx].id === "done") {
+        try {
+          localStorage.setItem(
+            "ghostide-tour-done",
+            "1"
+          );
+        } catch (e) {
+        }
+      }
+      tourRender();
+    }
+  }
+  async function startTour() {
+    hideTools();
+    const existing = await getJson("/api/file?path=" + encodeURIComponent(TOUR_FILE));
+    if (existing.error) {
+      await postJson("/api/file", {
+        path: TOUR_FILE,
+        content: TOUR_ORIGINAL
+      });
+      await postJson("/api/file", {
+        path: "tour/README.md",
+        content: "# Tour project\n\nhello.py is the first-run tour script. Run the tour again any time from Tools \u2192 Take the tour.\n"
+      });
+      loadFiles();
+    }
+    tour.active = true;
+    tour.idx = 0;
+    tour.ctx = {
+      file: currentFile || "",
+      content: "",
+      lastRun: null,
+      sawDelete: false
+    };
+    tourRender();
+    if (tour.timer) clearInterval(tour.timer);
+    tour.timer = setInterval(tourTick, 900);
+  }
+  function endTour() {
+    tour.active = false;
+    if (tour.timer) clearInterval(tour.timer);
+    $("tourCard").classList.add("hidden");
+    try {
+      localStorage.setItem("ghostide-tour-done", "1");
+    } catch (e) {
+    }
+  }
+  $("toolTour").onclick = startTour;
+  $("tourExit").onclick = endTour;
+  $("tourSkip").onclick = () => {
+    if (!tour.active) return;
+    const step = TOUR_STEPS[tour.idx];
+    if (step && step.id === "restore-break")
+      tour.ctx.sawDelete = true;
+    tour.idx = Math.min(tour.idx + 1, TOUR_STEPS.length - 1);
+    tourRender();
+  };
+  $("tourChip").onclick = () => {
+    $("tourChip").classList.add("hidden");
+    startTour();
+  };
+  try {
+    if (!localStorage.getItem("ghostide-tour-done") && !localStorage.getItem("ghostide-tour-seen")) {
+      localStorage.setItem("ghostide-tour-seen", "1");
+      $("tourChip").classList.remove("hidden");
+    }
+  } catch (e) {
+  }
   var IMG_EXTS = [
     "png",
     "jpg",

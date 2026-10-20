@@ -189,6 +189,15 @@ setTimeout(function () {
   <p class="hint">Drag the edges of the Files and Chat panes to resize them. Big-screen mode (Tools) widens the panes for tablets, foldables and DeX.</p>
 </div>
 <button id="kbChip" class="hidden">⌨ Keyboard connected — see shortcuts</button>
+<div id="tourCard" class="hidden" role="dialog" aria-label="Guided tour">
+  <div class="panel-head"><h3 id="tourTitle">🎓 Tour</h3><span id="tourStep" class="tag"></span></div>
+  <p id="tourBody"></p>
+  <div class="row" style="display:flex;gap:8px">
+    <button id="tourSkip">Skip step</button>
+    <button id="tourExit">Exit tour</button>
+  </div>
+</div>
+<button id="tourChip" class="hidden">🎓 New here? Take the 3-minute tour</button>
 <div id="wsMenu" class="hidden"></div>
 <div id="findPanel" class="hidden">
   <h3 id="findTitle">Find in project</h3>
@@ -288,6 +297,7 @@ setTimeout(function () {
     <button id="toolPluginsManage">Manage plugins…</button>
     <button id="toolRegistry">Registry</button>
     <button id="toolClassroom">Classroom view</button>
+    <button id="toolTour">Take the tour</button>
   </div>
 </div>
 
