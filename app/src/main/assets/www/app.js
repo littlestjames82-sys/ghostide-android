@@ -33262,6 +33262,7 @@
     loadFiles();
   }
   async function openFile(path, skipGuard) {
+    if (window.innerWidth <= 900) setDrawer(false);
     if (/\.(db|sqlite3?)$/i.test(path)) {
       openDbStudio(path);
       return;
@@ -33592,33 +33593,130 @@
   };
   setInterval(pollHealth, 4e3);
   pollHealth();
-  function syncChatToggle() {
-    const min = document.body.classList.contains("chat-min");
-    $("chatToggle").textContent = min ? "\u25B8" : "\u25BE";
-    $("chatToggle").setAttribute(
-      "aria-label",
-      min ? "Expand chat" : "Collapse chat"
-    );
+  $("chatOptsBtn").onclick = () => $("chatOpts").classList.toggle("hidden");
+  var SHEET_STOPS = ["min", "mid", "full"];
+  function cycleSheetStop(stop) {
+    const i2 = SHEET_STOPS.indexOf(stop);
+    return SHEET_STOPS[(i2 + 1) % SHEET_STOPS.length];
   }
-  $("chatToggle").onclick = () => {
-    const min = document.body.classList.toggle("chat-min");
+  function nextSheetStop(stop, dir) {
+    const i2 = SHEET_STOPS.indexOf(stop);
+    const j = Math.min(
+      SHEET_STOPS.length - 1,
+      Math.max(0, i2 + (dir > 0 ? 1 : -1))
+    );
+    return SHEET_STOPS[j];
+  }
+  try {
+    window.__ghostSheet = {
+      SHEET_STOPS,
+      cycleSheetStop,
+      nextSheetStop
+    };
+  } catch (e) {
+  }
+  var drawerMode = "files";
+  function currentSheetStop() {
+    if (document.body.classList.contains("chat-min"))
+      return "min";
+    if (document.body.classList.contains("sheet-full"))
+      return "full";
+    return "mid";
+  }
+  function setSheet(stop) {
+    document.body.classList.toggle(
+      "chat-min",
+      stop === "min"
+    );
+    document.body.classList.toggle(
+      "sheet-full",
+      stop === "full"
+    );
     try {
-      localStorage.setItem(
-        "ghostide-chat-min",
-        min ? "1" : "0"
-      );
+      localStorage.setItem("ghostide-sheet", stop);
     } catch (e) {
     }
     syncChatToggle();
-  };
-  try {
-    const chatPref = localStorage.getItem("ghostide-chat-min");
-    if (chatPref === "1" || chatPref === null && window.innerWidth <= 900)
-      document.body.classList.add("chat-min");
-  } catch (e) {
+    syncViewBar();
   }
-  syncChatToggle();
-  $("chatOptsBtn").onclick = () => $("chatOpts").classList.toggle("hidden");
+  function syncChatToggle() {
+    const stop = currentSheetStop();
+    $("chatToggle").textContent = stop === "min" ? "\u25B8" : "\u25BE";
+    $("chatToggle").setAttribute(
+      "aria-label",
+      stop === "min" ? "Expand chat" : stop === "mid" ? "Expand chat fully" : "Collapse chat"
+    );
+  }
+  $("chatToggle").onclick = () => setSheet(cycleSheetStop(currentSheetStop()));
+  var gripY = null;
+  $("sheetGrip").addEventListener("pointerdown", (e) => {
+    gripY = e.clientY;
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (gripY === null) return;
+    const dy = e.clientY - gripY;
+    gripY = null;
+    if (Math.abs(dy) < 36) return;
+    setSheet(nextSheetStop(
+      currentSheetStop(),
+      dy < 0 ? 1 : -1
+    ));
+  });
+  function setDrawer(open, mode) {
+    if (mode) drawerMode = mode;
+    document.body.classList.toggle("drawer-open", open);
+    syncViewBar();
+  }
+  function syncViewBar() {
+    const drawer = document.body.classList.contains("drawer-open");
+    const stop = currentSheetStop();
+    $("viewFiles").classList.toggle(
+      "active",
+      drawer && drawerMode === "files"
+    );
+    $("viewGit").classList.toggle(
+      "active",
+      drawer && drawerMode === "git"
+    );
+    $("viewChat").classList.toggle(
+      "active",
+      stop !== "min"
+    );
+    $("viewCode").classList.toggle(
+      "active",
+      !drawer && stop === "min"
+    );
+  }
+  $("viewFiles").onclick = () => setDrawer(
+    !(document.body.classList.contains("drawer-open") && drawerMode === "files"),
+    "files"
+  );
+  $("viewGit").onclick = () => {
+    const wasGit = document.body.classList.contains("drawer-open") && drawerMode === "git";
+    setDrawer(!wasGit, "git");
+    if (!wasGit) setTimeout(() => {
+      const g = $("gitPanel");
+      if (g) g.scrollIntoView({ block: "start" });
+    }, 90);
+  };
+  $("viewCode").onclick = () => {
+    setDrawer(false);
+    setSheet("min");
+  };
+  $("viewChat").onclick = () => setSheet(
+    currentSheetStop() === "min" ? "mid" : "min"
+  );
+  try {
+    let stop = localStorage.getItem("ghostide-sheet");
+    if (!stop) {
+      const legacy = localStorage.getItem("ghostide-chat-min");
+      stop = legacy === "1" ? "min" : legacy === "0" ? "mid" : window.innerWidth <= 900 ? "min" : "mid";
+    }
+    setSheet(stop);
+  } catch (e) {
+    syncChatToggle();
+    syncViewBar();
+  }
   var history2 = [];
   var GREETING = "Hey - I'm Ghost, your offline coding partner. Open a file and ask about it, or pause while typing for inline suggestions. Nothing leaves this device.";
   var historyScope = null;

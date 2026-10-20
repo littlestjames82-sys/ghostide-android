@@ -136,6 +136,7 @@ setTimeout(function () {
   </section>
   <div id="dragChat" class="dragHandle" title="Drag to resize"></div>
   <aside id="chat" aria-label="Ghost chat">
+    <div id="sheetGrip" aria-hidden="true"></div>
     <div class="panel-head"><span id="chatHeadTxt">GHOST CHAT</span> <span><span class="tag">Qwen2.5-Coder 7B · local</span> <button id="chatToggle" aria-label="Collapse chat">▾</button></span></div>
     <div id="chatLog" role="log" aria-live="polite" aria-label="Chat messages"></div>
     <div class="chat-input">
@@ -590,6 +591,12 @@ setTimeout(function () {
     <button id="setModelDlBtn">Download 7B model</button></p>
   <button id="settingsClose">Close</button>
 </div>
+<nav id="viewBar" aria-label="View switcher">
+  <button id="viewFiles">📁<span>Files</span></button>
+  <button id="viewCode">&lt;/&gt;<span>Code</span></button>
+  <button id="viewChat">💬<span>Chat</span></button>
+  <button id="viewGit">🔀<span>Git</span></button>
+</nav>
 <div id="handBar" class="hidden" role="toolbar" aria-label="One-handed actions">
   <button id="handRun" class="primary">▶ Run</button>
   <button id="handSave">Save</button>

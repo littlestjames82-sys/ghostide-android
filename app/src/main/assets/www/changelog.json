@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.50.0",
+   "date": "Oct 20, 2026",
+   "goal": "The unified design",
+   "summary": "Ryan loved all three concept directions (A Refined"
+  },
+  {
    "version": "1.49.0",
    "date": "Oct 20, 2026",
    "goal": "Mobile polish pass",

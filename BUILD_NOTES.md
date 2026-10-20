@@ -1101,3 +1101,32 @@ to the shipping UI, each verified against the real code):
 Desktop layout otherwise unchanged. Gates: bundle,
 334 IDs none missing, DOM-stub execution past editor
 construction, i18n 7/7, chip 9/9.
+
+## v1.50.0 (versionCode 54) - Oct 20, 2026 - The unified design
+Ryan loved all three concept directions (A Refined
+Stack, B Tab Studio, C Focus Sheet), so v1.50 unifies
+them: one skin, three arrangements.
+- The skin (all screens): panels and header are
+  rounded cards with hairline borders on wide screens;
+  the model chip's up state is an outline chip; the
+  active file tab gets a green underline accent.
+- Phone portrait (C's body): the editor is the home
+  view. Files is a slide-over drawer (84vw, full
+  height, git rides at its bottom; picking a file
+  closes it). Chat is a bottom sheet with three stops
+  (min bar / mid / full 86vh) - the header toggle
+  cycles them, and the grip at the sheet's top drags
+  between stops (snap on release). Stop persists
+  (ghostide-sheet; the v1.49 pref migrates).
+- B's bottom bar: a phone-only view switcher
+  (Files / Code / Chat / Git) with active states;
+  Git opens the drawer at the git panel; Code returns
+  to the editor with the sheet down. It yields to the
+  one-handed bar when that mode is on.
+- A stays underneath: same stacked layout logic and
+  every feature where it was; wide screens keep the
+  classic three-pane layout, re-skinned.
+Proven: sheet stop machine 10/10 (sheet-harness),
+chip 9/9, i18n 7/7, bundle + 340 IDs + DOM-stub
+execution gate. The rendered layout proof is Ryan's
+device pass, as always.
