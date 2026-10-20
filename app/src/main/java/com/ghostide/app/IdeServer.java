@@ -1507,6 +1507,21 @@ public final class IdeServer {
                 + "runtime with pdb).\"}");
             return;
         }
+        if (path.equals("/api/verify/run")
+                && method.equals("POST")) {
+            // Roadmap G32: the phone edition of the pipeline.
+            // Its checks stage runs the same on-device
+            // checkers /api/check uses; the tests stage is
+            // desktop-only, and the report and evidence
+            // level say so instead of pretending.
+            try {
+                sendJson(out, buildVerify());
+            } catch (Exception e) {
+                sendJson(out, "{\"error\":" + Json.quote(
+                    String.valueOf(e.getMessage())) + "}");
+            }
+            return;
+        }
         if (path.startsWith("/api/tests/")) {
             sendJson(out, 400, "{\"error\":\"The test runner "
                 + "panel is desktop-only for now. Python files "
@@ -2313,6 +2328,120 @@ public final class IdeServer {
         if (!f.getPath().startsWith(root.getPath()))
             throw new IOException("path escapes workspace");
         return f;
+    }
+
+    // ---- Roadmap G32: verify pipeline (phone edition) ----
+    private String buildVerify() throws Exception {
+        List<File> vfFiles = new ArrayList<>();
+        collectTextFiles(workspace, vfFiles);
+        int vfChecked = 0;
+        StringBuilder vfProblems = new StringBuilder();
+        StringBuilder vfProblemsJson = new StringBuilder();
+        int vfProblemCount = 0;
+        for (File f : vfFiles) {
+            String rel = workspace.toURI().relativize(
+                f.toURI()).getPath();
+            String low = rel.toLowerCase();
+            if (low.endsWith(".py")) {
+                vfChecked++;
+                Object[] chk = pySyntaxCheck(f);
+                if (chk != null && !((Boolean) chk[0])) {
+                    vfProblemCount++;
+                    vfProblems.append("- ").append(rel)
+                        .append(":").append(chk[1]).append(' ')
+                        .append(chk[2]).append('\n');
+                    if (vfProblemsJson.length() > 0)
+                        vfProblemsJson.append(',');
+                    vfProblemsJson.append("{\"path\":")
+                        .append(Json.quote(rel))
+                        .append(",\"line\":").append(chk[1])
+                        .append(",\"message\":")
+                        .append(Json.quote((String) chk[2]))
+                        .append('}');
+                }
+            } else if (low.endsWith(".json")) {
+                vfChecked++;
+                try {
+                    String text = readFile(f).trim();
+                    if (text.startsWith("[")) {
+                        new org.json.JSONArray(text);
+                    } else {
+                        new org.json.JSONObject(text);
+                    }
+                } catch (Exception je) {
+                    vfProblemCount++;
+                    vfProblems.append("- ").append(rel)
+                        .append(": JSON error: ")
+                        .append(je.getMessage()).append('\n');
+                    if (vfProblemsJson.length() > 0)
+                        vfProblemsJson.append(',');
+                    vfProblemsJson.append("{\"path\":")
+                        .append(Json.quote(rel))
+                        .append(",\"line\":null,\"message\":")
+                        .append(Json.quote("JSON error: "
+                            + je.getMessage()))
+                        .append('}');
+                }
+            }
+            if (vfChecked > 100) break;
+        }
+        Map<String, Object> vfStats = Json.obj(Json.parse(
+            buildContextStats()));
+        long vfTokens = ((Number) vfStats.get("totalTokens"))
+            .longValue();
+        long vfBytes = ((Number) vfStats.get("totalBytes"))
+            .longValue();
+        int vfCount = ((Number) vfStats.get("fileCount"))
+            .intValue();
+        String vfLevel = "L1";
+        String vfLabel = vfProblemCount == 0
+            ? "Checked on-device: syntax green. The tests "
+              + "stage runs on the desktop build, so this "
+              + "build caps at L1."
+            : "Checked on-device: syntax problems present. "
+              + "The tests stage runs on the desktop build.";
+        String vfStamp = new java.text.SimpleDateFormat(
+            "yyyy-MM-dd HH:mm").format(new java.util.Date());
+        StringBuilder r = new StringBuilder();
+        r.append("# Verify report\n\n");
+        r.append("Project health pass by GhostIDE (verify "
+            + "pipeline, Roadmap G32), phone edition.\n");
+        r.append("When: ").append(vfStamp).append("\n\n");
+        r.append("## Evidence level: ").append(vfLevel)
+            .append('\n');
+        r.append(vfLabel).append('\n');
+        r.append("Levels: L1 = syntax checks executed; "
+            + "L2 = checks and tests executed; L3 = "
+            + "executed and all green with a real test.\n\n");
+        r.append("## Syntax checks (on-device)\n");
+        r.append("Files checked: ").append(vfChecked)
+            .append(". Problems: ").append(vfProblemCount)
+            .append(".\n");
+        r.append(vfProblems);
+        r.append("\n## Tests\n");
+        r.append("Not run on this build: the test runner "
+            + "is desktop-only for now. Python files "
+            + "themselves run here via Run.\n\n");
+        r.append("## Slice report (context cost)\n");
+        r.append("Text files: ").append(vfCount)
+            .append(". Bytes: ").append(vfBytes)
+            .append(". Estimated tokens if Ghost read "
+            + "everything: ").append(vfTokens).append(".\n");
+        String vfReport = r.toString();
+        writeFile(new File(workspace, "VERIFY_REPORT.md"),
+            vfReport);
+        return "{\"checks\":{\"checked\":" + vfChecked
+            + ",\"problems\":[" + vfProblemsJson + "]}"
+            + ",\"tests\":{\"files\":[],\"total\":0,"
+            + "\"passed\":0,\"failed\":0,\"failures\":[],"
+            + "\"note\":\"test runner is desktop-only\"}"
+            + ",\"slice\":{\"fileCount\":" + vfCount
+            + ",\"totalTokens\":" + vfTokens
+            + ",\"totalBytes\":" + vfBytes + ",\"top\":[]}"
+            + ",\"evidence\":{\"level\":\"" + vfLevel
+            + "\",\"label\":" + Json.quote(vfLabel) + "}"
+            + ",\"reportPath\":\"VERIFY_REPORT.md\""
+            + ",\"report\":" + Json.quote(vfReport) + "}";
     }
 
     // ---- Roadmap G29: semantic (meaning) code search ----

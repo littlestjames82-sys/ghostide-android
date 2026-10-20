@@ -35731,6 +35731,7 @@
     { title: "Context lab", run: () => $("toolContext").click() },
     { title: "Reference docs", run: () => $("toolRefdocs").click() },
     { title: "Macros", run: () => $("toolMacros").click() },
+    { title: "Verify pipeline", run: () => $("toolVerify").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -37986,6 +37987,21 @@
     if (!confirm('Run macro "' + name2 + '" across ' + paths.length + " file(s)? This edits them on disk."))
       return;
     macroRunOnFiles(name2, paths);
+  };
+  $("toolVerify").onclick = async () => {
+    hideTools();
+    $("runPane").classList.remove("hidden");
+    $("runTitle").textContent = "Verifying project\u2026";
+    $("runOut").textContent = "Running syntax checks, tests and the slice report\u2026";
+    const d = await postJson("/api/verify/run", {});
+    if (d.error) {
+      $("runTitle").textContent = "Verify unavailable";
+      $("runOut").textContent = d.error;
+      return;
+    }
+    $("runTitle").textContent = "Verify: " + d.evidence.level + " \xB7 " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s) \xB7 tests " + d.tests.passed + "/" + d.tests.total + " passed";
+    $("runOut").textContent = d.report;
+    loadFiles();
   };
   var IMG_EXTS = [
     "png",

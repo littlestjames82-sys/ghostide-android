@@ -871,3 +871,24 @@ final newline) transforms three dirty files to their
 exact goldens, is idempotent, reports honest step counts,
 and every output passes py_compile. The first harness run
 caught regex steps missing the multiline flag.
+
+## v1.40.0 (versionCode 44) - Oct 19, 2026 - Roadmap G32
+Verify pipeline (Tools -> Verify pipeline, palette):
+- POST /api/verify/run runs the whole health pass in one
+  tap: syntax check-all, the test suite, and the slice
+  report - composed from the SAME helpers the individual
+  tools use (_check_all extracted from its route;
+  discover_tests + run_test_file; _context_stats), so
+  the pipeline cannot drift from the tools it summarizes.
+- It grades an evidence level with printed criteria
+  (L1 checked, L2 tested, L3 green with real tests) and
+  writes a shareable VERIFY_REPORT.md into the workspace.
+- Phone edition is honest about its stages: checks run
+  the real on-device checkers (Python via the bundled
+  interpreter, JSON via org.json), the tests stage is
+  marked not-run (desktop-only) and evidence caps at L1.
+Proven 15/15 on test-fixtures/verify: every number in the
+pipeline output equals the individual tools' outputs on
+the same tree; evidence reads L2 while a planted syntax
+error stands, and after fixing it, both the tools and the
+pipeline move to clean and the level rises to L3.
