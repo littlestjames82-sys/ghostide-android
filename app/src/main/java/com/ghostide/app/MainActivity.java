@@ -2,6 +2,10 @@ package com.ghostide.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
@@ -36,8 +40,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * GhostIDE - standalone offline AI code editor for Android.
@@ -88,6 +95,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        handleShareIntent(getIntent());
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         seedWorkspace();
@@ -436,6 +444,8 @@ public class MainActivity extends Activity {
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.addJavascriptInterface(new VoiceBridge(),
             "GhostVoice");
+        webView.addJavascriptInterface(new NativeBridge(),
+            "GhostNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView view, int errorCode,
@@ -813,6 +823,106 @@ public class MainActivity extends Activity {
        system speech recognizer does the listening (nothing is
        recorded by the app itself), and the transcript returns
        to the page through window.__ghostVoiceResult. */
+    /* -------- Roadmap G35: companion touches --------
+       Share-sheet capture into the project, and a native
+       notification bridge for long AI jobs. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleShareIntent(intent);
+    }
+
+    private void handleShareIntent(Intent intent) {
+        if (intent == null) return;
+        if (!Intent.ACTION_SEND.equals(intent.getAction())) return;
+        String type = intent.getType();
+        if (type != null && !type.startsWith("text/plain")) return;
+        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (text == null || text.trim().isEmpty()) return;
+        String subject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
+        try {
+            File ws = new File(getFilesDir(), "workspace");
+            if (!ws.exists()) ws.mkdirs();
+            File cap = new File(ws, "captures.md");
+            StringBuilder sb = new StringBuilder();
+            if (!cap.exists())
+                sb.append("# Captures\n\nShared into this "
+                    + "project from other apps.\n\n");
+            sb.append("## ").append(new SimpleDateFormat(
+                "yyyy-MM-dd HH:mm", Locale.US).format(new Date()))
+                .append("\n\n");
+            if (subject != null && !subject.trim().isEmpty())
+                sb.append("**").append(subject.trim())
+                    .append("**\n\n");
+            sb.append(text.trim()).append("\n\n");
+            FileOutputStream fos = new FileOutputStream(cap, true);
+            fos.write(sb.toString().getBytes("UTF-8"));
+            fos.close();
+            Toast.makeText(this, "Captured to project: captures.md",
+                Toast.LENGTH_LONG).show();
+            if (webView != null) {
+                webView.postDelayed(new Runnable() {
+                    @Override public void run() {
+                        if (webView != null)
+                            webView.evaluateJavascript(
+                                "window.__ghostCaptured && "
+                                + "window.__ghostCaptured()", null);
+                    }
+                }, 600);
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Capture failed: " + e.getMessage(),
+                Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public class NativeBridge {
+        @android.webkit.JavascriptInterface
+        public void jobDone(final String title, final String body) {
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    postJobNotification(title, body);
+                }
+            });
+        }
+    }
+
+    private void postJobNotification(String title, String body) {
+        try {
+            if (Build.VERSION.SDK_INT >= 33
+                    && checkSelfPermission(
+                        "android.permission.POST_NOTIFICATIONS")
+                        != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                    "android.permission.POST_NOTIFICATIONS"}, 9041);
+                return;
+            }
+            NotificationManager nm = (NotificationManager)
+                getSystemService(NOTIFICATION_SERVICE);
+            if (nm == null) return;
+            String channel = "ghostide-jobs";
+            if (nm.getNotificationChannel(channel) == null) {
+                NotificationChannel ch = new NotificationChannel(
+                    channel, "GhostIDE job completions",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+                nm.createNotificationChannel(ch);
+            }
+            Intent open = new Intent(this, MainActivity.class);
+            PendingIntent pi = PendingIntent.getActivity(this, 0,
+                open, PendingIntent.FLAG_UPDATE_CURRENT
+                    | PendingIntent.FLAG_IMMUTABLE);
+            Notification n = new Notification.Builder(this, channel)
+                .setSmallIcon(android.R.drawable.stat_notify_chat)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setAutoCancel(true)
+                .setContentIntent(pi)
+                .build();
+            nm.notify(2201, n);
+        } catch (Exception ignored) {}
+    }
+
     public class VoiceBridge {
         @android.webkit.JavascriptInterface
         public void dictate(final String target) {

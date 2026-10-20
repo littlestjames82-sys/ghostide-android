@@ -934,3 +934,23 @@ Proven 10/10 by test-fixtures/state-harness.mjs: collect
 skips foreign keys, a wiped store restores field by field
 to identical values, and foreign/empty/out-of-namespace
 files are refused.
+
+## v1.43.0 (versionCode 47) - Oct 19, 2026 - Roadmap G35
+Companion touches (closes Arc H):
+- Completion pings: chat answers, agent runs, and
+  fix-my-tests loops that take 20+ seconds ping when
+  they finish - a native Android notification via the
+  new GhostNative JS bridge (channel ghostide-jobs,
+  POST_NOTIFICATIONS requested on first use), a web
+  Notification on desktop, plus a title flash when the
+  page is backgrounded. Toggle in Tools (ghostide-notify).
+  Ping decision rule proven 6/6 by ping-harness.mjs.
+- Capture to project: GhostIDE is now an Android share
+  target for text. Share a note or link from any app,
+  tap GhostIDE, and it lands in captures.md in the
+  workspace (timestamped, subject as a heading) with a
+  toast confirmation - no further taps. If the IDE is
+  open, its file list refreshes and a note appears.
+Status: BUILT + proven in logic; the share-sheet flow
+itself is a two-tap device proof for Ryan (share from
+any app -> GhostIDE -> check captures.md).

@@ -33743,6 +33743,7 @@
     history2.push({ role: "user", content: text });
     saveHistory();
     const messages = [{ role: "system", content: sysContent }, ...history2];
+    const chatT0 = Date.now();
     const body = addMsg("GHOST", "");
     let full = "";
     chatAbort = new AbortController();
@@ -33799,6 +33800,11 @@
     renderRich(body, full);
     history2.push({ role: "assistant", content: full });
     saveHistory();
+    notifyDone(
+      "Ghost answered",
+      "Your chat reply is ready.",
+      chatT0
+    );
   }
   var chatAbort = null;
   $("chatSend").onclick = sendChat;
@@ -35736,6 +35742,7 @@
     { title: "Keyboard shortcuts", run: () => $("toolKeys").click() },
     { title: "Export app state", run: () => $("toolStateExport").click() },
     { title: "Import app state", run: () => $("toolStateImport").click() },
+    { title: "Toggle completion ping", run: () => $("toolNotify").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -36522,6 +36529,7 @@
     }
     agentRunning = true;
     agentStop = false;
+    const agentT0 = Date.now();
     addMsg("YOU", "\u{1F916} " + task);
     const sendBtn = $("chatSend");
     const oldSend = sendBtn.onclick;
@@ -36621,6 +36629,11 @@
     } else if (outcome === "done") {
       addMsg("GHOST", "\u{1F916} Done: " + summary);
     }
+    notifyDone(
+      "Agent finished",
+      "The agent task ended (" + outcome + ").",
+      agentT0
+    );
   }
   async function openAgentReview(staged) {
     $("todoTitle").textContent = "\u{1F916} Agent changes - approve per file";
@@ -36927,6 +36940,7 @@
     }
     agentRunning = true;
     agentStop = false;
+    const fixT0 = Date.now();
     const sendBtn = $("chatSend");
     const oldSend = sendBtn.onclick;
     sendBtn.textContent = "\u25A0 Stop fixing";
@@ -37055,6 +37069,7 @@
     const verdict = outcome === "green" ? "\u2705 All tests pass now (" + res.passed + " of " + res.results.length + ")." : outcome === "stopped" ? "\u23F9 Stopped. Tests still failing: " + res.failed + "." : outcome === "asked" ? "\u2753 Ghost stopped to ask a question (above)." : "\u{1F9EF} Still " + res.failed + " failing after the loop. The attempt log above shows every round.";
     addMsg("GHOST", "\u{1F6E0} Fix-my-tests: " + verdict);
     openFixReport(log, verdict, backups, touched);
+    notifyDone("Fix-my-tests finished", verdict, fixT0);
   }
   function openFixReport(log, verdict, backups, touched) {
     $("todoTitle").textContent = "\u{1F6E0} Fix-my-tests report";
@@ -38181,6 +38196,73 @@
     $("runTitle").textContent = "State restored";
     $("runOut").textContent = applied + " entries restored. Reloading\u2026";
     setTimeout(() => location.reload(), 700);
+  };
+  var PING_MIN_MS = 2e4;
+  function pingWorthIt(startedAt, now, enabled) {
+    return !!enabled && typeof startedAt === "number" && now - startedAt >= PING_MIN_MS;
+  }
+  try {
+    window.__ghostPing = { pingWorthIt, PING_MIN_MS };
+  } catch (e) {
+  }
+  function notifyEnabled() {
+    try {
+      return localStorage.getItem("ghostide-notify") !== "0";
+    } catch (e) {
+      return true;
+    }
+  }
+  function flashTitle(text) {
+    const old = document.title;
+    document.title = "\u2713 " + text;
+    const clear = () => {
+      document.title = old;
+      window.removeEventListener("focus", clear);
+      document.removeEventListener("visibilitychange", clear);
+    };
+    window.addEventListener("focus", clear);
+    document.addEventListener("visibilitychange", clear);
+  }
+  function notifyDone(title, body, startedAt) {
+    if (!pingWorthIt(startedAt, Date.now(), notifyEnabled()))
+      return;
+    if (document.hidden) flashTitle(title);
+    try {
+      if (window.GhostNative) {
+        window.GhostNative.jobDone(title, body);
+        return;
+      }
+    } catch (e) {
+    }
+    try {
+      if ("Notification" in window && Notification.permission === "granted")
+        new Notification(title, { body });
+    } catch (e) {
+    }
+  }
+  function refreshNotifyBtn() {
+    $("toolNotify").textContent = "Completion ping: " + (notifyEnabled() ? "on" : "off");
+  }
+  $("toolNotify").onclick = () => {
+    const on = !notifyEnabled();
+    try {
+      localStorage.setItem(
+        "ghostide-notify",
+        on ? "1" : "0"
+      );
+    } catch (e) {
+    }
+    if (on && "Notification" in window && Notification.permission === "default")
+      Notification.requestPermission().catch(() => {
+      });
+    refreshNotifyBtn();
+  };
+  refreshNotifyBtn();
+  window.__ghostCaptured = () => {
+    loadFiles();
+    $("runPane").classList.remove("hidden");
+    $("runTitle").textContent = "Captured to project";
+    $("runOut").textContent = "A shared note was added to captures.md in this workspace.";
   };
   var IMG_EXTS = [
     "png",
