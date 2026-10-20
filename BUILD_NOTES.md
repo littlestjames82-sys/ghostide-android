@@ -977,3 +977,28 @@ Language and access pass:
   Save, Send, Find, Tools) within thumb reach.
 Status: BUILT; the roadmap's final TalkBack walkthrough
 is a device pass for Ryan.
+
+## v1.45.0 (versionCode 49) - Oct 19, 2026 - Roadmap G37
+Registry (Tools -> Registry):
+- One pack format, .ghostpack.json, for plugins and
+  templates, signed with the studio Ed25519 key. The
+  publisher is tools/pack.py (pure-Python Ed25519 in
+  tools/ed25519.py, stdlib only); the IDE verifies with
+  a compact BigInt Ed25519 verifier in the frontend.
+  Signature validity was cross-proven three ways
+  (Python signer, JS verifier, Node native) including
+  byte-identical signatures and canonical strings;
+  tampered, unsigned, and path-traversal packs are
+  refused. The private key never leaves the desktop
+  (tools/studio-key.json, mode 600, never committed).
+- The Ghost Developer Studio shelf ships in web/packs:
+  Word Count Pro and JSON Toolbox plugins plus the
+  Python CLI template. Install writes plugins into
+  plugins/<id>/ (the plugin system picks them up
+  immediately) or registers templates alongside the
+  built-ins; uninstall removes them in one tap. A
+  workspace can carry its own shelf via
+  .ghostide/registry.json.
+Proven 10/10 by test-fixtures/registry-harness.mjs plus
+a live static-serving check. The on-phone install from
+the shelf is Ryan's tap-through proof.

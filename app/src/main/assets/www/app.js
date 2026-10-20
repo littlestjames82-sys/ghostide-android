@@ -34642,6 +34642,7 @@
     toolRepl: { en: "Python REPL", es: "REPL de Python" },
     toolZip: { en: "Download workspace (.zip)", es: "Descargar proyecto (.zip)" },
     toolPluginsManage: { en: "Manage plugins\u2026", es: "Gestionar plugins\u2026" },
+    toolRegistry: { en: "Registry", es: "Registro" },
     handRun: { en: "\u25B6 Run", es: "\u25B6 Ejecutar" },
     handSave: { en: "Save", es: "Guardar" },
     handSend: { en: "Send", es: "Enviar" }
@@ -35885,6 +35886,7 @@
     { title: "Export app state", run: () => $("toolStateExport").click() },
     { title: "Import app state", run: () => $("toolStateImport").click() },
     { title: "Toggle completion ping", run: () => $("toolNotify").click() },
+    { title: "Registry", run: () => $("toolRegistry").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -38406,6 +38408,316 @@
     $("runTitle").textContent = "Captured to project";
     $("runOut").textContent = "A shared note was added to captures.md in this workspace.";
   };
+  var STUDIO_PUBKEY = "3100f973903b78380251c359db21ecd9a7543bfe4579a122ad1b0c1b5a2b880e";
+  var EDQ = (1n << 255n) - 19n;
+  var EDL = (1n << 252n) + 27742317777372353535851937790883648493n;
+  function edMod(a) {
+    const r = a % EDQ;
+    return r >= 0n ? r : r + EDQ;
+  }
+  function edPow(b, e) {
+    let r = 1n, x = edMod(b);
+    while (e > 0n) {
+      if (e & 1n) r = r * x % EDQ;
+      x = x * x % EDQ;
+      e >>= 1n;
+    }
+    return r;
+  }
+  function edInv(x) {
+    return edPow(x, EDQ - 2n);
+  }
+  var EDD = edMod(-121665n * edInv(121666n));
+  var EDI = edPow(2n, (EDQ - 1n) / 4n);
+  function edXrecover(y) {
+    const xx = edMod((y * y - 1n) * edInv(edMod(EDD * y * y + 1n)));
+    let x = edPow(xx, (EDQ + 3n) / 8n);
+    if (edMod(x * x - xx) !== 0n) x = edMod(x * EDI);
+    if (x % 2n !== 0n) x = EDQ - x;
+    return x;
+  }
+  var EDB = [
+    edXrecover(edMod(4n * edInv(5n))),
+    edMod(4n * edInv(5n))
+  ];
+  function edAdd(P, Q) {
+    const t2 = edMod(EDD * P[0] * Q[0] * P[1] * Q[1]);
+    return [
+      edMod((P[0] * Q[1] + Q[0] * P[1]) * edInv(edMod(1n + t2))),
+      edMod((P[1] * Q[1] + P[0] * Q[0]) * edInv(edMod(1n - t2)))
+    ];
+  }
+  function edMul(P, e) {
+    let R = [0n, 1n], Q = P;
+    while (e > 0n) {
+      if (e & 1n) R = edAdd(R, Q);
+      Q = edAdd(Q, Q);
+      e >>= 1n;
+    }
+    return R;
+  }
+  function hexToBytes(hex) {
+    const out = new Uint8Array(hex.length / 2);
+    for (let i2 = 0; i2 < out.length; i2++)
+      out[i2] = parseInt(hex.substr(i2 * 2, 2), 16);
+    return out;
+  }
+  function edDecodeInt(bytes) {
+    let n = 0n;
+    for (let i2 = bytes.length - 1; i2 >= 0; i2--)
+      n = n << 8n | BigInt(bytes[i2]);
+    return n;
+  }
+  function edDecodePoint(bytes) {
+    let y = edDecodeInt(bytes);
+    const sign = y >> 255n & 1n;
+    y &= (1n << 255n) - 1n;
+    let x = edXrecover(y);
+    if ((x & 1n) !== sign) x = EDQ - x;
+    return [x, y];
+  }
+  async function edSha(bytes, alg) {
+    const h = await crypto.subtle.digest(alg, bytes);
+    return new Uint8Array(h);
+  }
+  async function edVerify(pubHex, sigHex, msgBytes) {
+    try {
+      const pub = hexToBytes(pubHex), sig = hexToBytes(sigHex);
+      if (pub.length !== 32 || sig.length !== 64) return false;
+      const R = edDecodePoint(sig.slice(0, 32));
+      const A = edDecodePoint(pub);
+      const S2 = edDecodeInt(sig.slice(32));
+      if (S2 >= EDL) return false;
+      const joined = new Uint8Array(64 + msgBytes.length);
+      joined.set(sig.slice(0, 32), 0);
+      joined.set(pub, 32);
+      joined.set(msgBytes, 64);
+      const h = edDecodeInt(await edSha(joined, "SHA-512"));
+      const left = edMul(EDB, S2);
+      const right = edAdd(R, edMul(A, h));
+      return left[0] === right[0] && left[1] === right[1];
+    } catch (e) {
+      return false;
+    }
+  }
+  async function sha256hex(text) {
+    const h = await edSha(
+      new TextEncoder().encode(text),
+      "SHA-256"
+    );
+    return [...h].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function packCanonical(pack) {
+    const lines = [
+      "ghostpack-v1",
+      pack.type,
+      pack.id,
+      pack.version
+    ];
+    const entries = [];
+    for (const rel of Object.keys(pack.files || {}).sort())
+      entries.push(rel + "\n" + await sha256hex(pack.files[rel]));
+    return lines.join("\n") + "\n" + entries.join("\n");
+  }
+  function packValidate(pack) {
+    if (!pack || typeof pack !== "object")
+      return "not a pack (no JSON object)";
+    if (pack.app !== "ghostide" || pack.kind !== "ghostpack")
+      return "not a GhostIDE pack";
+    if (!["plugin", "template"].includes(pack.type))
+      return "unknown pack type: " + pack.type;
+    if (!pack.id || !/^[a-z0-9][a-z0-9-]*$/.test(pack.id))
+      return "pack id is missing or unsafe";
+    if (!pack.files || typeof pack.files !== "object" || !Object.keys(pack.files).length)
+      return "pack has no files";
+    for (const rel of Object.keys(pack.files)) {
+      if (rel.startsWith("/") || rel.includes(".."))
+        return "unsafe path in pack: " + rel;
+      if (typeof pack.files[rel] !== "string")
+        return "pack file is not text: " + rel;
+    }
+    if (!pack.signature || !/^[0-9a-f]{128}$/.test(pack.signature))
+      return "pack is unsigned";
+    return null;
+  }
+  async function packVerify(pack) {
+    const bad = packValidate(pack);
+    if (bad) return bad;
+    const canon = await packCanonical(pack);
+    const ok = await edVerify(
+      STUDIO_PUBKEY,
+      pack.signature,
+      new TextEncoder().encode(canon)
+    );
+    return ok ? null : "SIGNATURE INVALID - refused";
+  }
+  try {
+    window.__ghostEd = {
+      edVerify,
+      packCanonical,
+      packValidate,
+      packVerify,
+      STUDIO_PUBKEY
+    };
+  } catch (e) {
+  }
+  function packsInstalled() {
+    try {
+      return JSON.parse(
+        localStorage.getItem("ghostide-packs") || "{}"
+      );
+    } catch (e) {
+      return {};
+    }
+  }
+  function packsSetInstalled(map) {
+    localStorage.setItem(
+      "ghostide-packs",
+      JSON.stringify(map)
+    );
+  }
+  function userTemplates() {
+    try {
+      return JSON.parse(localStorage.getItem(
+        "ghostide-user-templates"
+      ) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+  async function installPack(pack) {
+    const bad = await packVerify(pack);
+    if (bad) return bad;
+    const written = [];
+    if (pack.type === "plugin") {
+      for (const rel of Object.keys(pack.files).sort()) {
+        const path = "plugins/" + pack.id + "/" + rel;
+        const r = await postJson(
+          "/api/file",
+          { path, content: pack.files[rel] }
+        );
+        if (r.error) return "write failed at " + path + ": " + r.error;
+        written.push(path);
+      }
+      await discoverPlugins();
+    } else {
+      const tpl = pack.template || {};
+      const entry = {
+        id: pack.id,
+        label: tpl.label || pack.name,
+        blurb: tpl.blurb || pack.description || "",
+        main: tpl.main || "",
+        starter: tpl.starter || "",
+        files: Object.keys(pack.files).sort().map((rel) => [rel, pack.files[rel]])
+      };
+      const list = userTemplates().filter((t2) => t2.id !== pack.id);
+      list.push(entry);
+      localStorage.setItem(
+        "ghostide-user-templates",
+        JSON.stringify(list)
+      );
+    }
+    const map = packsInstalled();
+    map[pack.id] = {
+      type: pack.type,
+      version: pack.version,
+      name: pack.name,
+      files: written
+    };
+    packsSetInstalled(map);
+    return null;
+  }
+  async function uninstallPack(id2) {
+    const map = packsInstalled();
+    const rec = map[id2];
+    if (!rec) return "not installed";
+    if (rec.type === "plugin") {
+      const d = await postJson(
+        "/api/file/delete",
+        { path: "plugins/" + id2 }
+      );
+      if (d.error) return d.error;
+      await discoverPlugins();
+    } else {
+      localStorage.setItem(
+        "ghostide-user-templates",
+        JSON.stringify(userTemplates().filter((t2) => t2.id !== id2))
+      );
+    }
+    delete map[id2];
+    packsSetInstalled(map);
+    return null;
+  }
+  async function openRegistry() {
+    hideTools();
+    $("todoTitle").textContent = "\u{1F4DA} Registry - Ghost Developer Studio shelf";
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Loading the shelf\u2026</div>';
+    $("todoPanel").classList.remove("hidden");
+    let reg = null;
+    try {
+      const own = await getJson("/api/file?path=" + encodeURIComponent(".ghostide/registry.json"));
+      if (!own.error) reg = JSON.parse(own.content);
+    } catch (e) {
+    }
+    if (!reg) {
+      try {
+        const r = await fetch("packs/registry.json");
+        reg = await r.json();
+      } catch (e) {
+      }
+    }
+    if (!reg || !Array.isArray(reg.packs)) {
+      box.innerHTML = '<div class="findRow">No registry found. The bundled shelf ships with the app; a workspace can override it with .ghostide/registry.json.</div>';
+      return;
+    }
+    box.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = (reg.shelf || "Registry") + " - every pack is signature-checked against the studio key before anything is written.";
+    box.appendChild(head);
+    const installed = packsInstalled();
+    for (const entry of reg.packs) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      const have = installed[entry.id];
+      const label = document.createElement("span");
+      label.textContent = (entry.type === "plugin" ? "\u{1F9E9} " : "\u{1F4C1} ") + entry.name + " v" + entry.version + " - " + entry.description + (have ? " (installed)" : "");
+      row.appendChild(label);
+      const btn = document.createElement("button");
+      btn.textContent = have ? "Uninstall" : "Install";
+      btn.onclick = async (ev) => {
+        ev.stopPropagation();
+        if (have) {
+          const err2 = await uninstallPack(entry.id);
+          if (err2) {
+            alert(err2);
+            return;
+          }
+          openRegistry();
+          return;
+        }
+        btn.textContent = "Verifying\u2026";
+        let pack;
+        try {
+          const r = await fetch("packs/" + entry.pack);
+          pack = await r.json();
+        } catch (e) {
+          alert("Could not load " + entry.pack);
+          openRegistry();
+          return;
+        }
+        const err = await installPack(pack);
+        if (err) {
+          alert("Install refused: " + err);
+        }
+        openRegistry();
+      };
+      row.appendChild(btn);
+      box.appendChild(row);
+    }
+  }
+  $("toolRegistry").onclick = openRegistry;
   var IMG_EXTS = [
     "png",
     "jpg",
@@ -39945,6 +40257,13 @@ A fresh project. Ask Ghost where to start, or just start.
       const row = document.createElement("div");
       row.className = "findRow";
       row.textContent = "\u{1F4C1} " + t2.label + " - " + t2.blurb;
+      row.onclick = () => createFromTemplate(t2);
+      box.appendChild(row);
+    }
+    for (const t2 of userTemplates()) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = "\u{1F4DA} " + t2.label + " - " + t2.blurb + " (from the registry)";
       row.onclick = () => createFromTemplate(t2);
       box.appendChild(row);
     }
