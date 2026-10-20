@@ -1216,3 +1216,35 @@ is Ryan's device pass.
 Proven: bundle gate 22/22 green, eco-harness
 13/13, ID check, DOM-stub, undefined-call scan.
 On-device extraction + panel proof is Ryan's.
+
+## v1.53.0 (versionCode 58) - Oct 20, 2026 - GhostIndex search (Roadmap ECO E3)
+
+- The find panel gains an "Indexed" mode: POST
+  /api/eco/search (desktop server.py + phone
+  IdeServer) (re)builds the workspace FTS5 index
+  with the GhostIndex tool ITSELF (index <root>
+  --db <workspace>/.ghostide/ghostindex.db), then
+  runs the tool's own search --json --limit 10
+  --max-tokens 2000 --context 3 and returns its
+  JSON untouched, so the panel's excerpts are the
+  CLI's excerpts. Exit 1 = no matches (200, empty
+  hits), exit 2 = could not run (plain 400).
+- Panel renders ranked hits with the tool's
+  sliced excerpt windows (line-numbered) and the
+  excerpt token estimates; clicking a hit or an
+  excerpt opens the file at the hit line. Plain
+  Find and Meaning search unchanged.
+- Proven (all foreground): E3 parity harness
+  11/11 - IDE hits deep-equal `ghostindex search
+  --json` against the same db (files, windows,
+  match lines, token estimates), index build +
+  search over the fixture in 0.67s, no-match and
+  empty-query and limit cases. E1 eco-harness
+  still 13/13. DOM-stub gate: bundle constructs
+  the EditorView, ends on the known defaultView
+  stub artifact. Undefined-call scan: the new
+  handler calls only postJson/openFile/jumpToLine,
+  all defined; zero closeOverlays in the bundle.
+- APK 20,177,512 bytes, md5 ab54e51accc004b33b4f92c5ff493640,
+  same signer (8ea8684a...). On-device proof is
+  Ryan's device pass.

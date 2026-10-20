@@ -316,6 +316,12 @@ body.zen #files, body.zen #chat { display: none; }
   text-overflow: ellipsis;
 }
 .findRow:hover { background: #2c2e36; }
+.findExcerpt {
+  margin: 0 0 6px 12px; overflow-x: auto; font-size: 11.5px;
+  white-space: pre; background: #101116; border-radius: 6px;
+  padding: 6px 8px; cursor: pointer; color: #c9cdd6;
+}
+.findExcerpt:hover { background: #17181f; }
 #diffPanel pre {
   margin: 0; overflow: auto; max-height: 55vh; font-size: 11.5px;
   white-space: pre; background: #101116; border-radius: 6px; padding: 8px;

@@ -627,14 +627,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"1.52.0\""
+                + ",\"version\":\"1.53.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"1.52.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"1.53.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -2687,6 +2687,93 @@ public final class IdeServer {
                 ecoFinal = ecoFinal.substring(0, 60000);
             sendJson(out, "{\"ok\":true,\"output\":"
                 + Json.quote(ecoFinal) + "}");
+            return;
+        }
+        if (path.equals("/api/eco/search") && method.equals("POST")) {
+            // Roadmap ECO E3: GhostIndex search in the find
+            // panel. (Re)builds the workspace FTS5 index with
+            // the bundled tool itself, then runs the tool's own
+            // search and returns its JSON untouched, so the
+            // panel's excerpts are the CLI's excerpts. Exit 1
+            // from the search is a normal "no matches" (its
+            // JSON still parses); exit 2 is "could not run".
+            Map<String, Object> sReq = Json.obj(Json.parse(
+                new String(body, "UTF-8")));
+            String sQuery = Json.str(sReq, "query", "").trim();
+            if (sQuery.isEmpty()) {
+                sendJson(out, 400, "{\"error\":\"type something "
+                    + "to search for\"}");
+                return;
+            }
+            int sLimit = Json.num(sReq, "limit", 10);
+            if (sLimit < 1) sLimit = 1;
+            if (sLimit > 50) sLimit = 50;
+            int sTokens = Json.num(sReq, "max_tokens", 2000);
+            if (sTokens < 200) sTokens = 200;
+            if (sTokens > 20000) sTokens = 20000;
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            File sDbDir = new File(workspace, ".ghostide");
+            sDbDir.mkdirs();
+            File sDb = new File(sDbDir, "ghostindex.db");
+            Map<String, String> sEnv = pythonEnv();
+            sEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            sEnv.put("GHOSTINDEX_DB", sDb.getAbsolutePath());
+            ProcResult sIdx = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostindex", "index",
+                workspace.getAbsolutePath(), "--db",
+                sDb.getAbsolutePath()), workspace, 120, sEnv);
+            if (sIdx.code == 2 || sIdx.code < 0) {
+                String sText = (sIdx.stdout == null ? ""
+                    : sIdx.stdout) + (sIdx.stderr == null ? ""
+                    : sIdx.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + sText.trim().substring(0, Math.min(
+                            300, sText.trim().length())))
+                    + "}");
+                return;
+            }
+            ProcResult sR = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostindex", "search", sQuery,
+                "--db", sDb.getAbsolutePath(), "--root",
+                workspace.getAbsolutePath(), "--json", "--limit",
+                String.valueOf(sLimit), "--max-tokens",
+                String.valueOf(sTokens), "--context", "3"),
+                workspace, 120, sEnv);
+            if (sR.code == 2 || sR.code < 0) {
+                String sText = (sR.stdout == null ? ""
+                    : sR.stdout) + (sR.stderr == null ? ""
+                    : sR.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + sText.trim().substring(0, Math.min(
+                            300, sText.trim().length())))
+                    + "}");
+                return;
+            }
+            String sJson = sR.stdout == null ? ""
+                : sR.stdout.trim();
+            boolean sValid = sJson.startsWith("{");
+            if (sValid) {
+                try {
+                    Json.obj(Json.parse(sJson));
+                } catch (Exception sBad) {
+                    sValid = false;
+                }
+            }
+            if (!sValid) {
+                sendJson(out, 400, "{\"error\":\"the tool's "
+                    + "search output could not be read\"}");
+                return;
+            }
+            sendJson(out, "{\"ok\":true,"
+                + sJson.substring(1));
             return;
         }
         sendJson(out, 400, "{\"error\":\"unknown eco path\"}");

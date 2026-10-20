@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.53.0",
+   "date": "Oct 20, 2026",
+   "goal": "GhostIndex search (Roadmap ECO E3)",
+   "summary": "The find panel gains an Indexed mode: the real GhostIndex FTS5 index over the whole workspace, built and searched by the tool itself, returning its own token-budgeted sliced excerpts that open at the hit."
+  },
+  {
    "version": "1.52.0",
    "date": "Oct 20, 2026",
    "goal": "The phone-safe bundle (Roadmap ECO E2)",

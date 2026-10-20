@@ -240,12 +240,11 @@ public class DownloadService extends Service {
     private static String sha256(File f) throws Exception {
         java.security.MessageDigest md =
             java.security.MessageDigest.getInstance("SHA-256");
-        try (java.io.FileInputStream in =
-                new java.io.FileInputStream(f)) {
-            byte[] buf = new byte[1 << 16];
-            int n;
-            while ((n = in.read(buf)) >= 0) md.update(buf, 0, n);
-        }
+        java.io.FileInputStream in = new java.io.FileInputStream(f);
+        byte[] buf = new byte[1 << 16];
+        int n;
+        while ((n = in.read(buf)) >= 0) md.update(buf, 0, n);
+        in.close();
         StringBuilder sb = new StringBuilder();
         for (byte b : md.digest())
             sb.append(String.format("%02x", b));
