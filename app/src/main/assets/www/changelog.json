@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.51.0",
+   "date": "Oct 20, 2026",
+   "goal": "Ecosystem runner (Roadmap ECO E1)",
+   "summary": "Ecosystem tools panel (Tools): the full Ghost"
+  },
+  {
    "version": "1.50.0",
    "date": "Oct 20, 2026",
    "goal": "The unified design",

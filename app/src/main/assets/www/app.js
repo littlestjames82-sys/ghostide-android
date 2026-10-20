@@ -34724,6 +34724,59 @@
       settings.fontSize
     );
   };
+  async function openEco() {
+    closeOverlays();
+    $("todoTitle").textContent = "Ecosystem tools";
+    $("todoResults").textContent = "Loading the catalog\u2026";
+    $("todoPanel").classList.remove("hidden");
+    let r;
+    try {
+      r = await (await fetch("/api/eco/tools")).json();
+    } catch (e) {
+      $("todoResults").textContent = "Could not load the catalog.";
+      return;
+    }
+    const tools = r.tools || [];
+    $("todoResults").textContent = "";
+    const ecoHead = document.createElement("div");
+    ecoHead.className = "dim";
+    ecoHead.textContent = tools.length + " tools in the catalog. Ready tools run here against this workspace; the rest land with their roadmap goals.";
+    $("todoResults").appendChild(ecoHead);
+    for (const t2 of tools) {
+      const row = document.createElement("div");
+      row.className = "todorow";
+      const label = document.createElement("span");
+      label.textContent = t2.name + " \u2014 " + t2.blurb;
+      row.appendChild(label);
+      const chip = document.createElement("span");
+      chip.className = "symkind";
+      chip.textContent = t2.state === "ready" ? "ready" : t2.state === "bundled" ? "on-device" : t2.state === "native" ? "built in" : t2.state === "absent" ? "not found" : t2.goal;
+      row.appendChild(chip);
+      if (t2.state === "ready" || t2.state === "bundled") {
+        const b = document.createElement("button");
+        b.className = "ghostbtn";
+        b.textContent = "Run";
+        b.onclick = async () => {
+          b.disabled = true;
+          b.textContent = "Running\u2026";
+          try {
+            const rr = await (await fetch("/api/eco/run", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tool: t2.id })
+            })).json();
+            $("todoResults").textContent = rr.error || t2.name + " report:\n\n" + (rr.output || "(no output)");
+          } catch (e) {
+            $("todoResults").textContent = "The run failed to reach the server.";
+          }
+          b.disabled = false;
+          b.textContent = "Run";
+        };
+        row.appendChild(b);
+      }
+      $("todoResults").appendChild(row);
+    }
+  }
   var I18N = {
     brandTag: { en: "offline AI editor", es: "editor de IA sin conexi\xF3n" },
     saveBtn: { en: "Save", es: "Guardar" },
@@ -39228,6 +39281,10 @@
     }
     return act;
   }
+  $("toolEco").onclick = () => {
+    hideTools();
+    openEco();
+  };
   $("toolChangelog").onclick = async () => {
     hideTools();
     $("todoTitle").textContent = "\u{1F4CB} What's new";

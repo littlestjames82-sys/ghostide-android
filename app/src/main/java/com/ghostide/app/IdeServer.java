@@ -18,6 +18,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -626,14 +627,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"1.28.0\""
+                + ",\"version\":\"1.51.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"1.28.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"1.51.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1521,6 +1522,20 @@ public final class IdeServer {
             // the desktop in LAN mode.
             try {
                 handleClassroom(path, method, query, body, out);
+            } catch (Exception e) {
+                sendJson(out, "{\"error\":" + Json.quote(
+                    String.valueOf(e.getMessage())) + "}");
+            }
+            return;
+        }
+        if (path.startsWith("/api/eco/")) {
+            // Roadmap ECO E1: the ecosystem runner. The E1
+            // proof pair (GhostIndex, GhostDeps) ships in the
+            // APK (assets/eco.zip) and runs under the bundled
+            // interpreter; the rest of the catalog is listed
+            // with its roadmap goal, same as the desktop.
+            try {
+                handleEco(path, method, body, out);
             } catch (Exception e) {
                 sendJson(out, "{\"error\":" + Json.quote(
                     String.valueOf(e.getMessage())) + "}");
@@ -2462,6 +2477,180 @@ public final class IdeServer {
             + "\",\"label\":" + Json.quote(vfLabel) + "}"
             + ",\"reportPath\":\"VERIFY_REPORT.md\""
             + ",\"report\":" + Json.quote(vfReport) + "}";
+    }
+
+    // ---- Roadmap ECO E1: ecosystem tool runner ----
+    // Mirrors server.py's catalog. The two runnable tools
+    // ship in assets/eco.zip (vendored from their own repos)
+    // and run under the bundled interpreter.
+    private static final String[][] ECO_CATALOG = {
+        {"ghostslice", "GhostSlice", "E-adjacent (native)", "Context slicing - already native in GhostIDE"},
+        {"ghostindex", "GhostIndex", "E1", "Offline FTS5 index of this workspace"},
+        {"ghostdeps", "GhostDeps", "E1", "Declared vs imported dependencies, evidence only"},
+        {"ghostrecall", "GhostRecall", "E5", "Recall of prior slices and sessions"},
+        {"ghostatlas", "GhostAtlas", "E5", "Project map"},
+        {"ghostprimer", "GhostPrimer", "E4", "First-session starter bundle"},
+        {"ghosthandoff", "GhostHandoff", "E4", "Session handoff pack, propose-only"},
+        {"ghostconvert", "GhostConvert", "E6", "Slice bundles to other formats"},
+        {"ghostverify", "GhostVerify", "E7", "Evidence contract for executed work"},
+        {"ghostbench", "GhostBench", "E7", "Opt-in live benchmark runs"},
+        {"ghostreview", "GhostReview", "E8", "Plain-English verdict over a diff"},
+        {"ghostscope", "GhostScope", "E9", "What a change touches"},
+        {"ghostexposure", "GhostExposure", "E9", "Exposure evidence, no verdicts"},
+        {"ghostapprove", "GhostApprove", "E10", "Approval queue, never executes"},
+        {"ghostenv", "GhostEnv", "E11", ".env audit - names only, never values"},
+        {"ghostlogs", "GhostLogs", "E13", "Log slicer: error windows, deduped"},
+        {"ghostdata", "GhostData", "E14", "Structured data slicer, redacted"},
+        {"ghostschema", "GhostSchema", "E14", "OpenAPI / JSON Schema slicer"},
+        {"ghostworktree", "GhostWorktree", "E15", "Git worktree manager"},
+        {"ghostwatch", "GhostWatch", "E16", "Freshness watcher"},
+        {"ghostreplay", "GhostReplay", "E16", "Session replay"},
+        {"ghostconsole", "GhostConsole", "E17", "Read-only ecosystem board"},
+        {"ghostledger", "GhostLedger", "E17", "Session token ledger"},
+        {"ghostmcpdoctor", "GhostMCP Doctor", "E17", "Read-only MCP diagnostics"},
+        {"ghostrecipes", "GhostRecipes", "E18", "Data-only project recipes"},
+        {"ghostleads", "GhostLeads", "E19", "Offline lead drafts, drafts only"},
+        {"quoteshot", "QuoteShot", "E19", "Offline quotes from a price book"},
+        {"ghostlift", "GhostLift", "listed", "Context lift"},
+        {"ghostshard", "GhostShard", "listed", "Planner only - dispatch: false"},
+        {"ghostpacks", "GhostPacks", "listed", "Pack builder"},
+        {"ghostfixture", "GhostFixture", "listed", "Minimal repro projects"},
+        {"ghostdocs", "GhostDocs", "listed", "Docs slicer (native docs mode)"},
+        {"ghostport", "GhostPort", "listed", "Migration CLI - stays a CLI"},
+        {"ghostproxy", "GhostProxy", "listed", "Live-traffic proxy - out of scope for an offline IDE"},
+    };
+
+    private File ecoDir() {
+        return new File(ctx.getFilesDir(), "eco");
+    }
+
+    private synchronized boolean ensureEco() {
+        File dir = ecoDir();
+        File stamp = new File(dir, ".ready-e1");
+        if (stamp.isFile()) return true;
+        java.util.zip.ZipInputStream zin = null;
+        try {
+            if (dir.exists()) deleteRecursive(dir);
+            dir.mkdirs();
+            zin = new java.util.zip.ZipInputStream(
+                ctx.getAssets().open("eco.zip"));
+            java.util.zip.ZipEntry e;
+            byte[] buf = new byte[65536];
+            while ((e = zin.getNextEntry()) != null) {
+                File f = new File(dir, e.getName());
+                if (!f.getCanonicalPath().startsWith(
+                        dir.getCanonicalPath())) continue;
+                if (e.isDirectory()) { f.mkdirs(); continue; }
+                if (f.getParentFile() != null)
+                    f.getParentFile().mkdirs();
+                FileOutputStream fo = new FileOutputStream(f);
+                int n;
+                while ((n = zin.read(buf)) > 0) fo.write(buf, 0, n);
+                fo.close();
+            }
+            zin.close();
+            zin = null;
+            FileOutputStream so = new FileOutputStream(stamp);
+            so.write(1);
+            so.close();
+            return true;
+        } catch (Exception ex) {
+            if (zin != null) try { zin.close(); } catch (Exception z) {}
+            return false;
+        }
+    }
+
+    private void handleEco(String path, String method, byte[] body,
+            java.io.OutputStream out) throws Exception {
+        if (path.equals("/api/eco/tools")) {
+            StringBuilder sb = new StringBuilder("{\"tools\":[");
+            for (int i = 0; i < ECO_CATALOG.length; i++) {
+                String[] t = ECO_CATALOG[i];
+                String state;
+                if (t[0].equals("ghostindex") || t[0].equals("ghostdeps"))
+                    state = "bundled";
+                else if (t[0].equals("ghostslice")) state = "native";
+                else state = "listed";
+                if (i > 0) sb.append(',');
+                sb.append("{\"id\":").append(Json.quote(t[0]))
+                  .append(",\"name\":").append(Json.quote(t[1]))
+                  .append(",\"goal\":").append(Json.quote(t[2]))
+                  .append(",\"blurb\":").append(Json.quote(t[3]))
+                  .append(",\"state\":").append(Json.quote(state))
+                  .append('}');
+            }
+            sb.append("]}");
+            sendJson(out, sb.toString());
+            return;
+        }
+        if (path.equals("/api/eco/run") && method.equals("POST")) {
+            Map<String, Object> ecoReq = Json.obj(Json.parse(
+                new String(body, "UTF-8")));
+            String ecoTool = Json.str(ecoReq, "tool", "");
+            if (!ecoTool.equals("ghostindex")
+                    && !ecoTool.equals("ghostdeps")) {
+                boolean ecoKnown = false;
+                for (String[] t : ECO_CATALOG)
+                    if (t[0].equals(ecoTool)) ecoKnown = true;
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(ecoKnown
+                        ? "that tool has no in-IDE runner yet - "
+                          + "it lands with its roadmap goal"
+                        : "unknown tool") + "}");
+                return;
+            }
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            Map<String, String> ecoEnv = pythonEnv();
+            ecoEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            List<List<String>> ecoCmds = new ArrayList<>();
+            if (ecoTool.equals("ghostindex")) {
+                File ecoDbDir = new File(workspace, ".ghostide");
+                ecoDbDir.mkdirs();
+                ecoEnv.put("GHOSTINDEX_DB",
+                    new File(ecoDbDir, "ghostindex.db")
+                        .getAbsolutePath());
+                ecoCmds.add(Arrays.asList(pythonBin(), "-m",
+                    "ghostindex", "index",
+                    workspace.getAbsolutePath()));
+                ecoCmds.add(Arrays.asList(pythonBin(), "-m",
+                    "ghostindex", "stats"));
+            } else {
+                ecoCmds.add(Arrays.asList(pythonBin(), "-m",
+                    "ghostdeps", "pack",
+                    workspace.getAbsolutePath()));
+            }
+            StringBuilder ecoOut = new StringBuilder();
+            for (List<String> ecoCmd : ecoCmds) {
+                ProcResult ecoR = runProcess(ecoCmd, workspace,
+                    120, ecoEnv);
+                String ecoText = (ecoR.stdout == null ? ""
+                    : ecoR.stdout) + (ecoR.stderr == null ? ""
+                    : ecoR.stderr);
+                if (ecoR.code == 2 || ecoR.code < 0) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote("the tool could not run: "
+                            + ecoText.trim().substring(0, Math.min(
+                                300, ecoText.trim().length())))
+                        + "}");
+                    return;
+                }
+                if (ecoOut.length() > 0) ecoOut.append('\n');
+                ecoOut.append(ecoText.strip());
+            }
+            String ecoFinal = ecoOut.toString();
+            if (ecoFinal.length() > 60000)
+                ecoFinal = ecoFinal.substring(0, 60000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(ecoFinal) + "}");
+            return;
+        }
+        sendJson(out, 400, "{\"error\":\"unknown eco path\"}");
     }
 
     // ---- Roadmap G38: classroom view ----

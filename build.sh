@@ -50,6 +50,26 @@ echo '[0.8/8] staging offline reference docs (Roadmap G28)'
 cp ~/workspace/ghost-ide/refdocs.json "$SRC/assets/refdocs.json"
 ls -lh "$SRC/assets/refdocs.json"
 
+echo '[0.9/8] staging ecosystem tools (Roadmap ECO E1)'
+# The E1 proof pair, vendored from their own repos (pure stdlib
+# Python). eco.zip holds the two package trees; IdeServer
+# extracts it on first use and runs the tools with the bundled
+# interpreter. E2 generalizes this bundle.
+python3 - <<'PYEOF'
+import zipfile
+from pathlib import Path
+out = Path.home() / "workspace/ghostide-apk-build/app/src/main/assets/eco.zip"
+count = 0
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+    for tool in ("ghostindex", "ghostdeps"):
+        src = Path.home() / "workspace" / tool / "src" / tool
+        for f in sorted(src.rglob("*.py")):
+            z.write(f, str(Path(tool) / f.relative_to(src)))
+            count += 1
+print(f"eco.zip: {count} python files")
+PYEOF
+ls -lh "$SRC/assets/eco.zip"
+
 echo '[1/8] compiling resources'
 "$BT/aapt2" compile --dir "$SRC/res" -o "$OUT/compiled_res.zip"
 

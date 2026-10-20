@@ -1130,3 +1130,28 @@ Proven: sheet stop machine 10/10 (sheet-harness),
 chip 9/9, i18n 7/7, bundle + 340 IDs + DOM-stub
 execution gate. The rendered layout proof is Ryan's
 device pass, as always.
+
+## v1.51.0 (versionCode 55) - Oct 20, 2026 - Ecosystem runner (Roadmap ECO E1)
+
+- Ecosystem tools panel (Tools): the full Ghost
+  catalog (34 tools) with each tool's state - ready,
+  on-device, built in, not found, or the roadmap
+  goal that wires it.
+- The runner: /api/eco/run executes the tool itself
+  (never a reimplementation) against the current
+  workspace and renders its own report in the panel.
+  Wired first: GhostIndex (indexes the workspace,
+  db in .ghostide/) and GhostDeps (writes its
+  deps-pack into the project, findings are a normal
+  result, exit 2 is the only failure).
+- Desktop finds tool sources via GHOSTIDE_ECO_HOME,
+  ~/ghost-ecosystem, or ~/workspace. The phone
+  bundles the pair: eco.zip (their own .py trees)
+  rides in the APK and runs under the bundled
+  interpreter (the E2 bundle's first installment).
+Proven: eco-harness 13/13 on the desktop incl. the
+parity check - the in-IDE stats block equals the
+GhostIndex CLI's own stats output on the same db,
+and GhostDeps' summary + pack match its CLI run.
+Bundle + 355 IDs + DOM-stub gate. Phone run proof
+is Ryan's device pass.
