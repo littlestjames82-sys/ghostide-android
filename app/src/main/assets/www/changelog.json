@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.51.1",
+   "date": "Oct 20, 2026",
+   "goal": "Hotfix: ecosystem panel opener",
+   "summary": "v1.51.0 bug, caught by Ryan on-device within"
+  },
+  {
    "version": "1.51.0",
    "date": "Oct 20, 2026",
    "goal": "Ecosystem runner (Roadmap ECO E1)",

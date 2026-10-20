@@ -1155,3 +1155,19 @@ GhostIndex CLI's own stats output on the same db,
 and GhostDeps' summary + pack match its CLI run.
 Bundle + 355 IDs + DOM-stub gate. Phone run proof
 is Ryan's device pass.
+
+## v1.51.1 (versionCode 56) - Oct 20, 2026 - Hotfix: ecosystem panel opener
+
+- v1.51.0 bug, caught by Ryan on-device within
+  minutes: opening Ecosystem tools threw
+  "ReferenceError: closeOverlays is not defined" -
+  openEco() called a helper that does not exist
+  (the real one is hideTools(), which the button
+  handler already calls). The app booted and ran
+  fine; only the panel died. One-word fix.
+- Why the gates missed it: the DOM-stub gate proves
+  the bundle constructs the editor but never opens
+  panels, and the ID check validates element ids,
+  not function names. A bundle-wide undefined-call
+  scan now joins the routine (noisy with library
+  imports, but it names authored-code misses).

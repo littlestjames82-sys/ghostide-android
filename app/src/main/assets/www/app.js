@@ -34725,7 +34725,7 @@
     );
   };
   async function openEco() {
-    closeOverlays();
+    hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
     $("todoResults").textContent = "Loading the catalog\u2026";
     $("todoPanel").classList.remove("hidden");
