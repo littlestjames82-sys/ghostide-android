@@ -33557,6 +33557,17 @@
     }
     refreshModelDl();
   };
+  function shortModelLabel(modelName) {
+    const name2 = String(modelName || "");
+    const m = name2.match(/(\d+(?:\.\d+)?)\s*B\b/i);
+    if (m) return m[1] + "B \xB7 on-device";
+    if (!name2) return "model";
+    return name2.length > 20 ? name2.slice(0, 19) + "\u2026" : name2;
+  }
+  try {
+    window.__ghostChip = { shortModelLabel };
+  } catch (e) {
+  }
   async function pollHealth() {
     try {
       const r = await fetch("/api/health");
@@ -33566,22 +33577,50 @@
         $("setVersion").textContent = "v" + d.version;
       $("modelInfo").textContent = "Model: " + d.modelName + " \xB7 status: " + d.model;
       const pill = $("modelPill");
-      pill.textContent = "model: " + (modelUp ? "up \xB7 " + d.modelName : "down");
+      pill.textContent = modelUp ? shortModelLabel(d.modelName) : "model: down";
+      pill.title = d.modelName || "";
       pill.className = "pill " + (modelUp ? "up" : "down");
       $("startModelBtn").classList.toggle("hidden", modelUp);
     } catch (e) {
     }
   }
   $("startModelBtn").onclick = async () => {
-    $("modelPill").textContent = "model: starting\u2026 (about a minute)";
+    $("modelPill").textContent = "model: starting\u2026";
     $("modelPill").className = "pill loading";
     $("startModelBtn").classList.add("hidden");
     await fetch("/api/model/start", { method: "POST" });
   };
   setInterval(pollHealth, 4e3);
   pollHealth();
+  function syncChatToggle() {
+    const min = document.body.classList.contains("chat-min");
+    $("chatToggle").textContent = min ? "\u25B8" : "\u25BE";
+    $("chatToggle").setAttribute(
+      "aria-label",
+      min ? "Expand chat" : "Collapse chat"
+    );
+  }
+  $("chatToggle").onclick = () => {
+    const min = document.body.classList.toggle("chat-min");
+    try {
+      localStorage.setItem(
+        "ghostide-chat-min",
+        min ? "1" : "0"
+      );
+    } catch (e) {
+    }
+    syncChatToggle();
+  };
+  try {
+    const chatPref = localStorage.getItem("ghostide-chat-min");
+    if (chatPref === "1" || chatPref === null && window.innerWidth <= 900)
+      document.body.classList.add("chat-min");
+  } catch (e) {
+  }
+  syncChatToggle();
+  $("chatOptsBtn").onclick = () => $("chatOpts").classList.toggle("hidden");
   var history2 = [];
-  var GREETING = "Hey - I'm your offline coding partner, running on the local Qwen2.5-Coder. Open a file, ask me anything about it, and pause while typing to get inline suggestions (tap the suggestion or press Tab to accept). Nothing leaves this device.";
+  var GREETING = "Hey - I'm Ghost, your offline coding partner. Open a file and ask about it, or pause while typing for inline suggestions. Nothing leaves this device.";
   var historyScope = null;
   function historyKey() {
     return "ghostide-history:" + historyScope;
@@ -34663,6 +34702,7 @@
     toolClassroom: { en: "Classroom view", es: "Vista de aula" },
     toolTour: { en: "Take the tour", es: "Hacer el recorrido" },
     toolChangelog: { en: "What's new", es: "Novedades" },
+    chatOptsBtn: { en: "\u2699 Chat options", es: "\u2699 Opciones del chat" },
     handRun: { en: "\u25B6 Run", es: "\u25B6 Ejecutar" },
     handSave: { en: "Save", es: "Guardar" },
     handSend: { en: "Send", es: "Enviar" }

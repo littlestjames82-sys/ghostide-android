@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.49.0",
+   "date": "Oct 20, 2026",
+   "goal": "Mobile polish pass",
+   "summary": "Post-roadmap polish, from a design critique Ryan brought"
+  },
+  {
    "version": "1.48.0",
    "date": "Oct 19, 2026",
    "goal": "Roadmap G40",

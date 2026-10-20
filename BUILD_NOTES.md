@@ -1071,3 +1071,33 @@ human test.
   appears; dismissal is remembered per version; it
   never downloads or installs anything itself.
 This closes ROADMAP_20 (G1-G40).
+
+## v1.49.0 (versionCode 53) - Oct 20, 2026 - Mobile polish pass
+Post-roadmap polish, from a design critique Ryan brought
+in (part of it reviewed generated mockups rather than
+the real app; the items below are the ones that applied
+to the shipping UI, each verified against the real code):
+- Model chip: short label ("1.5B · on-device") instead
+  of the full model name; full name stays in Settings
+  and on the chip's tooltip; CSS clamps the chip with
+  an ellipsis so it can never crowd the header.
+  shortModelLabel proven 9/9 (chip-harness).
+- Chat on phone widths collapses to a slim bar: new
+  toggle in the chat header, starts collapsed at
+  <=900px on first run, remembers the choice
+  (ghostide-chat-min); the editor grows to 60vh.
+- Phone toolbar trimmed: Split, focus mode, and
+  project Find leave the header at <=900px (Split
+  stays in the file menu; Find stays in the command
+  palette and the one-handed bar; voice stays - it is
+  the only editor-dictation entry).
+- Color hierarchy: buttons are tonal by default; the
+  bright green is reserved for primary actions via
+  .primary (Run, Send, one-handed Run). Backgrounds
+  deepened a step (#101116 body, #131519 panels).
+- Chat welcome cut to two lines; the context and
+  agent toggles fold into a "Chat options" row,
+  collapsed by default.
+Desktop layout otherwise unchanged. Gates: bundle,
+334 IDs none missing, DOM-stub execution past editor
+construction, i18n 7/7, chip 9/9.

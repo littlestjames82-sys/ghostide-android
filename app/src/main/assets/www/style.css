@@ -2,24 +2,39 @@
 html, body { height: 100%; margin: 0; }
 body {
   font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
-  background: #17181c; color: #e6e6e6; display: flex; flex-direction: column;
+  background: #101116; color: #e6e6e6; display: flex; flex-direction: column;
   height: 100vh; height: 100dvh; /* dvh tracks the on-screen keyboard */
 }
 header {
   display: flex; align-items: center; gap: 16px; padding: 8px 14px;
-  background: #1f2126; border-bottom: 1px solid #2e3038;
+  background: #15171c; border-bottom: 1px solid #2e3038;
 }
 .brand { font-size: 16px; }
 .tag { color: #9a9fb0; font-size: 12px; margin-left: 6px; }
 .current-file { color: #c9d1e0; font-family: ui-monospace, monospace; font-size: 13px; flex: 1; text-align: center; }
 .header-right { display: flex; align-items: center; gap: 10px; }
+/* v1.49 polish: tonal secondaries; the bright green is
+   reserved for primary actions (Run / Send). */
 button {
-  background: #2c6e49; color: #fff; border: 0; border-radius: 6px;
+  background: #26282f; color: #dfe3ea; border: 1px solid #34363f;
+  border-radius: 8px;
   padding: 6px 12px; cursor: pointer; font-size: 13px;
 }
-button:hover { background: #35855a; }
-button:disabled { background: #444; cursor: default; }
+button:hover { background: #30323b; }
+button.primary {
+  background: #2c6e49; border-color: #2c6e49; color: #fff;
+}
+button.primary:hover { background: #35855a; }
+button:disabled {
+  background: #26282f; color: #777; border-color: #2c2e36;
+  cursor: default;
+}
 .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #3a2e2e; color: #f0b0b0; }
+#modelPill {
+  max-width: 180px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; display: inline-block;
+  vertical-align: middle;
+}
 .pill.up { background: #22392b; color: #9fe8bb; }
 .pill.loading { background: #39352a; color: #f0dfa0; }
 .hidden { display: none; }
@@ -27,7 +42,7 @@ button:disabled { background: #444; cursor: default; }
 
 main { flex: 1; display: flex; min-height: 0; }
 #files {
-  width: 210px; background: #1b1d22; border-right: 1px solid #2e3038;
+  width: 210px; background: #131519; border-right: 1px solid #2e3038;
   display: flex; flex-direction: column; padding: 10px;
 }
 .panel-head { font-size: 12px; letter-spacing: .08em; color: #9a9fb0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -136,9 +151,17 @@ main { flex: 1; display: flex; min-height: 0; }
 #settingsPanel .dim { color: #9a9fb0; margin: 0; }
 
 #chat {
-  width: 360px; background: #1b1d22; border-left: 1px solid #2e3038;
+  width: 360px; background: #131519; border-left: 1px solid #2e3038;
   display: flex; flex-direction: column; padding: 10px;
 }
+/* v1.49 polish: chat options fold + collapse toggle */
+#chatToggle { display: none; }
+#chatOptsBtn {
+  margin-top: 8px; align-self: flex-start;
+  padding: 4px 10px; font-size: 12px;
+}
+#chatOpts { display: flex; flex-direction: column; }
+#chatOpts.hidden { display: none; }
 #chatLog { flex: 1; overflow-y: auto; font-size: 13px; line-height: 1.45; }
 .msg { margin-bottom: 12px; }
 .msg .who { font-size: 11px; color: #9a9fb0; letter-spacing: .06em; margin-bottom: 2px; }
@@ -373,6 +396,19 @@ body.zen #files, body.zen #chat { display: none; }
   #editorWrap { min-height: 46vh; }
   #chat { width: auto; height: 44vh; border-left: 0;
           border-top: 1px solid #2e3038; }
+  /* v1.49 polish: trim the phone toolbar (Split lives in
+     the file menu, project Find in the palette and the
+     one-handed bar, focus mode is a wide-screen tool),
+     and let chat collapse to a slim bar. */
+  .brand .tag { display: none; }
+  #splitBtn, #zenBtn, #findBtn { display: none; }
+  #chat .panel-head .tag { display: none; }
+  #chatToggle { display: inline-block; }
+  body.chat-min #chat { height: auto; }
+  body.chat-min #editorWrap { min-height: 60vh; }
+  body.chat-min #chatLog, body.chat-min .chat-input,
+  body.chat-min #chatOptsBtn, body.chat-min #chatOpts,
+  body.chat-min #clearChatBtn { display: none; }
 }
 
 /* Roadmap G33: big-screen mode + pane drag-resize */

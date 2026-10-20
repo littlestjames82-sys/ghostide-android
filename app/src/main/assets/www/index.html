@@ -54,7 +54,7 @@ setTimeout(function () {
     <span id="updatePill" class="pill hidden" title="An update is available">⬆ update</span>
     <span id="pairChip" class="pill hidden" title="Pair mode">👥</span>
     <button id="startModelBtn" class="hidden">Start model</button>
-    <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
+    <button id="runBtn" class="primary" title="Run the current file (desktop)">▶ Run</button>
     <button id="voiceBtn" title="Dictate into the editor (phone)" aria-label="Voice dictation">🎤</button>
     <button id="splitBtn" title="Split view - pick a file for the second pane">◫ Split</button>
     <button id="toolsBtn" title="Tools" aria-label="Tools">🧰</button>
@@ -136,14 +136,16 @@ setTimeout(function () {
   </section>
   <div id="dragChat" class="dragHandle" title="Drag to resize"></div>
   <aside id="chat" aria-label="Ghost chat">
-    <div class="panel-head"><span id="chatHeadTxt">GHOST CHAT</span> <span class="tag">Qwen2.5-Coder 7B · local</span></div>
+    <div class="panel-head"><span id="chatHeadTxt">GHOST CHAT</span> <span><span class="tag">Qwen2.5-Coder 7B · local</span> <button id="chatToggle" aria-label="Collapse chat">▾</button></span></div>
     <div id="chatLog" role="log" aria-live="polite" aria-label="Chat messages"></div>
     <div class="chat-input">
       <textarea id="chatText" rows="3" placeholder="Ask about your code… (Enter to send, Shift+Enter for newline)"></textarea>
       <button id="mentionBtn" title="Attach a file to the message (@file)">@ File</button>
       <button id="chatMic" title="Dictate a message (phone)">🎤</button>
-      <button id="chatSend">Send</button>
+      <button id="chatSend" class="primary">Send</button>
     </div>
+    <button id="chatOptsBtn">⚙ Chat options</button>
+    <div id="chatOpts" class="hidden">
     <label class="ctx-toggle"><input type="checkbox" id="ctxToggle" checked> Include context:
       <select id="ctxMode">
         <option value="file">current file</option>
@@ -153,6 +155,7 @@ setTimeout(function () {
       </select></label>
     <div id="ctxMeter" class="dim"></div>
     <label class="ctx-toggle"><input type="checkbox" id="agentToggle"> 🤖 Agent mode: multi-step edits, reviewed before saving</label>
+    </div>
     <button id="clearChatBtn" title="Clear this project's chat history">Clear chat</button>
   </aside>
 </main>
@@ -588,7 +591,7 @@ setTimeout(function () {
   <button id="settingsClose">Close</button>
 </div>
 <div id="handBar" class="hidden" role="toolbar" aria-label="One-handed actions">
-  <button id="handRun">▶ Run</button>
+  <button id="handRun" class="primary">▶ Run</button>
   <button id="handSave">Save</button>
   <button id="handSend">Send</button>
   <button id="handFind" aria-label="Find in project">🔍</button>
