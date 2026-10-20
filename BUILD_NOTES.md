@@ -954,3 +954,26 @@ Companion touches (closes Arc H):
 Status: BUILT + proven in logic; the share-sheet flow
 itself is a two-tap device proof for Ryan (share from
 any app -> GhostIDE -> check captures.md).
+
+## v1.44.0 (versionCode 48) - Oct 19, 2026 - Roadmap G36
+Language and access pass:
+- Spanish UI: a 68-entry dictionary (plus 4 placeholders)
+  keyed by element id translates the main chrome - header,
+  panel heads, the full Tools menu, the Find panel, the
+  one-handed bar. Settings -> Language switches instantly,
+  no reload. Stateful labels manage their own text and are
+  documented as out of the table. Proven 7/7 by
+  i18n-harness: both languages present and non-empty,
+  every keyed id exists, and the English entries match
+  the shipped HTML text exactly.
+- Screen-reader pass: landmarks (Files / Ghost chat
+  asides labelled), chat log is role=log aria-live polite
+  (new messages are announced), run output aria-live,
+  every icon-only button has an aria-label, and file-row
+  menu buttons announce which file they belong to.
+- Larger text as a real setting (Normal / Large / XL)
+  scaling the interface text, and one-handed mode:
+  40px+ touch targets plus a bottom action bar (Run,
+  Save, Send, Find, Tools) within thumb reach.
+Status: BUILT; the roadmap's final TalkBack walkthrough
+is a device pass for Ryan.

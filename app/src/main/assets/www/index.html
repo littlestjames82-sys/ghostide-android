@@ -45,7 +45,7 @@ setTimeout(function () {
 <body>
 <div id="errBanner" class="hidden"></div>
 <header>
-  <div class="brand">👻 <strong>GhostIDE</strong> <span class="tag">offline AI editor</span></div>
+  <div class="brand">👻 <strong>GhostIDE</strong> <span class="tag" id="brandTag">offline AI editor</span></div>
   <div class="current-file" id="currentFile">no file open</div>
   <div class="header-right">
     <span id="saveState" class="save-state"></span>
@@ -54,22 +54,22 @@ setTimeout(function () {
     <span id="pairChip" class="pill hidden" title="Pair mode">👥</span>
     <button id="startModelBtn" class="hidden">Start model</button>
     <button id="runBtn" title="Run the current file (desktop)">▶ Run</button>
-    <button id="voiceBtn" title="Dictate into the editor (phone)">🎤</button>
+    <button id="voiceBtn" title="Dictate into the editor (phone)" aria-label="Voice dictation">🎤</button>
     <button id="splitBtn" title="Split view - pick a file for the second pane">◫ Split</button>
-    <button id="toolsBtn" title="Tools">🧰</button>
-    <button id="zenBtn" title="Focus mode - hide the side panels">⛶</button>
-    <button id="findBtn" title="Find / replace in project">🔍</button>
-    <button id="settingsBtn" title="Settings">⚙</button>
+    <button id="toolsBtn" title="Tools" aria-label="Tools">🧰</button>
+    <button id="zenBtn" title="Focus mode - hide the side panels" aria-label="Focus mode">⛶</button>
+    <button id="findBtn" title="Find / replace in project" aria-label="Find in project">🔍</button>
+    <button id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
   </div>
 </header>
 <main>
-  <aside id="files">
-    <div class="panel-head">FILES <span><button id="wsBtn" title="Open a different folder (desktop)">📂</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
+  <aside id="files" aria-label="Files panel">
+    <div class="panel-head"><span id="filesHeadTxt">FILES</span> <span><button id="wsBtn" title="Open a different folder (desktop)" aria-label="Open a different folder">📂</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
     <input id="fileFilter" type="text" placeholder="Filter files…">
     <div id="wsPath" class="hint"></div>
     <div id="fileTree"></div>
     <div id="gitPanel">
-      <div class="panel-head">GIT <span id="gitBranch" class="tag"></span></div>
+      <div class="panel-head"><span id="gitHeadTxt">GIT</span> <span id="gitBranch" class="tag"></span></div>
       <div id="gitChanges" class="dim">checking…</div>
       <div class="git-commit">
         <input id="commitMsg" placeholder="Commit message">
@@ -96,7 +96,7 @@ setTimeout(function () {
     <div id="runPane" class="hidden">
       <div class="run-head"><span id="runTitle">Output</span>
         <button id="runClose">✕</button></div>
-      <pre id="runOut"></pre>
+      <pre id="runOut" aria-live="polite"></pre>
     </div>
     <div id="termPane" class="hidden">
       <div class="run-head"><span><span id="termTitle">Terminal · workspace folder · local shell (unsandboxed)</span> <span id="termCwd"></span></span>
@@ -134,9 +134,9 @@ setTimeout(function () {
     </div>
   </section>
   <div id="dragChat" class="dragHandle" title="Drag to resize"></div>
-  <aside id="chat">
-    <div class="panel-head">GHOST CHAT <span class="tag">Qwen2.5-Coder 7B · local</span></div>
-    <div id="chatLog"></div>
+  <aside id="chat" aria-label="Ghost chat">
+    <div class="panel-head"><span id="chatHeadTxt">GHOST CHAT</span> <span class="tag">Qwen2.5-Coder 7B · local</span></div>
+    <div id="chatLog" role="log" aria-live="polite" aria-label="Chat messages"></div>
     <div class="chat-input">
       <textarea id="chatText" rows="3" placeholder="Ask about your code… (Enter to send, Shift+Enter for newline)"></textarea>
       <button id="mentionBtn" title="Attach a file to the message (@file)">@ File</button>
@@ -191,7 +191,7 @@ setTimeout(function () {
 <button id="kbChip" class="hidden">⌨ Keyboard connected — see shortcuts</button>
 <div id="wsMenu" class="hidden"></div>
 <div id="findPanel" class="hidden">
-  <h3>Find in project</h3>
+  <h3 id="findTitle">Find in project</h3>
   <input id="findQuery" placeholder="Search for…">
   <input id="findReplacement" placeholder="Replace with… (for Replace all)">
   <div class="find-btns">
@@ -203,7 +203,7 @@ setTimeout(function () {
   <div id="findResults"></div>
 </div>
 <div id="toolsPanel" class="hidden">
-  <div class="panel-head"><h3>🧰 Tools</h3><button id="toolsClose">✕</button></div>
+  <div class="panel-head"><h3 id="toolsTitle">🧰 Tools</h3><button id="toolsClose" aria-label="Close tools">✕</button></div>
   <h4>Ask Ghost (current file or selection)</h4>
   <div class="toolGrid">
     <button id="aiExplain">Explain</button>
@@ -547,6 +547,18 @@ setTimeout(function () {
       <option value="16px">Large</option>
       <option value="18px">XL</option>
     </select></label>
+  <label>Language / Idioma
+    <select id="setLang">
+      <option value="en">English</option>
+      <option value="es">Español</option>
+    </select></label>
+  <label>Interface text size
+    <select id="setTextSize">
+      <option value="normal">Normal</option>
+      <option value="large">Large</option>
+      <option value="xl">Extra large</option>
+    </select></label>
+  <label><input type="checkbox" id="setOneHand"> One-handed mode (big bottom action bar)</label>
   <label>Autocomplete pause (ms)
     <input type="number" id="setDelay" min="300" max="3000" step="100"></label>
   <p id="modelInfo" class="dim"></p>
@@ -560,6 +572,13 @@ setTimeout(function () {
     <span id="setModelDlOut"></span>
     <button id="setModelDlBtn">Download 7B model</button></p>
   <button id="settingsClose">Close</button>
+</div>
+<div id="handBar" class="hidden" role="toolbar" aria-label="One-handed actions">
+  <button id="handRun">▶ Run</button>
+  <button id="handSave">Save</button>
+  <button id="handSend">Send</button>
+  <button id="handFind" aria-label="Find in project">🔍</button>
+  <button id="handTools" aria-label="Tools">🧰</button>
 </div>
 <script src="/app.js"></script>
 </body>
