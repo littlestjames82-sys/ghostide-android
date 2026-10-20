@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.52.0",
+   "date": "Oct 20, 2026",
+   "goal": "The phone-safe bundle (Roadmap ECO E2)",
+   "summary": "eco.zip grows from the E1 pair to the full audited"
+  },
+  {
    "version": "1.51.1",
    "date": "Oct 20, 2026",
    "goal": "Hotfix: ecosystem panel opener",

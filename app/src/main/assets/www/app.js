@@ -34750,9 +34750,9 @@
       row.appendChild(label);
       const chip = document.createElement("span");
       chip.className = "symkind";
-      chip.textContent = t2.state === "ready" ? "ready" : t2.state === "bundled" ? "on-device" : t2.state === "native" ? "built in" : t2.state === "absent" ? "not found" : t2.goal;
+      chip.textContent = t2.state === "ready" ? "ready" : t2.state === "bundled" ? "on-device" + (t2.tests ? " \xB7 " + t2.tests + " tests" : "") : t2.state === "native" ? "built in" : t2.state === "absent" ? "not found" : t2.goal;
       row.appendChild(chip);
-      if (t2.state === "ready" || t2.state === "bundled") {
+      if (t2.runnable) {
         const b = document.createElement("button");
         b.className = "ghostbtn";
         b.textContent = "Run";

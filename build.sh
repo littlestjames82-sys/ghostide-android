@@ -50,23 +50,47 @@ echo '[0.8/8] staging offline reference docs (Roadmap G28)'
 cp ~/workspace/ghost-ide/refdocs.json "$SRC/assets/refdocs.json"
 ls -lh "$SRC/assets/refdocs.json"
 
-echo '[0.9/8] staging ecosystem tools (Roadmap ECO E1)'
-# The E1 proof pair, vendored from their own repos (pure stdlib
-# Python). eco.zip holds the two package trees; IdeServer
-# extracts it on first use and runs the tools with the bundled
-# interpreter. E2 generalizes this bundle.
+echo '[0.9/8] staging ecosystem tools (Roadmap ECO E1+E2)'
+# The audited phone-safe bundle (E2): every tool whose suite
+# passed the vendoring gate (ghost-ide/tools/eco_bundle_gate.py)
+# plus GhostSlice as the shared library. eco.zip holds the
+# package trees + eco-manifest.json (version / test counts /
+# sizes from the gate state); IdeServer extracts it on first
+# use and runs tools with the bundled interpreter.
 python3 - <<'PYEOF'
-import zipfile
+import json, sys, zipfile
 from pathlib import Path
+sys.path.insert(0, str(Path.home() / "workspace/ghost-ide/tools"))
+from eco_bundle_gate import BUNDLED, LIBRARY
+state_path = Path.home() / "workspace/ghost-ide/tools/eco-bundle-state.json"
+state = json.loads(state_path.read_text())["tools"] if state_path.exists() else {}
 out = Path.home() / "workspace/ghostide-apk-build/app/src/main/assets/eco.zip"
 count = 0
+manifest = {}
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    for tool in ("ghostindex", "ghostdeps"):
-        src = Path.home() / "workspace" / tool / "src" / tool
-        for f in sorted(src.rglob("*.py")):
-            z.write(f, str(Path(tool) / f.relative_to(src)))
+    for tool in LIBRARY + BUNDLED:
+        src = Path.home() / "workspace" / tool / "src"
+        for f in sorted(src.rglob("*")):
+            if not f.is_file():
+                continue
+            rel = f.relative_to(src)
+            if any(p.endswith(".egg-info") or p == "__pycache__"
+                   for p in rel.parts):
+                continue
+            if f.suffix in (".pyc", ".pyo"):
+                continue
+            z.write(f, str(rel))
             count += 1
-print(f"eco.zip: {count} python files")
+        info = state.get(tool, {})
+        manifest[tool] = {"version": info.get("version", "?"),
+                          "tests": info.get("tests_passed", 0),
+                          "bytes": info.get("src_bytes", 0),
+                          "library": tool in LIBRARY}
+    z.writestr("eco-manifest.json", json.dumps(manifest, indent=1))
+print(f"eco.zip: {count} python files, {len(manifest)} packages")
+missing = [t for t in LIBRARY + BUNDLED if t not in state]
+if missing:
+    print("WARNING: no gate state for", missing, "- run eco_bundle_gate.py")
 PYEOF
 ls -lh "$SRC/assets/eco.zip"
 

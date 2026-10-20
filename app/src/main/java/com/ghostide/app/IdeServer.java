@@ -627,14 +627,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"1.51.1\""
+                + ",\"version\":\"1.52.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"1.51.1\","
+            sendJson(out, "{\"ok\":false,\"current\":\"1.52.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -2520,13 +2520,27 @@ public final class IdeServer {
         {"ghostproxy", "GhostProxy", "listed", "Live-traffic proxy - out of scope for an offline IDE"},
     };
 
+    // The E2 audited bundle: suites green against the
+    // vendored copies (tools/eco_bundle_gate.py). GhostSlice
+    // rides as the shared library several tools import.
+    private static final java.util.Set<String> ECO_BUNDLED =
+        new java.util.HashSet<>(Arrays.asList(
+            "ghostslice", "ghostindex", "ghostdeps",
+            "ghostprimer", "ghostlift", "ghostshard",
+            "ghostexposure", "ghostconvert", "ghostfixture",
+            "ghostdocs", "ghostschema", "ghostlogs",
+            "ghostdata", "ghostapprove", "ghostledger",
+            "ghostrecipes", "ghostenv", "ghostmcpdoctor",
+            "ghostleads", "quoteshot", "ghostreplay",
+            "ghostconsole"));
+
     private File ecoDir() {
         return new File(ctx.getFilesDir(), "eco");
     }
 
     private synchronized boolean ensureEco() {
         File dir = ecoDir();
-        File stamp = new File(dir, ".ready-e1");
+        File stamp = new File(dir, ".ready-e2");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -2563,21 +2577,46 @@ public final class IdeServer {
     private void handleEco(String path, String method, byte[] body,
             java.io.OutputStream out) throws Exception {
         if (path.equals("/api/eco/tools")) {
+            // Test counts ride in eco-manifest.json (written
+            // by the bundle gate via build.sh).
+            Map<String, Integer> ecoTests = new HashMap<>();
+            if (ensureEco()) {
+                try {
+                    File ecoMf = new File(ecoDir(),
+                        "eco-manifest.json");
+                    if (ecoMf.isFile()) {
+                        Map<String, Object> ecoMfObj =
+                            Json.obj(Json.parse(readFile(ecoMf)));
+                        for (Map.Entry<String, Object> e
+                                : ecoMfObj.entrySet()) {
+                            Map<String, Object> ecoInfo =
+                                Json.obj(e.getValue());
+                            ecoTests.put(e.getKey(),
+                                Json.num(ecoInfo, "tests", 0));
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
             StringBuilder sb = new StringBuilder("{\"tools\":[");
             for (int i = 0; i < ECO_CATALOG.length; i++) {
                 String[] t = ECO_CATALOG[i];
                 String state;
-                if (t[0].equals("ghostindex") || t[0].equals("ghostdeps"))
-                    state = "bundled";
+                if (ECO_BUNDLED.contains(t[0])) state = "bundled";
                 else if (t[0].equals("ghostslice")) state = "native";
                 else state = "listed";
+                boolean ecoRun = t[0].equals("ghostindex")
+                    || t[0].equals("ghostdeps");
                 if (i > 0) sb.append(',');
                 sb.append("{\"id\":").append(Json.quote(t[0]))
                   .append(",\"name\":").append(Json.quote(t[1]))
                   .append(",\"goal\":").append(Json.quote(t[2]))
                   .append(",\"blurb\":").append(Json.quote(t[3]))
                   .append(",\"state\":").append(Json.quote(state))
-                  .append('}');
+                  .append(",\"runnable\":").append(ecoRun);
+                Integer ecoT = ecoTests.get(t[0]);
+                if (ecoT != null && ecoT > 0)
+                    sb.append(",\"tests\":").append(ecoT.intValue());
+                sb.append('}');
             }
             sb.append("]}");
             sendJson(out, sb.toString());

@@ -1171,3 +1171,48 @@ is Ryan's device pass.
   not function names. A bundle-wide undefined-call
   scan now joins the routine (noisy with library
   imports, but it names authored-code misses).
+
+## v1.52.0 (versionCode 57) - Oct 20, 2026 - The phone-safe bundle (Roadmap ECO E2)
+
+- eco.zip grows from the E1 pair to the full audited
+  phone-safe set: 21 tools plus GhostSlice as the
+  shared library - GhostIndex, GhostDeps, GhostPrimer,
+  GhostLift, GhostShard, GhostExposure, GhostConvert,
+  GhostFixture, GhostDocs, GhostSchema, GhostLogs,
+  GhostData, GhostApprove, GhostLedger, GhostRecipes,
+  GhostEnv, GhostMCP Doctor, GhostLeads, QuoteShot,
+  GhostReplay, GhostConsole.
+- Audit rules: pure stdlib, filesystem only - no
+  network, no subprocess / host binaries, not
+  long-running. Held out with reasons: GhostProxy
+  (network by design), GhostPort (stays a CLI),
+  GhostPacks (one known pre-existing failing test),
+  and the git/subprocess tools (Scope, Review,
+  Handoff, Verify, Bench, Atlas, Recall, Worktree,
+  Watch) - they bundle with their own roadmap
+  goals, which wire the phone's git path properly.
+- The gate: every bundled package's own test suite
+  ran against the exact vendored copy it ships -
+  all green, 2,469 tests (GhostSlice 948, QuoteShot
+  120, GhostConsole 103, GhostIndex 91, GhostData
+  95, the rest 40-84 each; GhostDeps 51). The gate
+  earned its keep twice: it caught that GhostSlice
+  and GhostLedger ship in-package data files
+  (prices.json, dashboard.html) a .py-only copy
+  drops - 207 test failures until the vendoring
+  rule became "whole package tree minus egg-info".
+  eco-manifest.json in the zip carries each tool's
+  version + test count; the panel shows
+  "on-device - N tests" per tool. (Gate counts
+  verified by foreground re-runs: two backgrounded
+  gate summaries during a restart storm reported
+  inflated numbers that matched expectations, not
+  reality - the state file and spot checks told
+  the truth.)
+- Panel: Run buttons now follow an explicit
+  runnable flag from the server (bundled-but-not-
+  wired tools no longer offer a Run that cannot
+  work; their goals wire them).
+Proven: bundle gate 22/22 green, eco-harness
+13/13, ID check, DOM-stub, undefined-call scan.
+On-device extraction + panel proof is Ryan's.
