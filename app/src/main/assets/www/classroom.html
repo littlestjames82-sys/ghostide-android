@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GhostIDE Classroom - read-only live view</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif;
+    background: #17181c; color: #e6e6e6; margin: 0; }
+  header { padding: 10px 14px; background: #1f2126;
+    border-bottom: 1px solid #2e3038; display: flex;
+    gap: 10px; align-items: center; flex-wrap: wrap; }
+  .brand { font-size: 16px; }
+  .tag { color: #9a9fb0; font-size: 12px; }
+  input, button { font-size: 14px; border-radius: 6px;
+    border: 1px solid #2e3038; background: #101116;
+    color: #e6e6e6; padding: 7px 10px; }
+  button { background: #2c6e49; border: 0; cursor: pointer; }
+  main { display: flex; gap: 0; align-items: stretch;
+    min-height: calc(100vh - 57px); }
+  #codePane { flex: 1.6; padding: 12px; min-width: 0; }
+  #sidePane { flex: 1; border-left: 1px solid #2e3038;
+    padding: 12px; display: flex; flex-direction: column;
+    min-width: 0; }
+  @media (max-width: 800px) {
+    main { flex-direction: column; }
+    #sidePane { border-left: 0; border-top: 1px solid #2e3038; }
+  }
+  #fileName { font-family: ui-monospace, monospace;
+    color: #9fe8bb; margin-bottom: 8px; word-break: break-all; }
+  pre { background: #101116; border: 1px solid #2e3038;
+    border-radius: 8px; padding: 10px; overflow: auto;
+    font-family: ui-monospace, monospace; font-size: 13px;
+    line-height: 1.5; }
+  .ln { color: #5c6070; display: inline-block; width: 3em;
+    text-align: right; margin-right: 12px; user-select: none; }
+  .msg { margin-bottom: 10px; }
+  .who { font-size: 11px; color: #9a9fb0;
+    letter-spacing: .06em; }
+  .msg pre { white-space: pre-wrap; margin: 2px 0; }
+  #chatLog { flex: 1; overflow-y: auto; }
+  .note { background: #23252c; border: 1px solid #2e3038;
+    border-radius: 8px; padding: 6px 8px; margin-bottom: 6px;
+    font-size: 13px; }
+  .note .who { color: #f0dfa0; }
+  #lag { color: #9a9fb0; font-size: 12px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row input { flex: 1; min-width: 80px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">👻 <strong>GhostIDE Classroom</strong></span>
+  <span class="tag">read-only live view - you can watch and annotate, not edit</span>
+  <input id="codeIn" size="6" placeholder="code" aria-label="Class code">
+  <input id="nameIn" size="10" placeholder="your name" aria-label="Your name">
+  <button id="joinBtn">Join</button>
+  <span id="lag"></span>
+</header>
+<main>
+  <section id="codePane">
+    <div id="fileName">Enter the class code to join.</div>
+    <pre id="codeOut"></pre>
+  </section>
+  <aside id="sidePane">
+    <h3 style="margin:4px 0 8px">Chat</h3>
+    <div id="chatLog"></div>
+    <h3 style="margin:10px 0 6px">Annotate</h3>
+    <div class="row">
+      <input id="lineIn" size="5" placeholder="line #" aria-label="Line number">
+      <input id="noteIn" placeholder="your note for the host" aria-label="Note">
+      <button id="noteBtn">Send note</button>
+    </div>
+    <div id="notes" style="margin-top:10px"></div>
+  </aside>
+</main>
+<script>
+"use strict";
+var code = new URLSearchParams(location.search).get("code") || "";
+var timer = null;
+var $ = function (id) { return document.getElementById(id); };
+try {
+  $("nameIn").value = localStorage.getItem("classroom-name") || "";
+  if (!code) code = localStorage.getItem("classroom-code") || "";
+} catch (e) {}
+if (code) $("codeIn").value = code;
+
+function render(state, annotations) {
+  if (!state) {
+    $("fileName").textContent = "Joined. Waiting for the host to start coding…";
+    return;
+  }
+  $("fileName").textContent = state.file || "(no file open)";
+  var lines = (state.content || "").split("\n");
+  var out = $("codeOut");
+  out.textContent = "";
+  lines.forEach(function (line, i) {
+    var ln = document.createElement("span");
+    ln.className = "ln";
+    ln.textContent = String(i + 1);
+    out.appendChild(ln);
+    out.appendChild(document.createTextNode(line + "\n"));
+  });
+  var log = $("chatLog");
+  log.textContent = "";
+  (state.chat || []).forEach(function (m) {
+    var div = document.createElement("div");
+    div.className = "msg";
+    var who = document.createElement("div");
+    who.className = "who";
+    who.textContent = m.who;
+    var pre = document.createElement("pre");
+    pre.textContent = m.text;
+    div.appendChild(who);
+    div.appendChild(pre);
+    log.appendChild(div);
+  });
+  log.scrollTop = log.scrollHeight;
+  var notes = $("notes");
+  notes.textContent = "";
+  (annotations || []).forEach(function (a) {
+    var div = document.createElement("div");
+    div.className = "note";
+    var who = document.createElement("span");
+    who.className = "who";
+    who.textContent = a.name +
+      (a.line ? " · line " + a.line : "") + "  ";
+    div.appendChild(who);
+    div.appendChild(document.createTextNode(a.text));
+    notes.appendChild(div);
+  });
+  if (state.ts) {
+    var lagMs = Math.max(0, Date.now() - state.ts);
+    $("lag").textContent = "live - last update " +
+      (lagMs / 1000).toFixed(1) + "s ago";
+  }
+}
+
+async function poll() {
+  if (!code) return;
+  try {
+    var r = await fetch("/api/classroom/state?code=" +
+      encodeURIComponent(code));
+    var d = await r.json();
+    if (d.error) {
+      $("fileName").textContent = d.error +
+        " - check the code, or the class has ended.";
+      return;
+    }
+    render(d.state, d.annotations);
+  } catch (e) { /* next poll retries */ }
+}
+
+function join() {
+  code = $("codeIn").value.trim();
+  try {
+    localStorage.setItem("classroom-code", code);
+    localStorage.setItem("classroom-name", $("nameIn").value.trim());
+  } catch (e) {}
+  if (timer) clearInterval(timer);
+  poll();
+  timer = setInterval(poll, 450);
+}
+$("joinBtn").onclick = join;
+
+$("noteBtn").onclick = async function () {
+  var text = $("noteIn").value.trim();
+  if (!text || !code) return;
+  var line = parseInt($("lineIn").value, 10);
+  try {
+    await fetch("/api/classroom/annotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: code,
+        name: $("nameIn").value.trim() || "viewer",
+        line: isNaN(line) ? null : line,
+        text: text,
+      }),
+    });
+    $("noteIn").value = "";
+    poll();
+  } catch (e) {}
+};
+if (code) join();
+</script>
+</body>
+</html>

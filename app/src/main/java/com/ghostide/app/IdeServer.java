@@ -80,6 +80,12 @@ public final class IdeServer {
     private final Context ctx;
     private final LlamaBrain brain;
     private final File workspace;
+    // Roadmap G38: classroom view state (in memory only).
+    private String csCode;
+    private String csHost;
+    private String csStateJson;
+    private final java.util.List<String> csNotes =
+        new java.util.ArrayList<>();
 
     // Symbol index (Roadmap G1): cached defs + references,
     // invalidated by a (path, size, mtime) fingerprint.
@@ -1507,6 +1513,20 @@ public final class IdeServer {
                 + "runtime with pdb).\"}");
             return;
         }
+        if (path.startsWith("/api/classroom/")) {
+            // Roadmap G38: same contract as the desktop.
+            // This server binds loopback, so a phone-hosted
+            // class reaches viewers on this device (DeX,
+            // second screen); LAN classes are hosted by
+            // the desktop in LAN mode.
+            try {
+                handleClassroom(path, method, query, body, out);
+            } catch (Exception e) {
+                sendJson(out, "{\"error\":" + Json.quote(
+                    String.valueOf(e.getMessage())) + "}");
+            }
+            return;
+        }
         if (path.equals("/api/verify/run")
                 && method.equals("POST")) {
             // Roadmap G32: the phone edition of the pipeline.
@@ -2442,6 +2462,159 @@ public final class IdeServer {
             + "\",\"label\":" + Json.quote(vfLabel) + "}"
             + ",\"reportPath\":\"VERIFY_REPORT.md\""
             + ",\"report\":" + Json.quote(vfReport) + "}";
+    }
+
+    // ---- Roadmap G38: classroom view ----
+    private void handleClassroom(String path, String method,
+            String query, byte[] body,
+            java.io.OutputStream out) throws Exception {
+        if (path.equals("/api/classroom/info")) {
+            sendJson(out, "{\"bound\":\"127.0.0.1\",\"urls\":[],"
+                + "\"port\":" + PORT + "}");
+            return;
+        }
+        if (path.equals("/api/classroom/start")
+                && method.equals("POST")) {
+            java.security.SecureRandom rnd =
+                new java.security.SecureRandom();
+            csCode = String.format("%04d", rnd.nextInt(10000));
+            byte[] hb = new byte[8];
+            rnd.nextBytes(hb);
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hb)
+                hex.append(String.format("%02x", b));
+            csHost = hex.toString();
+            csStateJson = null;
+            csNotes.clear();
+            sendJson(out, "{\"code\":" + Json.quote(csCode)
+                + ",\"host\":" + Json.quote(csHost)
+                + ",\"info\":{\"bound\":\"127.0.0.1\","
+                + "\"urls\":[],\"port\":" + PORT + "}}");
+            return;
+        }
+        Map<String, Object> d = body == null
+            || body.length == 0 ? new java.util.HashMap<>()
+            : Json.obj(Json.parse(new String(body,
+                StandardCharsets.UTF_8)));
+        if (path.equals("/api/classroom/publish")
+                && method.equals("POST")) {
+            if (csHost == null
+                    || !csHost.equals(Json.str(d, "host", ""))) {
+                sendJson(out, 403, "{\"error\":\"not the "
+                    + "classroom host\"}");
+                return;
+            }
+            Map<String, Object> st = Json.obj(d.get("state"));
+            StringBuilder sb = new StringBuilder();
+            sb.append("{\"file\":").append(Json.quote(
+                Json.str(st, "file", "")));
+            sb.append(",\"content\":").append(Json.quote(
+                Json.str(st, "content", "")));
+            sb.append(",\"chat\":[");
+            boolean first = true;
+            for (Object o : Json.arr(st.get("chat"))) {
+                Map<String, Object> m = Json.obj(o);
+                if (!first) sb.append(',');
+                first = false;
+                sb.append("{\"who\":").append(Json.quote(
+                    Json.str(m, "who", "GHOST")));
+                sb.append(",\"text\":").append(Json.quote(
+                    Json.str(m, "text", ""))).append('}');
+            }
+            sb.append("],\"ts\":")
+                .append(System.currentTimeMillis()).append('}');
+            csStateJson = sb.toString();
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
+        if (path.equals("/api/classroom/stop")
+                && method.equals("POST")) {
+            if (csHost != null
+                    && csHost.equals(Json.str(d, "host", ""))) {
+                csCode = null;
+                csHost = null;
+                csStateJson = null;
+                csNotes.clear();
+            }
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
+        if (path.equals("/api/classroom/clear")
+                && method.equals("POST")) {
+            if (csHost != null
+                    && csHost.equals(Json.str(d, "host", "")))
+                csNotes.clear();
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
+        if (path.equals("/api/classroom/annotate")
+                && method.equals("POST")) {
+            if (csCode == null || !csCode.equals(
+                    Json.str(d, "code", ""))) {
+                sendJson(out, 404, "{\"error\":\"no classroom "
+                    + "with that code\"}");
+                return;
+            }
+            String text = Json.str(d, "text", "").trim();
+            if (text.isEmpty())
+                throw new IOException("annotation text is empty");
+            if (text.length() > 300)
+                text = text.substring(0, 300);
+            String name = Json.str(d, "name", "viewer");
+            if (name.length() > 40)
+                name = name.substring(0, 40);
+            Object lineObj = d.get("line");
+            String lineJson = lineObj instanceof Number
+                ? String.valueOf(((Number) lineObj).intValue())
+                : "null";
+            csNotes.add("{\"name\":" + Json.quote(name)
+                + ",\"line\":" + lineJson
+                + ",\"text\":" + Json.quote(text)
+                + ",\"ts\":" + System.currentTimeMillis() + "}");
+            while (csNotes.size() > 50) csNotes.remove(0);
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
+        if (path.equals("/api/classroom/state")) {
+            String code = queryParam(query, "code");
+            if (csCode == null || !csCode.equals(code)) {
+                sendJson(out, 404, "{\"error\":\"no classroom "
+                    + "with that code\"}");
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append("{\"state\":")
+                .append(csStateJson == null ? "null"
+                    : csStateJson);
+            sb.append(",\"annotations\":[");
+            int from = Math.max(0, csNotes.size() - 20);
+            for (int i = from; i < csNotes.size(); i++) {
+                if (i > from) sb.append(',');
+                sb.append(csNotes.get(i));
+            }
+            sb.append("]}");
+            sendJson(out, sb.toString());
+            return;
+        }
+        if (path.equals("/api/classroom/annotations")) {
+            String host = queryParam(query, "host");
+            if (csHost == null || !csHost.equals(host)) {
+                sendJson(out, 403, "{\"error\":\"not the "
+                    + "classroom host\"}");
+                return;
+            }
+            StringBuilder sb = new StringBuilder(
+                "{\"annotations\":[");
+            for (int i = 0; i < csNotes.size(); i++) {
+                if (i > 0) sb.append(',');
+                sb.append(csNotes.get(i));
+            }
+            sb.append("]}");
+            sendJson(out, sb.toString());
+            return;
+        }
+        sendJson(out, 404, "{\"error\":\"unknown classroom "
+            + "endpoint\"}");
     }
 
     // ---- Roadmap G29: semantic (meaning) code search ----

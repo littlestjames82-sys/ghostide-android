@@ -1002,3 +1002,25 @@ Registry (Tools -> Registry):
 Proven 10/10 by test-fixtures/registry-harness.mjs plus
 a live static-serving check. The on-phone install from
 the shelf is Ryan's tap-through proof.
+
+## v1.46.0 (versionCode 50) - Oct 19, 2026 - Roadmap G38
+Classroom view (Tools -> Classroom view):
+- The host publishes a snapshot of the session every
+  450 ms: current file, the LIVE editor content
+  (unsaved edits included, capped), and the chat tail.
+- Viewers open classroom.html on the same network,
+  enter the 4-digit class code, and follow read-only:
+  code with line numbers plus the chat, rendered with
+  textContent only (no injection path). Their one write
+  is annotations (name + optional line + note, capped),
+  which the host sees in the panel and can clear.
+- Guards: publishing requires a per-class host token;
+  a wrong code is a 404; stopping ends the class.
+- Hosting scope, stated in the panel: LAN classes are
+  hosted by the desktop in LAN mode; the phone server
+  is loopback-only by design, so a phone-hosted class
+  serves viewers on the same device (DeX/second
+  screen). The endpoint contract is identical.
+Proven 13/13 by classroom-harness (full loop incl.
+wrong-token refusal and sub-second edit visibility)
+plus snapshot cap unit checks.

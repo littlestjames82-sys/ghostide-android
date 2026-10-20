@@ -34643,6 +34643,7 @@
     toolZip: { en: "Download workspace (.zip)", es: "Descargar proyecto (.zip)" },
     toolPluginsManage: { en: "Manage plugins\u2026", es: "Gestionar plugins\u2026" },
     toolRegistry: { en: "Registry", es: "Registro" },
+    toolClassroom: { en: "Classroom view", es: "Vista de aula" },
     handRun: { en: "\u25B6 Run", es: "\u25B6 Ejecutar" },
     handSave: { en: "Save", es: "Guardar" },
     handSend: { en: "Send", es: "Enviar" }
@@ -35887,6 +35888,7 @@
     { title: "Import app state", run: () => $("toolStateImport").click() },
     { title: "Toggle completion ping", run: () => $("toolNotify").click() },
     { title: "Registry", run: () => $("toolRegistry").click() },
+    { title: "Classroom view", run: () => $("toolClassroom").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -38718,6 +38720,142 @@
     }
   }
   $("toolRegistry").onclick = openRegistry;
+  function buildSnapshot(file, content2, historyArr) {
+    const who = {
+      user: "YOU",
+      assistant: "GHOST",
+      system: "SYSTEM"
+    };
+    const chat = (historyArr || []).slice(-12).map((m) => ({
+      who: who[m.role] || "GHOST",
+      text: String(m.content || "").slice(0, 1500)
+    }));
+    return {
+      file: file || "",
+      content: String(content2 || "").slice(0, 2e5),
+      chat
+    };
+  }
+  try {
+    window.__ghostClass = { buildSnapshot };
+  } catch (e) {
+  }
+  var classHost = null;
+  var classCode = null;
+  var classTimer = null;
+  var classNoteTimer = null;
+  var classNotesEl = null;
+  async function publishClassroom() {
+    if (!classHost) return;
+    let content2 = "";
+    try {
+      content2 = view.state.doc.toString();
+    } catch (e) {
+    }
+    const snap = buildSnapshot(
+      currentFile || "",
+      content2,
+      history2
+    );
+    postJson(
+      "/api/classroom/publish",
+      { host: classHost, state: snap }
+    );
+  }
+  async function refreshClassNotes() {
+    const el = classNotesEl;
+    if (!el || !classHost) return;
+    const d = await getJson("/api/classroom/annotations?host=" + encodeURIComponent(classHost));
+    if (d.error) return;
+    el.textContent = "";
+    if (!d.annotations.length) {
+      el.textContent = "No annotations yet.";
+      return;
+    }
+    for (const a of d.annotations) {
+      const div = document.createElement("div");
+      div.className = "findRow";
+      div.textContent = "\u270E " + a.name + (a.line ? " \xB7 line " + a.line : "") + ": " + a.text;
+      el.appendChild(div);
+    }
+  }
+  function renderClassPanel(info) {
+    const box = $("todoResults");
+    box.textContent = "";
+    if (!classHost) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = "\u25B6 Start sharing this session (read-only for viewers)";
+      row.onclick = async () => {
+        const d = await postJson("/api/classroom/start", {});
+        if (d.error) {
+          alert(d.error);
+          return;
+        }
+        classHost = d.host;
+        classCode = d.code;
+        publishClassroom();
+        classTimer = setInterval(publishClassroom, 450);
+        classNoteTimer = setInterval(refreshClassNotes, 2e3);
+        renderClassPanel(d.info);
+      };
+      box.appendChild(row);
+      const hint = document.createElement("div");
+      hint.className = "dim";
+      hint.textContent = "Viewers on the same Wi-Fi open the classroom page, type the class code, and follow your code and chat live. They cannot edit; they can send notes.";
+      box.appendChild(hint);
+      return;
+    }
+    const head = document.createElement("div");
+    head.className = "findRow";
+    const urls = info && info.urls || [];
+    head.textContent = "\u25CF Sharing - class code: " + classCode + (urls.length ? " - viewers: " + urls.join(", ") : " - viewers on this device: /classroom.html");
+    box.appendChild(head);
+    if (info && info.bound === "127.0.0.1") {
+      const warn = document.createElement("div");
+      warn.className = "dim";
+      warn.textContent = "This server is bound to this device only. Viewers on other devices need the desktop hosting in LAN mode (start-lan).";
+      box.appendChild(warn);
+    }
+    const notesTitle = document.createElement("div");
+    notesTitle.className = "dim";
+    notesTitle.textContent = "Annotations from viewers:";
+    box.appendChild(notesTitle);
+    const notes = document.createElement("div");
+    notes.textContent = "No annotations yet.";
+    box.appendChild(notes);
+    classNotesEl = notes;
+    const clear = document.createElement("div");
+    clear.className = "findRow";
+    clear.textContent = "\u{1F9F9} Clear annotations";
+    clear.onclick = async () => {
+      await postJson("/api/classroom/clear", { host: classHost });
+      refreshClassNotes();
+    };
+    box.appendChild(clear);
+    const stop = document.createElement("div");
+    stop.className = "findRow";
+    stop.textContent = "\u23F9 Stop sharing";
+    stop.onclick = async () => {
+      await postJson("/api/classroom/stop", { host: classHost });
+      classHost = null;
+      classCode = null;
+      if (classTimer) clearInterval(classTimer);
+      if (classNoteTimer) clearInterval(classNoteTimer);
+      renderClassPanel(null);
+    };
+    box.appendChild(stop);
+    refreshClassNotes();
+  }
+  function openClassroom() {
+    hideTools();
+    $("todoTitle").textContent = "\u{1F393} Classroom view";
+    $("todoPanel").classList.remove("hidden");
+    if (classHost) {
+      getJson("/api/classroom/info").then((info) => renderClassPanel(info));
+    } else renderClassPanel(null);
+  }
+  $("toolClassroom").onclick = openClassroom;
   var IMG_EXTS = [
     "png",
     "jpg",
