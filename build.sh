@@ -30,7 +30,9 @@ mkdir -p "$SRC/assets/www"
 cp ~/workspace/ghost-ide/web/index.html "$SRC/assets/www/"
 cp ~/workspace/ghost-ide/web/style.css "$SRC/assets/www/"
 cp ~/workspace/ghost-ide/web/app.js "$SRC/assets/www/"
-ls -lh "$SRC/assets/www"
+mkdir -p "$SRC/assets/www/packs"
+cp ~/workspace/ghost-ide/web/packs/*.json "$SRC/assets/www/packs/"
+ls -lh "$SRC/assets/www" "$SRC/assets/www/packs"
 
 echo '[0.6/8] staging bundled Python stdlib asset (Roadmap G9)'
 cp ~/workspace/ghostide-apk-build/python-runtime/stage/assets/pyhome.zip "$SRC/assets/pyhome.zip"
