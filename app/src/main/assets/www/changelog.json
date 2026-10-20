@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.48.0",
+   "date": "Oct 19, 2026",
+   "goal": "Roadmap G40",
+   "summary": "1.0 hardening, all five items:"
+  },
+  {
    "version": "1.47.0",
    "date": "Oct 19, 2026",
    "goal": "Roadmap G39",
