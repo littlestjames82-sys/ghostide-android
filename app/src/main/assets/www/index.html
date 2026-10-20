@@ -81,6 +81,7 @@ setTimeout(function () {
     </div>
     <div class="hint">Files save for real, in the workspace folder.</div>
   </aside>
+  <div id="dragFiles" class="dragHandle" title="Drag to resize"></div>
   <section id="editorWrap">
     <div id="tabBar"></div>
     <div id="crumbs" class="dim"><span id="crumbPath"></span><span id="crumbBlame"></span></div>
@@ -132,6 +133,7 @@ setTimeout(function () {
       <span id="autocompleteState">autocomplete: idle (pause typing; tap a suggestion or press Tab to accept)</span>
     </div>
   </section>
+  <div id="dragChat" class="dragHandle" title="Drag to resize"></div>
   <aside id="chat">
     <div class="panel-head">GHOST CHAT <span class="tag">Qwen2.5-Coder 7B · local</span></div>
     <div id="chatLog"></div>
@@ -166,6 +168,27 @@ setTimeout(function () {
   <input id="quickInput" type="text" placeholder="Open file by name… (Enter opens, Esc closes)">
   <div id="quickList"></div>
 </div>
+<div id="keysPanel" class="hidden">
+  <div class="panel-head"><h3>⌨ Keyboard shortcuts</h3><button id="keysClose">✕</button></div>
+  <table id="keysTable">
+    <tr><td>Ctrl/⌘ K</td><td>Quick open file</td></tr>
+    <tr><td>Ctrl/⌘ Shift P</td><td>Command palette</td></tr>
+    <tr><td>Ctrl/⌘ Shift O</td><td>Symbols in this file</td></tr>
+    <tr><td>Ctrl/⌘ S</td><td>Save</td></tr>
+    <tr><td>Ctrl/⌘ D</td><td>Select next occurrence</td></tr>
+    <tr><td>Ctrl/⌘ Shift D</td><td>Select all occurrences</td></tr>
+    <tr><td>Ctrl/⌘ Alt ↑ / ↓</td><td>Add cursor above / below</td></tr>
+    <tr><td>Ctrl/⌘ /</td><td>Toggle comment</td></tr>
+    <tr><td>Alt ↑ / ↓</td><td>Move line up / down</td></tr>
+    <tr><td>Shift Alt ↓</td><td>Copy line down</td></tr>
+    <tr><td>Ctrl/⌘ Shift K</td><td>Delete line</td></tr>
+    <tr><td>Tab</td><td>Accept Ghost suggestion (when shown)</td></tr>
+    <tr><td>Esc</td><td>Dismiss suggestion / close panel</td></tr>
+    <tr><td>Enter (in chat)</td><td>Send message (Shift+Enter for a newline)</td></tr>
+  </table>
+  <p class="hint">Drag the edges of the Files and Chat panes to resize them. Big-screen mode (Tools) widens the panes for tablets, foldables and DeX.</p>
+</div>
+<button id="kbChip" class="hidden">⌨ Keyboard connected — see shortcuts</button>
 <div id="wsMenu" class="hidden"></div>
 <div id="findPanel" class="hidden">
   <h3>Find in project</h3>
@@ -248,6 +271,8 @@ setTimeout(function () {
     <button id="toolErrorMem">Error memory</button>
     <button id="toolMacros">Macros</button>
     <button id="toolVerify">Verify pipeline</button>
+    <button id="toolBigscreen">Big-screen mode</button>
+    <button id="toolKeys">Keyboard shortcuts</button>
     <button id="toolCheckAll">Check whole project</button>
     <button id="toolTerminal">Terminal</button>
     <button id="toolRepl">Python REPL</button>

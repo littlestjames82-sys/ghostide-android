@@ -35732,6 +35732,8 @@
     { title: "Reference docs", run: () => $("toolRefdocs").click() },
     { title: "Macros", run: () => $("toolMacros").click() },
     { title: "Verify pipeline", run: () => $("toolVerify").click() },
+    { title: "Big-screen mode", run: () => $("toolBigscreen").click() },
+    { title: "Keyboard shortcuts", run: () => $("toolKeys").click() },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -38002,6 +38004,83 @@
     $("runTitle").textContent = "Verify: " + d.evidence.level + " \xB7 " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s) \xB7 tests " + d.tests.passed + "/" + d.tests.total + " passed";
     $("runOut").textContent = d.report;
     loadFiles();
+  };
+  function applyBigScreen(on) {
+    document.body.classList.toggle("bigscreen", on);
+    try {
+      localStorage.setItem(
+        "ghostide-bigscreen",
+        on ? "1" : "0"
+      );
+    } catch (e) {
+    }
+  }
+  $("toolBigscreen").onclick = () => {
+    hideTools();
+    applyBigScreen(
+      !document.body.classList.contains("bigscreen")
+    );
+  };
+  $("toolKeys").onclick = () => {
+    hideTools();
+    $("keysPanel").classList.remove("hidden");
+  };
+  $("keysClose").onclick = () => $("keysPanel").classList.add("hidden");
+  function paneDrag(handle, target, side) {
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = target.getBoundingClientRect().width;
+      const move = (ev) => {
+        let w = side === "left" ? startW + (ev.clientX - startX) : startW - (ev.clientX - startX);
+        w = Math.max(150, Math.min(560, w));
+        target.style.width = w + "px";
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        try {
+          localStorage.setItem("ghostide-panes", JSON.stringify({
+            files: $("files").style.width || "",
+            chat: $("chat").style.width || ""
+          }));
+        } catch (err) {
+        }
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+  }
+  paneDrag($("dragFiles"), $("files"), "left");
+  paneDrag($("dragChat"), $("chat"), "right");
+  (function restorePanes() {
+    try {
+      const p = JSON.parse(
+        localStorage.getItem("ghostide-panes") || "{}"
+      );
+      if (p.files) $("files").style.width = p.files;
+      if (p.chat) $("chat").style.width = p.chat;
+      const bs = localStorage.getItem("ghostide-bigscreen");
+      if (bs === "1") document.body.classList.add("bigscreen");
+      else if (bs === null && window.innerWidth >= 1280)
+        document.body.classList.add("bigscreen");
+    } catch (e) {
+    }
+  })();
+  var kbSeen = false;
+  document.addEventListener("keydown", (e) => {
+    if (kbSeen) return;
+    if (!(e.ctrlKey || e.metaKey || e.altKey)) return;
+    kbSeen = true;
+    try {
+      if (window.matchMedia("(pointer: fine)").matches || window.innerWidth >= 900)
+        $("kbChip").classList.remove("hidden");
+    } catch (err) {
+    }
+  });
+  $("kbChip").onclick = () => {
+    $("kbChip").classList.add("hidden");
+    $("keysPanel").classList.remove("hidden");
   };
   var IMG_EXTS = [
     "png",

@@ -375,6 +375,42 @@ body.zen #files, body.zen #chat { display: none; }
           border-top: 1px solid #2e3038; }
 }
 
+/* Roadmap G33: big-screen mode + pane drag-resize */
+.dragHandle {
+  width: 5px; flex: none; cursor: col-resize; z-index: 5;
+  background: transparent;
+}
+.dragHandle:hover, .dragHandle:active { background: #2c6e49; }
+@media (min-width: 901px) {
+  body.bigscreen #files { width: 264px; }
+  body.bigscreen #chat { width: 408px; }
+}
+body.bigscreen #chatLog { font-size: 13.5px; }
+body.bigscreen .brand { font-size: 17px; }
+#keysPanel {
+  position: fixed; z-index: 80; top: 56px; left: 50%;
+  transform: translateX(-50%); width: min(620px, 96vw);
+  background: #23252c; border: 1px solid #2e3038; border-radius: 12px;
+  padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+  max-height: 82vh; overflow-y: auto;
+}
+#keysPanel.hidden { display: none; }
+#keysTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+#keysTable td { padding: 5px 8px; border-bottom: 1px solid #2e3038; }
+#keysTable td:first-child {
+  font-family: ui-monospace, monospace; color: #9fe8bb;
+  white-space: nowrap; width: 42%;
+}
+#kbChip {
+  position: fixed; right: 14px; bottom: 14px; z-index: 70;
+  border-radius: 999px; padding: 8px 14px; font-size: 13px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5);
+}
+#kbChip.hidden { display: none; }
+@media (max-width: 900px) {
+  .dragHandle { display: none; }
+}
+
 /* Roadmap G15: plugin panel */
 #pluginFrameHost iframe.pluginFrame { width: 100%; height: 46vh; border: 0; border-radius: 8px; background: #14161c; }
 

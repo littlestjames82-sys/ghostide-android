@@ -892,3 +892,23 @@ pipeline output equals the individual tools' outputs on
 the same tree; evidence reads L2 while a planted syntax
 error stands, and after fixing it, both the tools and the
 pipeline move to clean and the level rises to L3.
+
+## v1.41.0 (versionCode 45) - Oct 19, 2026 - Roadmap G33
+Big-screen mode (frontend + CSS):
+- All three panes (Files | Editor | Chat) get drag-resize
+  handles on wide screens; widths persist across sessions
+  (localStorage ghostide-panes, clamped 150-560 px).
+- Big-screen mode (Tools / palette): wider default panes
+  (264/408 px), slightly larger chat text; auto-applies
+  on screens >= 1280 px wide unless the user turned it
+  off; the stacked phone layout (<= 900 px) is untouched,
+  so foldables switch by width as they fold/unfold.
+- Keyboard shortcut map: Tools -> Keyboard shortcuts
+  lists the IDE's real bindings (verified against the
+  keymaps: Ctrl/Cmd-K quick open, Shift-P palette,
+  Shift-O symbols, multi-cursor set, line ops). When a
+  hardware keyboard pairs (first modifier chord on a
+  fine-pointer or wide screen), a chip offers the map.
+Status: BUILT. The done-when asks for a tablet/fold
+proof, which needs a real wide screen (desktop browser,
+tablet, or DeX) - Ryan-side check.
