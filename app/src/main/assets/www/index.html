@@ -185,7 +185,11 @@ setTimeout(function () {
         <option value="short">Short (saves battery)</option>
         <option value="normal">Normal</option>
         <option value="long">Detailed</option>
+        <option value="custom">Custom</option>
       </select></label>
+    <label class="ctx-toggle">Creativity:
+      <input type="range" id="chatTemp" min="0" max="1" step="0.1">
+      <span id="chatTempVal"></span></label>
     <div class="optRow">
       <button id="regenBtn">↻ Regenerate</button>
       <button id="copyLastBtn">⧉ Copy last answer</button>
@@ -612,8 +616,12 @@ setTimeout(function () {
       <option value="short">Short (saves battery)</option>
       <option value="normal">Normal</option>
       <option value="long">Detailed</option>
+      <option value="custom">Custom</option>
     </select></label>
   <label><input type="checkbox" id="setShort"> Short answers (same choice as Answer length: Short)</label>
+  <label>Custom answer length (tokens, when length is Custom)
+    <input type="number" id="setCustomTokens" min="128" max="2048" step="64"></label>
+  <div class="optRow"><button id="tempPrecise">Precise 0.1</button><button id="tempBalanced">Balanced 0.3</button><button id="tempCreative">Creative 0.7</button></div>
   <label>Your instructions for Ghost (added to every chat)
     <textarea id="setCustomInstr" rows="3" maxlength="1000" placeholder="e.g. Answer in plain words. Prefer small functions."></textarea></label>
   <label>Chat history sent to the model

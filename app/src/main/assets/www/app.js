@@ -32713,7 +32713,8 @@
       timestamps: false,
       compactChat: false,
       reduceMotion: false,
-      fontFamily: "default"
+      fontFamily: "default",
+      customTokens: 1024
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -33769,9 +33770,13 @@
     if (c) s += "\n\nThe user's own instructions for every answer:\n" + c;
     return s;
   }
-  function answerMaxTokens(lenId, shortLegacy, base2) {
+  function answerMaxTokens(lenId, shortLegacy, base2, custom) {
     if (lenId === "short") return 512;
     if (lenId === "long") return 2048;
+    if (lenId === "custom") {
+      const n = parseInt(custom, 10);
+      return n >= 128 && n <= 2048 ? n : base2;
+    }
     if (lenId === "normal") return base2;
     return shortLegacy ? 512 : base2;
   }
@@ -33903,6 +33908,22 @@
       removePrompt,
       promptByName
     };
+  } catch (e) {
+  }
+  var TEMP_PRESETS = {
+    precise: 0.1,
+    balanced: 0.3,
+    creative: 0.7
+  };
+  function genStats(chars, ms) {
+    if (!chars || !ms || ms <= 0) return "";
+    const tok = Math.ceil(chars / 4);
+    const secs = (ms / 1e3).toFixed(1);
+    const rate = Math.max(1, Math.round(tok / (ms / 1e3)));
+    return "answered in " + secs + "s \xB7 ~" + tok + " tok \xB7 ~" + rate + " tok/s (estimates)";
+  }
+  try {
+    window.__ghostSampling = { TEMP_PRESETS, genStats };
   } catch (e) {
   }
   var history2 = [];
@@ -34144,7 +34165,8 @@
           max_tokens: answerMaxTokens(
             settings.chatLength,
             settings.shortAnswers,
-            BEHAVIOR.chat.maxTokens
+            BEHAVIOR.chat.maxTokens,
+            settings.customTokens
           ),
           temperature: settings.temperature
         })
@@ -34186,6 +34208,8 @@
     sendBtn.textContent = "Send";
     sendBtn.onclick = sendChat;
     renderRich(body, full);
+    const stats = genStats(full.length, Date.now() - chatT0);
+    if (stats) $("ctxMeter").textContent = stats;
     history2.push({ role: "assistant", content: full });
     saveHistory();
     notifyDone(
@@ -35955,6 +35979,31 @@
     persistPrompts();
     renderPromptSel();
   };
+  function syncTempControls() {
+    $("setTemp").value = settings.temperature;
+    $("setTempVal").textContent = settings.temperature;
+    $("chatTemp").value = settings.temperature;
+    $("chatTempVal").textContent = settings.temperature;
+  }
+  function setTemperature(v) {
+    settings.temperature = v;
+    saveSettings();
+    syncTempControls();
+  }
+  $("setTemp").oninput = () => setTemperature(parseFloat($("setTemp").value));
+  $("chatTemp").oninput = () => setTemperature(parseFloat($("chatTemp").value));
+  $("tempPrecise").onclick = () => setTemperature(TEMP_PRESETS.precise);
+  $("tempBalanced").onclick = () => setTemperature(TEMP_PRESETS.balanced);
+  $("tempCreative").onclick = () => setTemperature(TEMP_PRESETS.creative);
+  $("setCustomTokens").value = settings.customTokens || 1024;
+  $("setCustomTokens").onchange = (e) => {
+    const n = parseInt(e.target.value, 10);
+    if (n >= 128 && n <= 2048) {
+      settings.customTokens = n;
+      saveSettings();
+    }
+  };
+  syncTempControls();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

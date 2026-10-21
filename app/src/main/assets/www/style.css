@@ -766,3 +766,7 @@ body.chat-min #chatChips { display: none; }
 #sessionSel { max-width: 180px; }
 /* Prompt library (v1.60) */
 #promptSel { max-width: 180px; }
+
+/* Sampling controls (v1.61) */
+#settingsPanel .optRow { display: flex; gap: 6px; flex-wrap: wrap; }
+#chatTemp { width: 110px; }

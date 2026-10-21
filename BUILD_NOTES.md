@@ -1615,3 +1615,29 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.60.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.61.0 (versionCode 66) - Oct 20, 2026 - Sampling controls
+
+- Temperature moves into Chat options as a slider
+  that mirrors Settings (one setTemperature path, so
+  the two sliders can never drift; the Phase 1.6
+  handler is replaced by the syncing one). Settings
+  gains one-tap presets: Precise 0.1, Balanced 0.3,
+  Creative 0.7.
+- Answer length gains a Custom choice: your own max
+  tokens (128-2048, validated) in Settings, honored
+  by answerMaxTokens on both builds.
+- After each answer, the context line shows the
+  generation stats: seconds, estimated tokens and
+  estimated tok/s, labelled as estimates.
+- Scope honesty: top-p / repeat penalty were NOT
+  added - the phone's native bridge accepts only
+  temperature + max tokens, so those knobs would
+  have been dead on the phone.
+- Proven: sampling harness 12/12, chatopts 34/34,
+  i18n 7/7, DOM-stub past extension construction.
+- APK 20,275,817 bytes, md5
+  4422527545152c370d374228176f979e, badging 66/1.61.0
+  verified, dex carries both 1.61.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

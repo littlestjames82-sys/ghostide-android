@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.61.0",
+   "date": "Oct 20, 2026",
+   "goal": "Sampling controls",
+   "summary": "Creativity (temperature) now lives in Chat options too, with one-tap Precise, Balanced and Creative presets in Settings; both sliders always agree. Answer length gains a Custom choice with your own token count, and after each answer the chat shows how long it took and its estimated speed."
+  },
+  {
    "version": "1.60.0",
    "date": "Oct 20, 2026",
    "goal": "Prompt library",
