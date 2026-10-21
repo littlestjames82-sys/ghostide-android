@@ -2031,3 +2031,27 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.80.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.81.0 (versionCode 86) - Oct 21, 2026 - Settings profiles
+
+- Named profiles for the whole settings object:
+  Save profile captures the current setup; Apply
+  runs the stored snapshot through the same
+  type-strict sanitize as JSON import
+  (sanitizeImportedSettings against the live
+  settings as schema), assigns it, saves, reloads.
+  Delete with confirm. Profiles live under their
+  own ghostide-profiles key, so full backups carry
+  them too.
+- Proven: profiles harness 6/6, setutil 10/10,
+  i18n 7/7, DOM-stub past extension construction.
+  The harness caught a real bug pre-push: the first
+  applyProfile called a nonexistent sanitize
+  function; fixed to the real sanitizer and the
+  harness rewritten to its true semantics.
+  (v1.80 pushes: e15700ac/8f3f8532.)
+- APK 20,288,106 bytes, md5
+  f3c2ca2fc833cc3d78da4597c35c11db, badging 86/1.81.0
+  verified, dex carries both 1.81.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

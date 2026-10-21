@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.81.0",
+   "date": "Oct 20, 2026",
+   "goal": "Settings profiles",
+   "summary": "Save your whole setup as a named profile in Settings (style, accent, sounds, sizes, everything), then switch setups with Apply. Profiles are validated through the same strict sanitize as settings import, and applying one reloads the app with the new setup."
+  },
+  {
    "version": "1.80.0",
    "date": "Oct 20, 2026",
    "goal": "Sessions pack 2",

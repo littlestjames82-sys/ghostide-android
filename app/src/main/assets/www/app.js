@@ -34389,6 +34389,22 @@
     };
   } catch (e) {
   }
+  function applyProfile(current, profile) {
+    if (!profile || typeof profile !== "object" || Array.isArray(profile)) return { ...current };
+    const clean = sanitizeImportedSettings(profile, current);
+    return { ...current, ...clean || {} };
+  }
+  function profileNames(map) {
+    if (!map || typeof map !== "object") return [];
+    return Object.keys(map).sort((a, b) => a.localeCompare(b));
+  }
+  try {
+    window.__ghostProfiles = {
+      applyProfile,
+      profileNames
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37040,6 +37056,65 @@
     switchSession(plan.copy.id);
     addMsg("SYSTEM", 'Duplicated this chat as "' + plan.copy.name + '".');
   };
+  function loadProfiles() {
+    try {
+      const o = JSON.parse(
+        localStorage.getItem("ghostide-profiles") || "{}"
+      );
+      return o && typeof o === "object" && !Array.isArray(o) ? o : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveProfiles(all) {
+    try {
+      localStorage.setItem(
+        "ghostide-profiles",
+        JSON.stringify(all)
+      );
+    } catch (e) {
+    }
+  }
+  function renderProfSel() {
+    const sel = $("profSel");
+    sel.innerHTML = "";
+    for (const n of profileNames(loadProfiles())) {
+      const o = document.createElement("option");
+      o.value = n;
+      o.textContent = n;
+      sel.appendChild(o);
+    }
+  }
+  $("profSave").onclick = () => {
+    const name2 = (prompt("Profile name:", "My setup") || "").trim().slice(0, 40);
+    if (!name2) return;
+    const all = loadProfiles();
+    all[name2] = JSON.parse(JSON.stringify(settings));
+    saveProfiles(all);
+    renderProfSel();
+    $("profSel").value = name2;
+  };
+  $("profApply").onclick = () => {
+    const name2 = $("profSel").value;
+    const all = loadProfiles();
+    if (!name2 || !all[name2]) {
+      alert("Pick a profile first.");
+      return;
+    }
+    Object.assign(settings, applyProfile(settings, all[name2]));
+    saveSettings();
+    location.reload();
+  };
+  $("profDelete").onclick = () => {
+    const name2 = $("profSel").value;
+    const all = loadProfiles();
+    if (!name2 || !all[name2]) return;
+    if (!confirm('Delete profile "' + name2 + '"?')) return;
+    delete all[name2];
+    saveProfiles(all);
+    renderProfSel();
+  };
+  renderProfSel();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
