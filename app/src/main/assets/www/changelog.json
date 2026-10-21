@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.69.0",
+   "date": "Oct 20, 2026",
+   "goal": "Find in chat",
+   "summary": "A Find in chat box in Chat options filters the visible messages as you type and counts the matches. It works on everything on screen (your messages, answers, system notes) and clears back to the full chat when emptied."
+  },
+  {
    "version": "1.68.0",
    "date": "Oct 20, 2026",
    "goal": "Message tools",

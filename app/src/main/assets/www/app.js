@@ -34141,6 +34141,14 @@
     };
   } catch (e) {
   }
+  function msgMatches(text, q) {
+    if (!q) return true;
+    return String(text).toLowerCase().includes(String(q).toLowerCase());
+  }
+  try {
+    window.__ghostFindChat = { msgMatches };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34183,6 +34191,7 @@
     if (!items.length) addMsg("GHOST", GREETING);
     restoreChatDraft();
     updateChatStats();
+    applyChatFind();
   }
   function renderRich(el, text) {
     el.innerHTML = "";
@@ -36525,6 +36534,18 @@
     saveChatDraft();
     $("chatText").focus();
   }
+  function applyChatFind() {
+    const q = $("chatFind").value.trim().toLowerCase();
+    const msgs = $("chatLog").querySelectorAll(".msg");
+    let shown = 0;
+    msgs.forEach((el) => {
+      const hit = msgMatches(el.textContent, q);
+      el.style.display = hit ? "" : "none";
+      if (hit && q) shown++;
+    });
+    $("chatFindCount").textContent = q ? shown + " of " + msgs.length + " messages match" : "";
+  }
+  $("chatFind").addEventListener("input", applyChatFind);
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

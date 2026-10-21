@@ -1802,3 +1802,20 @@ On-device extraction + panel proof is Ryan's.
   verified, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v1.69.0 (versionCode 74) - Oct 21, 2026 - Find in chat
+
+- Chat options gains a Find in chat filter: typing
+  hides non-matching messages and shows an "N of M
+  messages match" count. It filters the rendered
+  messages (no index bookkeeping), so greetings,
+  system notes and answers all count, and it
+  re-applies whenever a chat loads.
+- Proven: findchat harness 5/5, i18n 7/7, DOM-stub
+  past extension construction. (v1.68 pushes
+  verified against the GitHub API: 4c269497/e396759e.)
+- APK 20,284,011 bytes, md5
+  68a8b441c8126243da75109cf65d2b05, badging 74/1.69.0
+  verified, dex carries both 1.69.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
