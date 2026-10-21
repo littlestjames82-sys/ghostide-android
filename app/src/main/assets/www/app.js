@@ -34457,6 +34457,22 @@
     window.__ghostLastRun = { lastRunText };
   } catch (e) {
   }
+  function titledMarkdown(md, name2) {
+    return md.replace(
+      "# GhostIDE chat export",
+      "# " + name2
+    );
+  }
+  function allChatsExport(parts) {
+    return parts.filter((p) => p && p.trim()).join("\n---\n\n");
+  }
+  try {
+    window.__ghostExport2 = {
+      titledMarkdown,
+      allChatsExport
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37317,6 +37333,43 @@
     if (lr) $("lastRun").textContent = lr;
   } catch (e) {
   }
+  $("toolExportAll").onclick = () => {
+    hideTools();
+    saveHistory();
+    const parts = [];
+    for (const s of chatSessions) {
+      let items = [];
+      try {
+        items = JSON.parse(localStorage.getItem(
+          sessionHistoryKey(historyScope, s.id)
+        ) || "[]");
+      } catch (e) {
+      }
+      if (Array.isArray(items) && items.length)
+        parts.push(titledMarkdown(
+          chatToMarkdown(items),
+          s.name
+        ));
+    }
+    const out = allChatsExport(parts);
+    if (!out) {
+      alert("No chats with messages in this project yet.");
+      return;
+    }
+    download("ghostide-all-chats.md", out, "text/markdown");
+  };
+  $("promptExport").onclick = () => {
+    const list = loadPrompts();
+    if (!list.length) {
+      alert("No saved prompts yet.");
+      return;
+    }
+    download(
+      "ghostide-prompts.json",
+      JSON.stringify(list, null, 1),
+      "application/json"
+    );
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

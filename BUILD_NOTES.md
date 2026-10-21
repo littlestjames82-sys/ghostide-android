@@ -2126,3 +2126,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.85.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.86.0 (versionCode 91) - Oct 21, 2026 - Export pack 2
+
+- Tools gains Export all chats: saves the current
+  chat first, then walks every session in the
+  project, retitles each standard Markdown export
+  with its session name, and downloads one combined
+  file (empty chats skipped; a plain alert when the
+  project has no messages yet). The prompt library
+  gains Export prompts (JSON download).
+- Proven: export2 harness 5/5, export 10/10, i18n
+  7/7, DOM-stub past extension construction.
+  (v1.85 pushes: 34afb810/fad2ea5f.)
+- APK 20,292,203 bytes, md5
+  ca1f796536bde3fb3f66d981312d81b5, badging 91/1.86.0
+  verified, dex carries both 1.86.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
