@@ -1997,3 +1997,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.78.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.79.0 (versionCode 84) - Oct 21, 2026 - Insert answer
+
+- Answers gain an Insert button beside Save/Speak/
+  Code: it puts the answer into the editor at the
+  cursor, replacing any selection - just the code
+  blocks when the answer has them, the full text
+  otherwise - and leaves the cursor after the
+  insert. With no file open it says so instead of
+  failing.
+- Proven: insert harness 5/5, msgtools 9/9, i18n
+  7/7, DOM-stub past extension construction.
+  (v1.78 pushes: 9ead288a/ae698930.)
+- APK 20,288,104 bytes, md5
+  5800291b58abc0cd1e37666043783e62, badging 84/1.79.0
+  verified, dex carries both 1.79.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

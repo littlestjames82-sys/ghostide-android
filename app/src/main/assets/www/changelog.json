@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.79.0",
+   "date": "Oct 20, 2026",
+   "goal": "Insert answer",
+   "summary": "Answers gain an Insert button: the answer's code (or its full text when there is no code) lands in the editor at the cursor, replacing any selection. No file open, no insert - it tells you instead of failing."
+  },
+  {
    "version": "1.78.0",
    "date": "Oct 20, 2026",
    "goal": "Input history",

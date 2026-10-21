@@ -34361,6 +34361,14 @@
     };
   } catch (e) {
   }
+  function insertionText(text) {
+    const blocks = extractCodeBlocks(text);
+    return blocks.length ? blocks.join("\n\n") : String(text);
+  }
+  try {
+    window.__ghostInsert = { insertionText };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34486,6 +34494,32 @@
         );
       };
       el.appendChild(sp);
+      const ins = document.createElement("button");
+      ins.className = "msgCopy";
+      ins.textContent = "\u2935 Insert";
+      ins.title = "Insert into the editor at the cursor";
+      ins.onclick = () => {
+        if (!currentFile) {
+          alert("Open a file first, then insert.");
+          return;
+        }
+        const sel = view.state.selection.main;
+        const payload = insertionText(text);
+        view.dispatch({
+          changes: {
+            from: sel.from,
+            to: sel.to,
+            insert: payload
+          },
+          selection: { anchor: sel.from + payload.length }
+        });
+        view.focus();
+        ins.textContent = "\u2713 Inserted";
+        setTimeout(() => {
+          ins.textContent = "\u2935 Insert";
+        }, 1200);
+      };
+      el.appendChild(ins);
       const blocks = extractCodeBlocks(text);
       if (blocks.length) {
         const cb2 = document.createElement("button");
