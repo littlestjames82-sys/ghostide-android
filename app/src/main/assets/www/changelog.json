@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.90.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat auto-name",
+   "summary": "A chat that still has its default name renames itself from its first message (first 28 characters). Chats you renamed yourself are never touched."
+  },
+  {
    "version": "1.89.0",
    "date": "Oct 20, 2026",
    "goal": "Line operations",

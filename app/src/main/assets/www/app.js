@@ -34544,6 +34544,21 @@
     window.__ghostLineOps = { planLineOp };
   } catch (e) {
   }
+  function autoChatName(text) {
+    const clean = String(text || "").replace(/\s+/g, " ").trim();
+    if (!clean) return "";
+    return clean.length > 28 ? clean.slice(0, 27).trim() + "\u2026" : clean;
+  }
+  function isDefaultChatName(name2) {
+    return /^Chat( \d+)?$/.test(String(name2 || ""));
+  }
+  try {
+    window.__ghostAutoName = {
+      autoChatName,
+      isDefaultChatName
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34863,6 +34878,7 @@
     updateChatCount();
     addMsg("YOU", text, true);
     history2.push({ role: "user", content: text });
+    maybeAutoName(text);
     saveHistory();
     const messages = [
       { role: "system", content: sysContent },
@@ -37534,6 +37550,21 @@
       applyLineOp("dup");
     }
   });
+  function maybeAutoName(text) {
+    const s = chatSessions.find(
+      (x) => x.id === activeSessionId
+    );
+    if (!s || !isDefaultChatName(s.name)) return;
+    const users = history2.filter(
+      (m) => m.role === "user"
+    ).length;
+    if (users !== 1) return;
+    const name2 = autoChatName(text);
+    if (!name2) return;
+    s.name = name2;
+    saveSessions();
+    syncSessionPicker();
+  }
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

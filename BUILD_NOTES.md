@@ -2200,3 +2200,19 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.89.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.90.0 (versionCode 95) - Oct 21, 2026 - Chat auto-name
+
+- On a chat's first user message, if the session
+  still carries a default name (Chat / Chat N), it
+  renames itself from the message text (whitespace
+  collapsed, 28-char trim) and the picker updates
+  immediately. Manually renamed chats are exempt.
+- Proven: autoname harness 4/4, sessions 14/14,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.89 pushes: 93740e69/4db7a6fa.)
+- APK 20,292,200 bytes, md5
+  f5950cc06168cb90cbfd6613d30ef7c9, badging 95/1.90.0
+  verified, dex carries both 1.90.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
