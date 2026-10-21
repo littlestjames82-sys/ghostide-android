@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.68.0",
+   "date": "Oct 20, 2026",
+   "goal": "Message tools",
+   "summary": "Every Ghost answer gains two more buttons: Save writes it to a file in the workspace, and Code copies only its code blocks. Your own messages gain Edit & resend: rewind the chat to that message, fix it, and send again (everything after it is removed, with a warning first)."
+  },
+  {
    "version": "1.67.0",
    "date": "Oct 20, 2026",
    "goal": "Settings utilities",

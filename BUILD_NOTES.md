@@ -1783,3 +1783,22 @@ On-device extraction + panel proof is Ryan's.
   with 1.67.0, same signer (8ea8684a...). Uploaded
   and delivered Oct 20, 2026 as the marathon build;
   device pass is Ryan's.
+
+## v1.68.0 (versionCode 73) - Oct 21, 2026 - Message tools
+
+- Batch 2 (Ryan: "More") opens with per-message
+  tools. Ghost answers gain Save (writes the message
+  to answer-<timestamp>.md in the workspace via the
+  existing file endpoint) and, when the answer has
+  code fences, a Code (N) button that copies only
+  the code blocks. Loaded user turns gain Edit &
+  resend: rewind history to that turn (with a
+  confirm, since everything after is dropped), and
+  the old text lands back in the chat box.
+- Proven: msgtools harness 9/9, chatopts 34/34,
+  i18n 7/7, DOM-stub past extension construction.
+- APK 20,284,008 bytes, md5
+  3e3a3cadaeeab2885fb045bd16a8786d, badging 73/1.68.0
+  verified, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

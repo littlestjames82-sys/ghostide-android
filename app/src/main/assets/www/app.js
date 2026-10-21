@@ -34116,6 +34116,31 @@
     };
   } catch (e) {
   }
+  function extractCodeBlocks(text) {
+    const out = [];
+    const re = /```[^\n]*\n([\s\S]*?)```/g;
+    let m;
+    while ((m = re.exec(text)) !== null)
+      out.push(m[1].replace(/\n$/, ""));
+    return out;
+  }
+  function trimForEdit(hist, idx) {
+    if (idx < 0 || idx >= hist.length) return null;
+    if (hist[idx].role !== "user") return null;
+    return { kept: hist.slice(0, idx), text: hist[idx].content };
+  }
+  function answerFilename(d) {
+    const p = (n) => String(n).padStart(2, "0");
+    return "answer-" + d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + ".md";
+  }
+  try {
+    window.__ghostMsgTools = {
+      extractCodeBlocks,
+      trimForEdit,
+      answerFilename
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34149,7 +34174,8 @@
       if (m.role !== "user" && m.role !== "assistant") continue;
       history2.push(m);
       if (m.role === "user") {
-        addMsg("YOU", m.content);
+        const body = addMsg("YOU", m.content);
+        attachEditBtn(body.parentElement, history2.length - 1);
       } else {
         renderRich(addMsg("GHOST", ""), m.content);
       }
@@ -34203,6 +34229,44 @@
         }
       };
       el.appendChild(cp);
+      const sv = document.createElement("button");
+      sv.className = "msgCopy";
+      sv.textContent = "\u{1F4BE} Save";
+      sv.onclick = async () => {
+        const d = await postJson(
+          "/api/file",
+          { path: answerFilename(/* @__PURE__ */ new Date()), content: text }
+        );
+        if (d.error) {
+          alert(d.error);
+          return;
+        }
+        await loadFiles();
+        sv.textContent = "\u2713 Saved";
+        setTimeout(() => {
+          sv.textContent = "\u{1F4BE} Save";
+        }, 1200);
+      };
+      el.appendChild(sv);
+      const blocks = extractCodeBlocks(text);
+      if (blocks.length) {
+        const cb2 = document.createElement("button");
+        cb2.className = "msgCopy";
+        cb2.textContent = "</> Code (" + blocks.length + ")";
+        cb2.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(
+              blocks.join("\n\n")
+            );
+            cb2.textContent = "\u2713 Copied";
+            setTimeout(() => {
+              cb2.textContent = "</> Code (" + blocks.length + ")";
+            }, 1200);
+          } catch (e) {
+          }
+        };
+        el.appendChild(cb2);
+      }
     }
   }
   function addMsg(who, text, stamp) {
@@ -36439,6 +36503,28 @@
     }
     e.target.value = "";
   };
+  function attachEditBtn(wrap, idx) {
+    if (!wrap) return;
+    const b = document.createElement("button");
+    b.className = "msgCopy";
+    b.textContent = "\u270E Edit & resend";
+    b.onclick = () => editUserTurn(idx);
+    wrap.appendChild(b);
+  }
+  function editUserTurn(idx) {
+    const t2 = trimForEdit(history2, idx);
+    if (!t2) return;
+    if (!confirm("Edit this message? Everything after it in this chat will be removed.")) return;
+    history2.length = 0;
+    for (const m of t2.kept) history2.push(m);
+    saveHistory();
+    loadHistory();
+    $("chatText").value = t2.text;
+    growChatText();
+    updateChatCount();
+    saveChatDraft();
+    $("chatText").focus();
+  }
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
