@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.57.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat options + settings expansion",
+   "summary": "Chat gets an answer style picker (Balanced, Teacher, Code only, Reviewer, Rubber duck), an answer length picker, quick prompt chips, and Regenerate / Copy / Export buttons in the options fold. Settings is grouped into Chat, Editor and Interface, and gains custom instructions for every chat, a history window, a send-key choice, a completion ping toggle, message time stamps, an editor font picker, compact chat and reduce motion."
+  },
+  {
    "version": "1.56.0",
    "date": "Oct 20, 2026",
    "goal": "GhostConvert export (Roadmap ECO E6)",

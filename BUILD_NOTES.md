@@ -1483,3 +1483,66 @@ On-device extraction + panel proof is Ryan's.
   same signer (8ea8684a...). The byte size happens
   to equal v1.55.0's exactly; the md5 differs.
   On-device proof is Ryan's device pass.
+
+## v1.57.0 (versionCode 62) - Oct 20, 2026 - Chat options + settings expansion
+
+- Chat gains real options, all wired end to end in the
+  shared frontend (desktop + phone): an Answer style
+  picker in the Chat options fold (Balanced, Teacher,
+  Code only, Reviewer, Rubber duck) whose instruction
+  rides in the system message of every send; an Answer
+  length picker (Short 512 / Normal 1024 / Detailed
+  2048 max tokens) that supersedes the lone Short
+  answers flag (the old checkbox stays and stays
+  synced both ways); quick prompt chips under the
+  chat box (Explain this file, Find bugs, Write tests,
+  Simplify, Document) that fill the box from templates
+  and never auto-send; and Regenerate / Copy last
+  answer / Export chat buttons in the fold (Regenerate
+  and Export reuse the existing Tools handlers).
+- Settings is grouped into Chat / Editor / Interface
+  sections and gains: the same style + length pickers
+  (mirrored controls, one source of truth in the
+  settings object), a custom instructions box whose
+  text is appended to every chat's system message
+  (trimmed, capped at 1000 chars), a history window
+  (how many past turns are SENT to the model:
+  everything / 24 / 12 / 6; the on-screen and saved
+  history is untouched), a send-key choice (Enter
+  sends, or Ctrl+Enter sends with Enter as newline),
+  a completion ping toggle (same ghostide-notify key
+  as the Tools toggle), message time stamps (new
+  messages only), an editor font picker (Default mono
+  / Consolas / Courier New, via the
+  --ghost-font-family CSS variable next to the
+  existing --ghost-font size), compact chat, and
+  reduce motion. The panel scrolls now (max-height)
+  since the sections outgrew the screen. Frontend
+  only: no server or IdeServer changes, the eco
+  bundle is unchanged (25 pkgs / 2,642 tests).
+- Proven (all foreground): the pure steps live
+  between @@CHATOPTS@@ markers and are proven by
+  test-fixtures/chatopts-ui-harness.mjs 34/34 (style
+  table, persona suffix composition + the 1000-char
+  cap, length mapping including the legacy Short
+  flag, history windowing without mutating the full
+  history, prompt templates, stamps, and static
+  wiring for all 16 new controls). Regressions: E1,
+  E3, E4, E5 and E6 server harnesses ALL PASS; E4/E5/
+  E6 UI harnesses 17/17, 26/26, 15/15; chip harness
+  9/9; i18n 7/7. DOM-stub gate past extension
+  construction (known defaultView stub artifact
+  only). Undefined-call scan over the new code:
+  every callee defined; zero closeOverlays in source
+  and bundle.
+- APK 20,271,723 bytes, md5
+  3b79a052af37995e57c8a79fea8dd2c1, badging
+  62/1.57.0 verified, dex carries both 1.57.0
+  literals (health + update check), the staged
+  changelog leads with the 1.57.0 entry and the
+  staged www app.js / index.html byte-match the
+  sources; same signer (8ea8684a...). Version
+  literals bumped in server.py (APP_VERSION) and
+  IdeServer.java (health, update check) alongside
+  the manifest. On-device proof is Ryan's device
+  pass.

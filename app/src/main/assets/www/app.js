@@ -32704,7 +32704,16 @@
       whitespace: false,
       lang: "en",
       textSize: "normal",
-      oneHand: false
+      oneHand: false,
+      chatStyle: "balanced",
+      chatLength: "normal",
+      customInstr: "",
+      historyTurns: 0,
+      sendKey: "enter",
+      timestamps: false,
+      compactChat: false,
+      reduceMotion: false,
+      fontFamily: "default"
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -33717,6 +33726,81 @@
     syncChatToggle();
     syncViewBar();
   }
+  var CHAT_STYLES = {
+    balanced: { label: "Balanced", instruction: "" },
+    teacher: { label: "Teacher", instruction: "Answer like a patient teacher: explain the idea first in plain words, then show the code, then give one short example. Define any term the first time you use it." },
+    codeonly: { label: "Code only", instruction: "Answer with code only, plus at most one short comment line per block. No explanations before or after the code unless I ask for them." },
+    reviewer: { label: "Reviewer", instruction: "Answer like a strict code reviewer: lead with problems (bugs, edge cases, risks) in priority order, each with the line it is on and a concrete fix. Skip praise and summaries." },
+    rubberduck: { label: "Rubber duck", instruction: "Act as a rubber duck: do not write the fix or the answer. Ask one focused question at a time about my code and my thinking, and reflect back what I say, until I see the answer myself." }
+  };
+  var QUICK_PROMPTS = [
+    {
+      id: "explain",
+      label: "Explain this file",
+      text: "Explain how {file} works, section by section, in plain words."
+    },
+    {
+      id: "bugs",
+      label: "Find bugs",
+      text: "Look for bugs and edge cases in {file}. List each one with the line it is on and a fix."
+    },
+    {
+      id: "tests",
+      label: "Write tests",
+      text: "Write tests for the main behavior in {file}. Cover the happy path and the edge cases."
+    },
+    {
+      id: "simplify",
+      label: "Simplify",
+      text: "Show a simpler version of the hardest part of {file}, and say what changed and why."
+    },
+    {
+      id: "document",
+      label: "Document",
+      text: "Write clear comments and a short header doc for {file}, without changing its behavior."
+    }
+  ];
+  function personaSuffix(styleId, custom) {
+    let s = "";
+    const st = CHAT_STYLES[styleId];
+    if (st && st.instruction)
+      s += "\n\nAnswer style: " + st.instruction;
+    const c = (custom || "").trim().slice(0, 1e3);
+    if (c) s += "\n\nThe user's own instructions for every answer:\n" + c;
+    return s;
+  }
+  function answerMaxTokens(lenId, shortLegacy, base2) {
+    if (lenId === "short") return 512;
+    if (lenId === "long") return 2048;
+    if (lenId === "normal") return base2;
+    return shortLegacy ? 512 : base2;
+  }
+  function windowHistory(msgs, turns) {
+    const t2 = parseInt(turns, 10);
+    if (!t2 || t2 <= 0) return msgs.slice();
+    return msgs.slice(-t2 * 2);
+  }
+  function quickPromptText(id2, fileName) {
+    const p = QUICK_PROMPTS.find((q) => q.id === id2);
+    if (!p) return "";
+    return p.text.split("{file}").join(fileName || "this file");
+  }
+  function msgStamp(d) {
+    const p2 = (n) => String(n).padStart(2, "0");
+    return p2(d.getHours()) + ":" + p2(d.getMinutes());
+  }
+  try {
+    window.__ghostChatOpts = {
+      CHAT_STYLES,
+      QUICK_PROMPTS,
+      personaSuffix,
+      answerMaxTokens,
+      windowHistory,
+      quickPromptText,
+      msgStamp
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -33787,12 +33871,18 @@
       }
     });
   }
-  function addMsg(who, text) {
+  function addMsg(who, text, stamp) {
     const wrap = document.createElement("div");
     wrap.className = "msg";
     const w = document.createElement("div");
     w.className = "who";
     w.textContent = who;
+    if (settings.timestamps && stamp) {
+      const st = document.createElement("span");
+      st.className = "stamp";
+      st.textContent = " \xB7 " + msgStamp(/* @__PURE__ */ new Date());
+      w.appendChild(st);
+    }
     const body = document.createElement("div");
     body.textContent = text;
     wrap.appendChild(w);
@@ -33816,6 +33906,10 @@
     }
     const SYS = BEHAVIOR.systemPrompt;
     let sysContent = SYS;
+    sysContent += personaSuffix(
+      settings.chatStyle,
+      settings.customInstr
+    );
     if ($("ctxToggle").checked) {
       const mode = $("ctxMode").value;
       if (mode === "file" && currentFile) {
@@ -33892,12 +33986,15 @@
       }
     }
     ta.value = "";
-    addMsg("YOU", text);
+    addMsg("YOU", text, true);
     history2.push({ role: "user", content: text });
     saveHistory();
-    const messages = [{ role: "system", content: sysContent }, ...history2];
+    const messages = [
+      { role: "system", content: sysContent },
+      ...windowHistory(history2, settings.historyTurns)
+    ];
     const chatT0 = Date.now();
-    const body = addMsg("GHOST", "");
+    const body = addMsg("GHOST", "", true);
     let full = "";
     thermalWarned = false;
     let thermalStopped = false;
@@ -33921,7 +34018,11 @@
         body: JSON.stringify({
           messages,
           stream: true,
-          max_tokens: settings.shortAnswers ? 512 : BEHAVIOR.chat.maxTokens,
+          max_tokens: answerMaxTokens(
+            settings.chatLength,
+            settings.shortAnswers,
+            BEHAVIOR.chat.maxTokens
+          ),
           temperature: settings.temperature
         })
       });
@@ -33973,10 +34074,10 @@
   var chatAbort = null;
   $("chatSend").onclick = sendChat;
   $("chatText").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendChat();
-    }
+    if (e.key !== "Enter" || e.shiftKey) return;
+    if (settings.sendKey === "ctrl" && !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    sendChat();
   });
   $("runBtn").onclick = async () => {
     if (!currentFile) {
@@ -35203,6 +35304,9 @@
     newFileBtn: { en: "+ New", es: "+ Nuevo" },
     mentionBtn: { en: "@ File", es: "@ Archivo" },
     clearChatBtn: { en: "Clear chat", es: "Borrar chat" },
+    regenBtn: { en: "\u21BB Regenerate", es: "\u21BB Regenerar" },
+    copyLastBtn: { en: "\u29C9 Copy last answer", es: "\u29C9 Copiar \xFAltima respuesta" },
+    exportChatBtn: { en: "\u2B07 Export chat", es: "\u2B07 Exportar chat" },
     primeBtn: { en: "\u{1F9ED} Prime this project", es: "\u{1F9ED} Preparar este proyecto" },
     handoffBtn: { en: "\u{1F4E6} Draft handoff", es: "\u{1F4E6} Borrador de traspaso" },
     recallBtn: { en: "\u{1F4DA} Recall memory", es: "\u{1F4DA} Recuperar memoria" },
@@ -35362,6 +35466,140 @@
     settings.whitespace = e.target.checked;
     saveSettings();
     view.dispatch({ effects: wsComp.reconfigure(wsExt()) });
+  };
+  function syncChatControls() {
+    const style = settings.chatStyle || "balanced";
+    const len = settings.chatLength || (settings.shortAnswers ? "short" : "normal");
+    $("chatStyle").value = style;
+    $("setChatStyle").value = style;
+    $("chatLength").value = len;
+    $("setChatLen").value = len;
+    $("setShort").checked = len === "short";
+  }
+  function setAnswerLength(len) {
+    settings.chatLength = len;
+    settings.shortAnswers = len === "short";
+    saveSettings();
+    syncChatControls();
+  }
+  $("chatStyle").onchange = (e) => {
+    settings.chatStyle = e.target.value;
+    saveSettings();
+    syncChatControls();
+  };
+  $("setChatStyle").onchange = $("chatStyle").onchange;
+  $("chatLength").onchange = (e) => setAnswerLength(e.target.value);
+  $("setChatLen").onchange = $("chatLength").onchange;
+  $("setShort").onchange = (e) => setAnswerLength(e.target.checked ? "short" : "normal");
+  $("setCustomInstr").value = settings.customInstr || "";
+  $("setCustomInstr").onchange = (e) => {
+    settings.customInstr = e.target.value.slice(0, 1e3);
+    saveSettings();
+  };
+  $("setHistTurns").value = String(settings.historyTurns || 0);
+  $("setHistTurns").onchange = (e) => {
+    settings.historyTurns = parseInt(e.target.value, 10) || 0;
+    saveSettings();
+  };
+  $("setSendKey").value = settings.sendKey || "enter";
+  $("setSendKey").onchange = (e) => {
+    settings.sendKey = e.target.value;
+    saveSettings();
+  };
+  $("setPing").checked = notifyEnabled();
+  $("setPing").onchange = (e) => {
+    try {
+      localStorage.setItem(
+        "ghostide-notify",
+        e.target.checked ? "1" : "0"
+      );
+    } catch (err) {
+    }
+    if (e.target.checked && "Notification" in window && Notification.permission === "default")
+      Notification.requestPermission().catch(() => {
+      });
+    refreshNotifyBtn();
+  };
+  $("setTimestamps").checked = !!settings.timestamps;
+  $("setTimestamps").onchange = (e) => {
+    settings.timestamps = e.target.checked;
+    saveSettings();
+  };
+  function applyChatDisplay() {
+    document.body.classList.toggle(
+      "chat-compact",
+      !!settings.compactChat
+    );
+    document.body.classList.toggle(
+      "reduce-motion",
+      !!settings.reduceMotion
+    );
+    const fam = {
+      consolas: "Consolas, 'Courier New', monospace",
+      courier: "'Courier New', Courier, monospace"
+    }[settings.fontFamily];
+    if (fam) document.documentElement.style.setProperty(
+      "--ghost-font-family",
+      fam
+    );
+    else document.documentElement.style.removeProperty(
+      "--ghost-font-family"
+    );
+  }
+  $("setFontFamily").value = settings.fontFamily || "default";
+  $("setFontFamily").onchange = (e) => {
+    settings.fontFamily = e.target.value;
+    saveSettings();
+    applyChatDisplay();
+  };
+  $("setCompactChat").checked = !!settings.compactChat;
+  $("setCompactChat").onchange = (e) => {
+    settings.compactChat = e.target.checked;
+    saveSettings();
+    applyChatDisplay();
+  };
+  $("setReduceMotion").checked = !!settings.reduceMotion;
+  $("setReduceMotion").onchange = (e) => {
+    settings.reduceMotion = e.target.checked;
+    saveSettings();
+    applyChatDisplay();
+  };
+  applyChatDisplay();
+  syncChatControls();
+  for (const p of QUICK_PROMPTS) {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = p.label;
+    b.title = "Fill the chat box with this prompt";
+    b.onclick = () => {
+      $("chatText").value = quickPromptText(p.id, currentFile);
+      $("chatText").focus();
+    };
+    $("chatChips").appendChild(b);
+  }
+  $("regenBtn").onclick = () => $("toolRegen").click();
+  $("exportChatBtn").onclick = () => $("toolExportChat").click();
+  $("copyLastBtn").onclick = async () => {
+    let last2 = "";
+    for (let i2 = history2.length - 1; i2 >= 0; i2--) {
+      if (history2[i2].role === "assistant") {
+        last2 = history2[i2].content;
+        break;
+      }
+    }
+    if (!last2) {
+      alert("No answer to copy yet.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(last2);
+      $("copyLastBtn").textContent = "\u2713 Copied";
+      setTimeout(() => {
+        $("copyLastBtn").textContent = "\u29C9 Copy last answer";
+      }, 1500);
+    } catch (e) {
+      alert("Copy is not available here - the answer is in the chat log above.");
+    }
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
