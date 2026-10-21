@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.97.0",
+   "date": "Oct 20, 2026",
+   "goal": "App info, batch 4 wrap",
+   "summary": "Settings tools gains an info line: the running version plus live counts of your chats, prompts, profiles and starred answers on this device. This build closes batch 4: file header actions, line operations, chat auto-name, starred sessions, What Ghost sees, starred answers, five more slash commands, retry last message, and the tabs pack."
+  },
+  {
    "version": "1.96.0",
    "date": "Oct 20, 2026",
    "goal": "Tabs pack",

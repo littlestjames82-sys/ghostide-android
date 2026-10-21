@@ -34663,6 +34663,13 @@
     window.__ghostTabsPack = { othersOf };
   } catch (e) {
   }
+  function appInfoText(o) {
+    return "GhostIDE v" + o.version + " \xB7 " + o.chats + " chats \xB7 " + o.prompts + " prompts \xB7 " + o.profiles + " profiles \xB7 " + o.starred + " starred answers \xB7 eco bundle " + o.eco;
+  }
+  try {
+    window.__ghostAppInfo = { appInfoText };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37808,6 +37815,26 @@
     for (const p of tabOrder.slice()) closeTab(p);
     renderTabs();
   };
+  async function refreshAppInfo() {
+    let version = "?";
+    try {
+      const r = await fetch("changelog.json");
+      const d = await r.json();
+      if (d.entries && d.entries.length)
+        version = d.entries[0].version;
+    } catch (e) {
+    }
+    const el = $("appInfo");
+    if (el) el.textContent = appInfoText({
+      version,
+      chats: chatSessions.length,
+      prompts: promptLib.length,
+      profiles: Object.keys(loadProfiles()).length,
+      starred: loadStarAnswers().length,
+      eco: "25 packages / 2,642 tests"
+    });
+  }
+  setTimeout(refreshAppInfo, 900);
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

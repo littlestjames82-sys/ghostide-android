@@ -2338,3 +2338,26 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v1.97.0 (versionCode 102) - Oct 21, 2026 - App info, batch 4 wrap
+
+- Settings tools gains an app info line: version
+  from the bundled changelog plus live counts of
+  chats, prompts, profiles and starred answers on
+  this device. Ends batch 4 (Ryan: "Continue
+  Improving the app") - ten rounds, v1.88.0 through
+  v1.97.0: file header actions, line operations,
+  chat auto-name, starred sessions (+ the phantom
+  fixes), What Ghost sees, starred answers, slash
+  pack 2, retry last message, tabs pack, app info.
+- FINAL GATES for the whole batch: 41 UI harnesses
+  (307 checks across the four batches) + chip 9/9
+  + i18n 7/7 + eco UI 17/26/15 + python eco
+  E1/E3/E4/E5/E6 ALL PASS + DOM-stub past extension
+  construction on the final bundle.
+- APK 20,296,296 bytes, md5
+  b027b93fc6ea89521c42b193b6ef29f0, badging
+  102/1.97.0 verified, dex carries both 1.97.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). Uploaded at Ryan's
+  direction; device pass is Ryan's.
