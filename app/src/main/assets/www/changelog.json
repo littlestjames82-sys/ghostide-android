@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.77.0",
+   "date": "Oct 20, 2026",
+   "goal": "Auto-scroll control",
+   "summary": "Settings gains an Auto-scroll toggle for the chat. On (the classic behavior) the chat always jumps to the newest message. Off, the view only follows when you are already near the bottom, so reading back through an answer is never interrupted while it streams."
+  },
+  {
    "version": "1.76.0",
    "date": "Oct 20, 2026",
    "goal": "Full data backup",

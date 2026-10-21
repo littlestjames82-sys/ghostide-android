@@ -1958,3 +1958,24 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.76.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.77.0 (versionCode 82) - Oct 21, 2026 - Auto-scroll control
+
+- Settings gains an Auto-scroll toggle for the
+  chat. On (default) keeps the classic always-follow
+  behavior; off, new messages and streaming only
+  scroll when you were already near the bottom
+  (80px), measured before each append in addMsg and
+  on every stream tick. Ends batch 2 (Ryan: "More")
+  - ten rounds, v1.68.0 through v1.77.0.
+- FINAL GATES for the whole batch: 21 UI harnesses
+  (209 checks: batch 1's 141 + batch 2's 68) + chip
+  9/9 + i18n 7/7 + eco UI 17/26/15 + python eco
+  E1/E3/E4/E5/E6 ALL PASS + DOM-stub past extension
+  construction on the final bundle.
+- APK 20,288,104 bytes, md5
+  5e2eaf20f6100e56ac6e751f2e276191, badging 82/1.77.0
+  verified, dex carries both 1.77.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). Uploaded at Ryan's direction;
+  device pass is Ryan's.

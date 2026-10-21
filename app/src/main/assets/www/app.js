@@ -32723,6 +32723,7 @@
       chatWidth: "360",
       accent: "green",
       notifySound: "soft",
+      autoScroll: true,
       bubbles: false,
       roleLabels: true,
       sliceBudget: 6e3,
@@ -34322,6 +34323,19 @@
     };
   } catch (e) {
   }
+  function isNearBottom(st, ch, sh, thr) {
+    return sh - (st + ch) <= (thr || 80);
+  }
+  function shouldChatScroll(auto, wasNear) {
+    return auto !== false || !!wasNear;
+  }
+  try {
+    window.__ghostScroll = {
+      isNearBottom,
+      shouldChatScroll
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34484,8 +34498,15 @@
     body.textContent = text;
     wrap.appendChild(w);
     wrap.appendChild(body);
-    $("chatLog").appendChild(wrap);
-    $("chatLog").scrollTop = $("chatLog").scrollHeight;
+    const logEl = $("chatLog");
+    const wasNear = isNearBottom(
+      logEl.scrollTop,
+      logEl.clientHeight,
+      logEl.scrollHeight
+    );
+    logEl.appendChild(wrap);
+    if (shouldChatScroll(settings.autoScroll, wasNear))
+      logEl.scrollTop = logEl.scrollHeight;
     return body;
   }
   async function sendChat() {
@@ -34661,7 +34682,16 @@
             const delta = j.choices?.[0]?.delta?.content || "";
             full += delta;
             body.textContent = full;
-            $("chatLog").scrollTop = $("chatLog").scrollHeight;
+            const logS = $("chatLog");
+            if (shouldChatScroll(
+              settings.autoScroll,
+              isNearBottom(
+                logS.scrollTop,
+                logS.clientHeight,
+                logS.scrollHeight
+              )
+            ))
+              logS.scrollTop = logS.scrollHeight;
           } catch (e) {
           }
         }
@@ -36848,6 +36878,11 @@
     }
     location.reload();
   });
+  $("setAutoScroll").checked = settings.autoScroll !== false;
+  $("setAutoScroll").onchange = (e) => {
+    settings.autoScroll = e.target.checked;
+    saveSettings();
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
