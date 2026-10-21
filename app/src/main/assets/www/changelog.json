@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.94.0",
+   "date": "Oct 20, 2026",
+   "goal": "Slash commands pack 2",
+   "summary": "Five more slash commands: /rename (with a name), /star, /scratch, /backup and /sees. The command list is now thirteen strong and /help shows them all."
+  },
+  {
    "version": "1.93.0",
    "date": "Oct 20, 2026",
    "goal": "Starred answers",

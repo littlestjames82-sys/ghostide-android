@@ -2283,3 +2283,22 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.93.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.94.0 (versionCode 99) - Oct 21, 2026 - Slash commands pack 2
+
+- Five new local slash commands ride the existing
+  table and dispatcher: /rename <name> renames the
+  active chat (real persist/render plumbing),
+  /star toggles the chat's star, /scratch opens
+  the scratchpad, /backup exports all data, /sees
+  shows the What-Ghost-sees preview. Thirteen
+  commands total; /help lists them.
+- Proven: slash2 harness 4/4, slash 11/11 (count
+  expectation updated 8 to 13), help 6/6, i18n 7/7,
+  DOM-stub past extension construction.
+  (v1.93 pushes: 590149b6/4e586f1e.)
+- APK 20,292,200 bytes, md5
+  fa07a6c0615f6af994a67fe864882e34, badging 99/1.94.0
+  verified, dex carries both 1.94.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
