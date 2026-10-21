@@ -33948,6 +33948,44 @@
     };
   } catch (e) {
   }
+  function escHtmlBasic(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function chatToMarkdown(hist) {
+    return "# GhostIDE chat export\n\n" + hist.map((m) => (m.role === "user" ? "**You:** " : "**Ghost:** ") + m.content).join("\n\n---\n\n") + "\n";
+  }
+  function chatToText(hist) {
+    return "GhostIDE chat export\n\n" + hist.map((m) => (m.role === "user" ? "You: " : "Ghost: ") + m.content).join("\n\n---\n\n") + "\n";
+  }
+  function chatToHtml(hist) {
+    const parts = hist.map((m) => "<h3>" + (m.role === "user" ? "You" : "Ghost") + "</h3>\n<pre>" + escHtmlBasic(m.content) + "</pre>");
+    return '<!doctype html>\n<html><head><meta charset="utf-8"><title>GhostIDE chat export</title><style>body{font-family:system-ui;background:#131519;color:#e6e6e6;max-width:760px;margin:24px auto;padding:0 16px}h3{color:#9a9fb0;margin:18px 0 4px}pre{white-space:pre-wrap;margin:0}</style></head><body><h1>GhostIDE chat export</h1>\n' + parts.join("\n") + "\n</body></html>\n";
+  }
+  function chatStats(hist) {
+    let words = 0;
+    for (const m of hist)
+      words += (m.content.match(/\S+/g) || []).length;
+    return {
+      messages: hist.length,
+      words,
+      estTokens: Math.ceil(hist.reduce((a, m) => a + m.content.length, 0) / 4)
+    };
+  }
+  function chatStatsText(hist) {
+    const s = chatStats(hist);
+    if (!s.messages) return "No messages yet.";
+    return s.messages + " messages \xB7 ~" + s.words.toLocaleString() + " words \xB7 ~" + s.estTokens.toLocaleString() + " tok (estimates)";
+  }
+  try {
+    window.__ghostExport = {
+      chatToMarkdown,
+      chatToText,
+      chatToHtml,
+      chatStats,
+      chatStatsText
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -33966,6 +34004,7 @@
       );
     } catch (e) {
     }
+    updateChatStats();
   }
   function loadHistory() {
     history2.length = 0;
@@ -33987,6 +34026,7 @@
     }
     if (!items.length) addMsg("GHOST", GREETING);
     restoreChatDraft();
+    updateChatStats();
   }
   function renderRich(el, text) {
     el.innerHTML = "";
@@ -35749,7 +35789,7 @@
     $("chatChips").appendChild(b);
   }
   $("regenBtn").onclick = () => $("toolRegen").click();
-  $("exportChatBtn").onclick = () => $("toolExportChat").click();
+  $("exportChatBtn").onclick = () => exportChatAs($("exportFmt").value);
   $("copyLastBtn").onclick = async () => {
     let last2 = "";
     for (let i2 = history2.length - 1; i2 >= 0; i2--) {
@@ -36064,6 +36104,57 @@
     applyEditorReading();
   };
   applyEditorReading();
+  function updateChatStats() {
+    const el = $("chatStats");
+    if (el) el.textContent = chatStatsText(history2);
+  }
+  async function exportChatAs(format) {
+    hideTools();
+    if (!history2.length) {
+      alert("No chat to export yet.");
+      return;
+    }
+    const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const build = {
+      md: chatToMarkdown,
+      txt: chatToText,
+      html: chatToHtml
+    }[format] || chatToMarkdown;
+    const ext = {
+      md: "md",
+      txt: "txt",
+      html: "html"
+    }[format] || "md";
+    const name2 = "chat-export-" + stamp + "." + ext;
+    const d = await postJson(
+      "/api/file",
+      { path: name2, content: build(history2) }
+    );
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    await loadFiles();
+    alert("Chat saved to " + name2 + " in the workspace.");
+  }
+  $("copyWholeBtn").onclick = async () => {
+    if (!history2.length) {
+      alert("No chat to copy yet.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(
+        chatToText(history2)
+      );
+      $("copyWholeBtn").textContent = "\u2713 Copied";
+      setTimeout(() => {
+        $("copyWholeBtn").textContent = "\u29C9 Whole chat";
+      }, 1500);
+    } catch (e) {
+      alert("Copy is not available here.");
+    }
+  };
+  updateChatStats();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
@@ -36906,22 +36997,7 @@
     $("chatText").value = lastUser.content;
     sendChat();
   };
-  $("toolExportChat").onclick = async () => {
-    hideTools();
-    if (!history2.length) {
-      alert("No chat to export yet.");
-      return;
-    }
-    const md = "# GhostIDE chat export\n\n" + history2.map((m) => (m.role === "user" ? "**You:** " : "**Ghost:** ") + m.content).join("\n\n---\n\n") + "\n";
-    const name2 = "chat-export-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".md";
-    const d = await postJson("/api/file", { path: name2, content: md });
-    if (d.error) {
-      alert(d.error);
-      return;
-    }
-    await loadFiles();
-    alert("Chat saved to " + name2 + " in the workspace.");
-  };
+  $("toolExportChat").onclick = () => exportChatAs("md");
   $("toolZip").onclick = async () => {
     hideTools();
     try {

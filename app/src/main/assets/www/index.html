@@ -194,8 +194,15 @@ setTimeout(function () {
       <button id="regenBtn">↻ Regenerate</button>
       <button id="copyLastBtn">⧉ Copy last answer</button>
       <button id="exportChatBtn">⬇ Export chat</button>
+      <select id="exportFmt" title="Export format">
+        <option value="md">Markdown</option>
+        <option value="txt">Plain text</option>
+        <option value="html">Web page</option>
+      </select>
       <button id="continueBtn">⏩ Continue</button>
+      <button id="copyWholeBtn">⧉ Whole chat</button>
     </div>
+    <div id="chatStats" class="dim"></div>
     </div>
     <button id="clearChatBtn" title="Clear this project's chat history">Clear chat</button>
     <button id="primeBtn" title="Build a GhostPrimer starter bundle for this project and open a new chat with it as the first context">🧭 Prime this project</button>

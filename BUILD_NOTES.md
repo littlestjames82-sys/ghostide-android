@@ -1660,3 +1660,30 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.62.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.63.0 (versionCode 68) - Oct 20, 2026 - Chat export pack
+
+- Export grows up: Chat options gains a format
+  picker (Markdown / Plain text / Web page) next to
+  Export chat, and the Tools export shares the same
+  exportChatAs path. The HTML export is a standalone
+  styled page with every message escaped, so chat
+  content can never inject markup into the file.
+  Markdown keeps the exact format the Tools export
+  has always written.
+- Copy whole chat joins Copy last answer, and a
+  stats line in Chat options keeps count: messages,
+  words and estimated tokens for the current chat,
+  refreshed whenever history is saved or loaded.
+- Proven: export harness 10/10 (formats, escaping,
+  stats, shared path, wiring), i18n 7/7, DOM-stub
+  past extension construction.
+- Process note: the v1.62 push delivery was garbled
+  again (files 1); the repos were re-verified
+  against the GitHub API directly before this
+  round's push was trusted.
+- APK 20,279,913 bytes, md5
+  b81afa38b04a1b2337b86e0f475b08b5, badging 68/1.63.0
+  verified, dex carries both 1.63.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

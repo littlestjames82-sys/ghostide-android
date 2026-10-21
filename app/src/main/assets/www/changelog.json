@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.63.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat export pack",
+   "summary": "Export chat as Markdown, plain text, or a standalone web page (fully escaped, safe to share), copy the whole chat at once, and see a running count of messages, words and estimated tokens for the current chat in Chat options."
+  },
+  {
    "version": "1.62.0",
    "date": "Oct 20, 2026",
    "goal": "Editor reading pack",
