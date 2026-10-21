@@ -32728,6 +32728,7 @@
       chatFont: "default",
       bubbles: false,
       wrapChat: false,
+      autosave: false,
       roleLabels: true,
       sliceBudget: 6e3,
       attachSelection: true,
@@ -34720,6 +34721,13 @@
       searchChats,
       searchResultsText
     };
+  } catch (e) {
+  }
+  function autosaveDue(on, hasFile, isDirty, idleTicks) {
+    return !!(on && hasFile && isDirty && idleTicks >= 2);
+  }
+  try {
+    window.__ghostAutosave = { autosaveDue };
   } catch (e) {
   }
   var history2 = [];
@@ -37930,6 +37938,35 @@
       searchChats(chats, q, 12)
     ));
   };
+  $("setAutosave").checked = !!settings.autosave;
+  $("setAutosave").onchange = (e) => {
+    settings.autosave = e.target.checked;
+    saveSettings();
+  };
+  var asSnap = null;
+  var asIdle = 0;
+  setInterval(() => {
+    if (!settings.autosave || !currentFile || !dirty) {
+      asSnap = null;
+      asIdle = 0;
+      return;
+    }
+    const cur2 = view.state.doc.toString();
+    if (cur2 === asSnap) asIdle++;
+    else {
+      asSnap = cur2;
+      asIdle = 0;
+    }
+    if (autosaveDue(
+      settings.autosave,
+      !!currentFile,
+      dirty,
+      asIdle
+    )) {
+      asIdle = 0;
+      saveFile();
+    }
+  }, 1500);
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

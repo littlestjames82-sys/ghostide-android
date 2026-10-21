@@ -2412,3 +2412,24 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.01.0 (versionCode 106) - Oct 21, 2026 - Editor autosave
+
+- Settings toggle (default off): a 1.5s poller
+  snapshots the doc; when the file is dirty and
+  the snapshot is stable for two ticks it calls
+  the real saveFile(), so trim-on-save and the
+  pair guard apply exactly as a manual save.
+- Proven: autosave harness 3/3, i18n 7/7, DOM-stub
+  past extension construction. NOTE on v2.00: the
+  first android push attempt died on a transient
+  GitHub 500 creating an unchanged asset blob
+  (fib.py); one retry landed both repos
+  (76358a08/66668fb5). (v1.99 pushes:
+  26ad9f6f/f105b879; v2.00 first ide push 51ff71a7.)
+- APK 20,296,298 bytes, md5
+  59011f1ea7df0d1f18762caf87d2672e, badging
+  106/2.01.0 verified, dex carries both 2.01.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

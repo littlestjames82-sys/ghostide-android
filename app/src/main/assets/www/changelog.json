@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.01.0",
+   "date": "Oct 20, 2026",
+   "goal": "Editor autosave",
+   "summary": "Settings gains an Autosave toggle: when on, a file with unsaved changes saves itself after about 3 seconds without typing, through the normal save path (trim-on-save and pair guards included). Off by default."
+  },
+  {
    "version": "2.00.0",
    "date": "Oct 20, 2026",
    "goal": "Search all chats (v2.0)",
