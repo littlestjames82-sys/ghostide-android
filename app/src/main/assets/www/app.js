@@ -33868,6 +33868,43 @@
     };
   } catch (e) {
   }
+  function normalizePrompts(list) {
+    const out = [];
+    const seen = /* @__PURE__ */ new Set();
+    if (Array.isArray(list)) {
+      for (const p of list) {
+        if (!p || typeof p.name !== "string" || typeof p.text !== "string") continue;
+        const name2 = p.name.trim().slice(0, 40);
+        const text = p.text.trim().slice(0, 4e3);
+        if (!name2 || !text || seen.has(name2)) continue;
+        seen.add(name2);
+        out.push({ name: name2, text });
+      }
+    }
+    return out;
+  }
+  function upsertPrompt(list, name2, text) {
+    const clean = normalizePrompts([{ name: name2, text }]);
+    if (!clean.length) return normalizePrompts(list);
+    const rest = normalizePrompts(list).filter((p) => p.name !== clean[0].name);
+    rest.push(clean[0]);
+    return rest;
+  }
+  function removePrompt(list, name2) {
+    return normalizePrompts(list).filter((p) => p.name !== name2);
+  }
+  function promptByName(list, name2) {
+    return normalizePrompts(list).find((p) => p.name === name2) || null;
+  }
+  try {
+    window.__ghostPrompts = {
+      normalizePrompts,
+      upsertPrompt,
+      removePrompt,
+      promptByName
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -35846,6 +35883,77 @@
     persistSessions();
     renderSessionSel();
     loadHistory();
+  };
+  var promptLib = [];
+  try {
+    promptLib = normalizePrompts(JSON.parse(
+      localStorage.getItem("ghostide-prompts") || "[]"
+    ));
+  } catch (e) {
+    promptLib = [];
+  }
+  function persistPrompts() {
+    try {
+      localStorage.setItem(
+        "ghostide-prompts",
+        JSON.stringify(promptLib)
+      );
+    } catch (e) {
+    }
+  }
+  function renderPromptSel() {
+    const sel = $("promptSel");
+    sel.innerHTML = "";
+    const head = document.createElement("option");
+    head.value = "";
+    head.textContent = promptLib.length ? "Saved prompts\u2026" : "No saved prompts yet";
+    sel.appendChild(head);
+    for (const p of promptLib) {
+      const o = document.createElement("option");
+      o.value = p.name;
+      o.textContent = p.name;
+      sel.appendChild(o);
+    }
+  }
+  renderPromptSel();
+  $("promptSave").onclick = () => {
+    const text = $("chatText").value.trim();
+    if (!text) {
+      alert("Type the prompt in the chat box first.");
+      return;
+    }
+    const name2 = prompt(
+      "Name this prompt",
+      text.slice(0, 30)
+    );
+    if (name2 === null) return;
+    promptLib = upsertPrompt(promptLib, name2, text);
+    persistPrompts();
+    renderPromptSel();
+    $("promptSel").value = name2.trim().slice(0, 40);
+  };
+  $("promptInsert").onclick = () => {
+    const p = promptByName(promptLib, $("promptSel").value);
+    if (!p) {
+      alert("Pick a saved prompt first.");
+      return;
+    }
+    $("chatText").value = p.text;
+    growChatText();
+    updateChatCount();
+    saveChatDraft();
+    $("chatText").focus();
+  };
+  $("promptDel").onclick = () => {
+    const name2 = $("promptSel").value;
+    if (!name2) {
+      alert("Pick a saved prompt first.");
+      return;
+    }
+    if (!confirm('Delete the prompt "' + name2 + '"?')) return;
+    promptLib = removePrompt(promptLib, name2);
+    persistPrompts();
+    renderPromptSel();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

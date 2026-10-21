@@ -1597,3 +1597,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.59.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.60.0 (versionCode 65) - Oct 20, 2026 - Prompt library
+
+- Save the chat box text as a named prompt, insert
+  it later in any project, delete it - all from a
+  Prompts row in Chat options. Stored globally on
+  the device (ghostide-prompts), names capped at 40
+  chars, texts at 4000; saving an existing name
+  replaces it. Insert refreshes the counter and the
+  draft like typing does.
+- Proven: prompts harness 11/11 (normalize, upsert,
+  remove, lookup, wiring), sessions 14/14, i18n 7/7,
+  DOM-stub past extension construction.
+- APK 20,275,816 bytes, md5
+  03a1300953a0f3fe5b0fa55c89db50d3, badging 65/1.60.0
+  verified, dex carries both 1.60.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

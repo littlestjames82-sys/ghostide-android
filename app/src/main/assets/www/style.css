@@ -764,3 +764,5 @@ body.chat-min #chatChips { display: none; }
 
 /* Chat sessions (v1.59) */
 #sessionSel { max-width: 180px; }
+/* Prompt library (v1.60) */
+#promptSel { max-width: 180px; }

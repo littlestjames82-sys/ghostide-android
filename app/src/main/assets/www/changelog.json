@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.60.0",
+   "date": "Oct 20, 2026",
+   "goal": "Prompt library",
+   "summary": "Save the prompt in the chat box under a name, then reuse it in any project from Chat options: pick it, Insert, send. Prompts live on the device, can be replaced by saving the same name again, and can be deleted from the same row."
+  },
+  {
    "version": "1.59.0",
    "date": "Oct 20, 2026",
    "goal": "Chat sessions",
