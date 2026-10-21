@@ -1546,3 +1546,26 @@ On-device extraction + panel proof is Ryan's.
   IdeServer.java (health, update check) alongside
   the manifest. On-device proof is Ryan's device
   pass.
+
+## v1.58.0 (versionCode 63) - Oct 20, 2026 - Chat composer pack
+
+- Chat box grows as you type (up to 160px) with a
+  live counter under it (chars + estimated tokens,
+  the same chars/4 estimate the app uses elsewhere).
+- An unsent message is saved as a per-project draft
+  (ghostide-chatdraft:<scope>) and restored when the
+  project's chat loads; sending clears it.
+- Every rendered Ghost message gains a Copy button
+  (renderRich), and Chat options gains a Continue
+  button that asks the model to pick up exactly
+  where a cut-off answer stopped, without repeating.
+- Proven: composer harness 13/13 (pure steps +
+  wiring), chatopts 34/34, i18n 7/7, DOM-stub past
+  extension construction. Name note: the chat draft
+  key helper is chatDraftKey - draftKey already
+  belongs to the editor's file drafts.
+- APK 20,275,819 bytes, md5
+  4cf7b50cd858f8fcdf8ded5e9dd2c543, badging 63/1.58.0
+  verified, dex carries both 1.58.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

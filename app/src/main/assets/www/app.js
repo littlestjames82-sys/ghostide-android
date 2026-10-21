@@ -33801,6 +33801,27 @@
     };
   } catch (e) {
   }
+  var CONTINUE_TEXT = "Continue exactly where you left off. Finish the answer; do not repeat what you already said.";
+  function estTokens(text) {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  }
+  function counterText(text) {
+    if (!text) return "";
+    return text.length + " chars \xB7 ~" + estTokens(text) + " tok";
+  }
+  function chatDraftKey(scope) {
+    return "ghostide-chatdraft:" + scope;
+  }
+  try {
+    window.__ghostComposer = {
+      CONTINUE_TEXT,
+      estTokens,
+      counterText,
+      chatDraftKey
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -33839,6 +33860,7 @@
       }
     }
     if (!items.length) addMsg("GHOST", GREETING);
+    restoreChatDraft();
   }
   function renderRich(el, text) {
     el.innerHTML = "";
@@ -33870,6 +33892,22 @@
         el.appendChild(div);
       }
     });
+    if (text && text.trim()) {
+      const cp = document.createElement("button");
+      cp.className = "msgCopy";
+      cp.textContent = "\u29C9 Copy";
+      cp.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          cp.textContent = "\u2713 Copied";
+          setTimeout(() => {
+            cp.textContent = "\u29C9 Copy";
+          }, 1200);
+        } catch (e) {
+        }
+      };
+      el.appendChild(cp);
+    }
   }
   function addMsg(who, text, stamp) {
     const wrap = document.createElement("div");
@@ -33986,6 +34024,8 @@
       }
     }
     ta.value = "";
+    clearChatDraft();
+    updateChatCount();
     addMsg("YOU", text, true);
     history2.push({ role: "user", content: text });
     saveHistory();
@@ -35307,6 +35347,7 @@
     regenBtn: { en: "\u21BB Regenerate", es: "\u21BB Regenerar" },
     copyLastBtn: { en: "\u29C9 Copy last answer", es: "\u29C9 Copiar \xFAltima respuesta" },
     exportChatBtn: { en: "\u2B07 Export chat", es: "\u2B07 Exportar chat" },
+    continueBtn: { en: "\u23E9 Continue", es: "\u23E9 Continuar" },
     primeBtn: { en: "\u{1F9ED} Prime this project", es: "\u{1F9ED} Preparar este proyecto" },
     handoffBtn: { en: "\u{1F4E6} Draft handoff", es: "\u{1F4E6} Borrador de traspaso" },
     recallBtn: { en: "\u{1F4DA} Recall memory", es: "\u{1F4DA} Recuperar memoria" },
@@ -35600,6 +35641,64 @@
     } catch (e) {
       alert("Copy is not available here - the answer is in the chat log above.");
     }
+  };
+  function draftStorageKey() {
+    return historyScope ? chatDraftKey(historyScope) : null;
+  }
+  function saveChatDraft() {
+    const k = draftStorageKey();
+    if (!k) return;
+    try {
+      const v = $("chatText").value;
+      if (v) localStorage.setItem(k, v);
+      else localStorage.removeItem(k);
+    } catch (e) {
+    }
+  }
+  function clearChatDraft() {
+    const k = draftStorageKey();
+    if (k) {
+      try {
+        localStorage.removeItem(k);
+      } catch (e) {
+      }
+    }
+  }
+  function growChatText() {
+    const ta = $("chatText");
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
+  }
+  function updateChatCount() {
+    $("chatCount").textContent = counterText($("chatText").value);
+  }
+  function restoreChatDraft() {
+    const k = draftStorageKey();
+    if (!k) return;
+    try {
+      const v = localStorage.getItem(k);
+      if (v && !$("chatText").value) {
+        $("chatText").value = v;
+        growChatText();
+        updateChatCount();
+      }
+    } catch (e) {
+    }
+  }
+  $("chatText").addEventListener("input", () => {
+    growChatText();
+    updateChatCount();
+    saveChatDraft();
+  });
+  updateChatCount();
+  $("continueBtn").onclick = () => {
+    if (chatAbort) return;
+    if (!history2.length) {
+      alert("Nothing to continue yet - ask something first.");
+      return;
+    }
+    $("chatText").value = CONTINUE_TEXT;
+    sendChat();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

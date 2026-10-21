@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.58.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat composer pack",
+   "summary": "The chat box grows as you type and shows a live character and estimated-token counter. An unsent message is kept as a draft for the project and restored when you come back. Every Ghost answer gains a Copy button, and a Continue button in Chat options picks up a cut-off answer where it left off."
+  },
+  {
    "version": "1.57.0",
    "date": "Oct 20, 2026",
    "goal": "Chat options + settings expansion",
