@@ -34738,6 +34738,19 @@
     window.__ghostSummarize = { summaryRequest };
   } catch (e) {
   }
+  function copyName(path) {
+    const slash4 = path.lastIndexOf("/");
+    const dir = slash4 >= 0 ? path.slice(0, slash4 + 1) : "";
+    const base2 = slash4 >= 0 ? path.slice(slash4 + 1) : path;
+    const dot3 = base2.lastIndexOf(".");
+    if (dot3 > 0)
+      return dir + base2.slice(0, dot3) + " copy" + base2.slice(dot3);
+    return dir + base2 + " copy";
+  }
+  try {
+    window.__ghostDupFile = { copyName };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37983,6 +37996,35 @@
     }
     $("chatText").value = req;
     sendChat();
+  };
+  $("dupFileBtn").onclick = async () => {
+    if (!currentFile) {
+      alert("No file is open.");
+      return;
+    }
+    const name2 = prompt("Duplicate as:", copyName(currentFile));
+    if (!name2 || name2 === currentFile) return;
+    const r = await fetch("/api/file?path=" + encodeURIComponent(currentFile));
+    const d = await r.json();
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    const w = await fetch("/api/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: name2,
+        content: d.content || ""
+      })
+    });
+    const wd = await w.json();
+    if (wd.error) {
+      alert(wd.error);
+      return;
+    }
+    await loadFiles();
+    openFile(name2);
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

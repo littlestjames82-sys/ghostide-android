@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.03.0",
+   "date": "Oct 20, 2026",
+   "goal": "Duplicate file",
+   "summary": "The header gains a Duplicate button for the open file: it suggests a name (the same name with ' copy' before the extension), copies the saved content to it, and opens the copy."
+  },
+  {
    "version": "2.02.0",
    "date": "Oct 20, 2026",
    "goal": "Summarize chat",

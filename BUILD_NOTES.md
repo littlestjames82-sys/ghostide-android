@@ -2451,3 +2451,21 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.03.0 (versionCode 108) - Oct 21, 2026 - Duplicate file
+
+- Header gains a Dup button beside Copy File. It
+  prompts with copyName(currentFile), reads the
+  saved content through the normal file endpoint,
+  writes the copy, refreshes the file list, and
+  opens the copy. Unsaved buffer edits are not
+  part of the copy (it duplicates what is saved).
+- Proven: dupfile harness 3/3, fileact 4/4, i18n
+  7/7, DOM-stub past extension construction.
+  (v2.02 pushes: 9d530237/071c9fb5.)
+- APK 20,296,298 bytes, md5
+  791c134ebf826a5e458d0a96fd22b4b4, badging
+  108/2.03.0 verified, dex carries both 2.03.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.
