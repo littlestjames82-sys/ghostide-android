@@ -34767,6 +34767,18 @@
     window.__ghostClearChats = { projectHistoryKeys };
   } catch (e) {
   }
+  function lastAnswerOf(hist) {
+    const h = hist || [];
+    for (let i2 = h.length - 1; i2 >= 0; i2--) {
+      if (h[i2].role === "assistant")
+        return String(h[i2].content || "");
+    }
+    return "";
+  }
+  try {
+    window.__ghostSpeakLast = { lastAnswerOf };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -38072,6 +38084,24 @@
     }
     loadHistory();
     renderSessionSel();
+  };
+  $("speakLastBtn").onclick = () => {
+    const text = lastAnswerOf(history2);
+    if (!text) {
+      alert("No answer to speak yet.");
+      return;
+    }
+    if (!("speechSynthesis" in window)) {
+      alert("Speech is not available on this device.");
+      return;
+    }
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+      return;
+    }
+    speechSynthesis.speak(
+      new SpeechSynthesisUtterance(speakText(text))
+    );
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

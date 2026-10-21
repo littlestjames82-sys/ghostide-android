@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.06.0",
+   "date": "Oct 20, 2026",
+   "goal": "Speak last answer",
+   "summary": "Chat options gains Speak last answer: one tap reads the newest answer aloud through the same speech path as the per-message Speak button. Tap again while it is speaking to stop."
+  },
+  {
    "version": "2.05.0",
    "date": "Oct 20, 2026",
    "goal": "Clear all chats in this project",

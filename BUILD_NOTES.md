@@ -2507,3 +2507,20 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.06.0 (versionCode 111) - Oct 21, 2026 - Speak last answer
+
+- Chat options gains Speak last answer. It finds
+  the newest assistant message and speaks it
+  through the exact per-message speech path
+  (availability check, speakText flattening,
+  tap-again-to-stop via speechSynthesis.cancel).
+- Proven: speaklast harness 3/3, speak 6/6, i18n
+  7/7, DOM-stub past extension construction.
+  (v2.05 pushes: 62325009/01b94b31.)
+- APK 20,296,298 bytes, md5
+  d6877156df9f316aa2d6c36aa5ad65e0, badging
+  111/2.06.0 verified, dex carries both 2.06.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.
