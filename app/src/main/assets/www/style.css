@@ -770,3 +770,14 @@ body.chat-min #chatChips { display: none; }
 /* Sampling controls (v1.61) */
 #settingsPanel .optRow { display: flex; gap: 6px; flex-wrap: wrap; }
 #chatTemp { width: 110px; }
+
+/* Editor reading pack (v1.62) */
+#editor .cm-content, #editor2 .cm-content {
+  line-height: var(--ghost-line-height, 1.45);
+}
+body.lig-off .cm-content { font-variant-ligatures: none; }
+body.linenums-off .cm-gutters { display: none; }
+body.activeline-off .cm-activeLine,
+body.activeline-off .cm-activeLineGutter {
+  background: transparent !important;
+}

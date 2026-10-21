@@ -1641,3 +1641,22 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.61.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.62.0 (versionCode 67) - Oct 20, 2026 - Editor reading pack
+
+- Editor display settings in Settings: line spacing
+  (Tight 1.3 / Normal 1.45 / Roomy 1.6 / Loose 1.8,
+  via --ghost-line-height on the editor content),
+  font ligatures, line numbers, and the current-line
+  highlight - the three toggles ride body classes
+  with CSS rules, apply live, and persist in the
+  settings object. Only an explicit off turns a
+  toggle off; older settings files keep everything on.
+- Proven: reading harness 8/8 (pure mapping +
+  wiring + CSS), chatopts 34/34, i18n 7/7, DOM-stub
+  past extension construction.
+- APK 20,275,816 bytes, md5
+  885c61356bd867f9360a5b7b9973fbf1, badging 67/1.62.0
+  verified, dex carries both 1.62.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

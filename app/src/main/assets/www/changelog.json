@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.62.0",
+   "date": "Oct 20, 2026",
+   "goal": "Editor reading pack",
+   "summary": "Editor display settings: line spacing (Tight, Normal, Roomy, Loose), font ligatures on or off, line numbers on or off, and the current-line highlight on or off. All apply live and are remembered."
+  },
+  {
    "version": "1.61.0",
    "date": "Oct 20, 2026",
    "goal": "Sampling controls",
