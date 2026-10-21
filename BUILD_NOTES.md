@@ -2055,3 +2055,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.81.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.82.0 (versionCode 87) - Oct 21, 2026 - Pinned files
+
+- Pin the open file from Chat options: up to 3
+  pinned files per project ride along on every
+  send, attached with the same format and char cap
+  as @mentions and reported in the attached meter.
+  Pins persist per project scope, render as chips,
+  and a chip tap unpins. Best-effort like mentions:
+  a missing file is skipped, never fatal.
+- Proven: pinfiles harness 6/6, contextctl 10/10,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.81 pushes: 816f9980/475f3385.)
+- APK 20,288,104 bytes, md5
+  923a7a4f1e3f01ddbbca35bf8de0b3b6, badging 87/1.82.0
+  verified, dex carries both 1.82.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

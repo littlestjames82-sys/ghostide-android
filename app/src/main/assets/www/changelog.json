@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.82.0",
+   "date": "Oct 20, 2026",
+   "goal": "Pinned files",
+   "summary": "Pin the open file from Chat options and it rides along on every send in that project (up to 3 pins, shown as chips, tap a chip to unpin). Pins are per project and join the same attached list as @mentions and the selection."
+  },
+  {
    "version": "1.81.0",
    "date": "Oct 20, 2026",
    "goal": "Settings profiles",

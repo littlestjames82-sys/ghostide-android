@@ -34405,6 +34405,24 @@
     };
   } catch (e) {
   }
+  var PIN_CAP = 3;
+  function togglePin(list, path) {
+    if (!path) return list.slice();
+    if (list.includes(path))
+      return list.filter((p) => p !== path);
+    return [...list, path].slice(-PIN_CAP);
+  }
+  function pinKey(scope) {
+    return "ghostide-pinned:" + scope;
+  }
+  try {
+    window.__ghostPinFiles = {
+      PIN_CAP,
+      togglePin,
+      pinKey
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34448,6 +34466,7 @@
     restoreChatDraft();
     updateChatStats();
     applyChatFind();
+    loadPinned();
   }
   function renderRich(el, text) {
     el.innerHTML = "";
@@ -34681,6 +34700,17 @@
             sysContent += "\nAttached file " + p + ":\n```\n" + d2.content.slice(0, BEHAVIOR.context.fileChars) + "\n```";
             attachedNames.push(p);
           }
+        }
+      } catch (e) {
+      }
+    }
+    for (const p of pinnedFiles) {
+      try {
+        const rp = await fetch("/api/file?path=" + encodeURIComponent(p));
+        const dp = await rp.json();
+        if (!dp.error && dp.content != null) {
+          sysContent += "\nPinned file " + p + ":\n```\n" + dp.content.slice(0, BEHAVIOR.context.fileChars) + "\n```";
+          attachedNames.push("\u{1F4CC} " + p);
         }
       } catch (e) {
       }
@@ -37115,6 +37145,52 @@
     renderProfSel();
   };
   renderProfSel();
+  var pinnedFiles = [];
+  function loadPinned() {
+    pinnedFiles = [];
+    try {
+      const a = JSON.parse(localStorage.getItem(
+        pinKey(historyScope)
+      ) || "[]");
+      if (Array.isArray(a))
+        pinnedFiles = a.filter((p) => typeof p === "string").slice(-PIN_CAP);
+    } catch (e) {
+    }
+    renderPinChips();
+  }
+  function savePinned() {
+    try {
+      localStorage.setItem(
+        pinKey(historyScope),
+        JSON.stringify(pinnedFiles)
+      );
+    } catch (e) {
+    }
+    renderPinChips();
+  }
+  function renderPinChips() {
+    const box = $("pinChips");
+    if (!box) return;
+    box.innerHTML = "";
+    for (const p of pinnedFiles) {
+      const c = document.createElement("button");
+      c.textContent = "\u{1F4CC} " + p + " \xD7";
+      c.title = "Unpin " + p;
+      c.onclick = () => {
+        pinnedFiles = togglePin(pinnedFiles, p);
+        savePinned();
+      };
+      box.appendChild(c);
+    }
+  }
+  $("pinFileBtn").onclick = () => {
+    if (!currentFile) {
+      alert("Open a file first, then pin it.");
+      return;
+    }
+    pinnedFiles = togglePin(pinnedFiles, currentFile);
+    savePinned();
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
