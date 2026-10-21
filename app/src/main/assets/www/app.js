@@ -34508,6 +34508,42 @@
     window.__ghostFileAct = { pathBase };
   } catch (e) {
   }
+  function planLineOp(lines, idx, op) {
+    if (idx < 0 || idx >= lines.length) return null;
+    const out = lines.slice();
+    if (op === "dup") {
+      out.splice(idx + 1, 0, lines[idx]);
+      return { lines: out, idx: idx + 1 };
+    }
+    if (op === "del") {
+      out.splice(idx, 1);
+      if (!out.length) out.push("");
+      return {
+        lines: out,
+        idx: Math.min(idx, out.length - 1)
+      };
+    }
+    if (op === "up") {
+      if (idx === 0) return { lines: out, idx };
+      const t2 = out[idx - 1];
+      out[idx - 1] = out[idx];
+      out[idx] = t2;
+      return { lines: out, idx: idx - 1 };
+    }
+    if (op === "down") {
+      if (idx === lines.length - 1)
+        return { lines: out, idx };
+      const t2 = out[idx + 1];
+      out[idx + 1] = out[idx];
+      out[idx] = t2;
+      return { lines: out, idx: idx + 1 };
+    }
+    return null;
+  }
+  try {
+    window.__ghostLineOps = { planLineOp };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37454,6 +37490,50 @@
     } catch (e) {
     }
   };
+  function applyLineOp(op) {
+    const doc2 = view.state.doc;
+    const head = view.state.selection.main.head;
+    const line = doc2.lineAt(head);
+    const idx = line.number - 1;
+    const col = head - line.from;
+    const lines = [];
+    for (let i2 = 1; i2 <= doc2.lines; i2++)
+      lines.push(doc2.line(i2).text);
+    const plan = planLineOp(lines, idx, op);
+    if (!plan) return;
+    let anchor = 0;
+    for (let i2 = 0; i2 < plan.idx; i2++)
+      anchor += plan.lines[i2].length + 1;
+    anchor += Math.min(col, plan.lines[plan.idx].length);
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: doc2.length,
+        insert: plan.lines.join("\n")
+      },
+      selection: { anchor }
+    });
+    view.focus();
+  }
+  $("lineDup").onclick = () => applyLineOp("dup");
+  $("lineUp").onclick = () => applyLineOp("up");
+  $("lineDown").onclick = () => applyLineOp("down");
+  $("lineDel").onclick = () => applyLineOp("del");
+  document.addEventListener("keydown", (e) => {
+    if (!e.altKey) return;
+    const inEditor = e.target && e.target.closest && e.target.closest(".cm-editor");
+    if (!inEditor) return;
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      applyLineOp("up");
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      applyLineOp("down");
+    } else if (e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      applyLineOp("dup");
+    }
+  });
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

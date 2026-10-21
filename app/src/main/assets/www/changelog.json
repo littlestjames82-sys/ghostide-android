@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.89.0",
+   "date": "Oct 20, 2026",
+   "goal": "Line operations",
+   "summary": "The status bar gains line operations for the editor: duplicate line, move line up or down, delete line. Inside the editor, Alt+Up and Alt+Down move the line and Alt+D duplicates it."
+  },
+  {
    "version": "1.88.0",
    "date": "Oct 20, 2026",
    "goal": "File header actions",

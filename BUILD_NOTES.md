@@ -2183,3 +2183,20 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.88.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.89.0 (versionCode 94) - Oct 21, 2026 - Line operations
+
+- Status bar buttons + editor-only Alt keys for
+  the classic line ops: duplicate (Alt+D), move up
+  (Alt+Up), move down (Alt+Down), delete. The pure
+  planner works on line arrays; the applier rewrites
+  the doc and restores the cursor column on the
+  landing line. Delete never empties the document.
+- Proven: lineops harness 6/6, status 7/7, i18n
+  7/7, DOM-stub past extension construction.
+  (v1.88 pushes: 356455c1/5bfb4e16.)
+- APK 20,292,203 bytes, md5
+  15f3832ff30908a9188149e72ad1bd75, badging 94/1.89.0
+  verified, dex carries both 1.89.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
