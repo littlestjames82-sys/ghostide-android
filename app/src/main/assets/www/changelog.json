@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.59.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat sessions",
+   "summary": "Every project can now hold several named chats. Switch between them in Chat options, start a new one, rename it, or delete it; each keeps its own history and its own unsent draft. Your existing chat stays as the first one, untouched."
+  },
+  {
    "version": "1.58.0",
    "date": "Oct 20, 2026",
    "goal": "Chat composer pack",

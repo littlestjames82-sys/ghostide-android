@@ -158,6 +158,13 @@ setTimeout(function () {
       </select></label>
     <div id="ctxMeter" class="dim"></div>
     <label class="ctx-toggle"><input type="checkbox" id="agentToggle"> 🤖 Agent mode: multi-step edits, reviewed before saving</label>
+    <label class="ctx-toggle">Chat:
+      <select id="sessionSel"></select></label>
+    <div class="optRow">
+      <button id="sessionNew">New chat</button>
+      <button id="sessionRename">Rename</button>
+      <button id="sessionDel">Delete chat</button>
+    </div>
     <label class="ctx-toggle">Answer style:
       <select id="chatStyle">
         <option value="balanced">Balanced</option>

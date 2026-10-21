@@ -761,3 +761,6 @@ body.chat-min #chatChips { display: none; }
 #chatCount { margin-top: 4px; text-align: right; min-height: 14px; }
 .msgCopy { font-size: 11px; padding: 2px 8px; margin-top: 6px; }
 .chat-input textarea { max-height: 160px; overflow-y: auto; }
+
+/* Chat sessions (v1.59) */
+#sessionSel { max-width: 180px; }

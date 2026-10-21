@@ -1569,3 +1569,31 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.58.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.59.0 (versionCode 64) - Oct 20, 2026 - Chat sessions
+
+- Several named chats per project: a session picker
+  in Chat options with New chat / Rename / Delete
+  chat. Each session keeps its own history (its own
+  localStorage key) and its own unsent draft; the
+  default session keeps the pre-v1.59 history key so
+  existing chats survive the upgrade untouched.
+  Switching saves the current chat, drops the primer
+  and recall context (same as clearing), and loads
+  the picked chat. The last remaining chat cannot
+  be deleted.
+- Proven: sessions harness 14/14 (normalize,
+  legacy/suffixed keys, next-name, remove rules,
+  wiring), composer 13/13, chatopts 34/34, i18n 7/7,
+  DOM-stub past extension construction.
+- Process note: the v1.58 push ran in a backgrounded
+  exec whose delivery reported wrong counts/SHAs
+  (33/38, f3de2b51/6ee9d45f); foreground API
+  verification showed the real pushes (55/41 files,
+  4a04fce4/dcaf0c35) - the documented failure mode,
+  caught by re-verifying instead of trusting it.
+- APK 20,275,819 bytes, md5
+  b6de0afb31c93156215c6961d51f732f, badging 64/1.59.0
+  verified, dex carries both 1.59.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

@@ -33822,6 +33822,52 @@
     };
   } catch (e) {
   }
+  var DEFAULT_SESSION = { id: "s1", name: "Chat 1" };
+  function normalizeSessions(list) {
+    const out = [];
+    const seen = /* @__PURE__ */ new Set();
+    if (Array.isArray(list)) {
+      for (const s of list) {
+        if (!s || typeof s.id !== "string" || !s.id) continue;
+        if (seen.has(s.id)) continue;
+        seen.add(s.id);
+        out.push({
+          id: s.id,
+          name: typeof s.name === "string" && s.name.trim() ? s.name.trim().slice(0, 40) : "Chat"
+        });
+      }
+    }
+    if (!out.length) out.push({
+      id: DEFAULT_SESSION.id,
+      name: DEFAULT_SESSION.name
+    });
+    return out;
+  }
+  function sessionHistoryKey(scope, id2) {
+    const base2 = "ghostide-history:" + scope;
+    return !id2 || id2 === DEFAULT_SESSION.id ? base2 : base2 + ":" + id2;
+  }
+  function nextSessionName(list) {
+    const used = new Set(list.map((s) => s.name));
+    let n = list.length + 1;
+    while (used.has("Chat " + n)) n++;
+    return "Chat " + n;
+  }
+  function removeSession(list, id2) {
+    if (list.length <= 1) return { list, removed: false };
+    const next = list.filter((s) => s.id !== id2);
+    return { list: next, removed: next.length !== list.length };
+  }
+  try {
+    window.__ghostSessions = {
+      DEFAULT_SESSION,
+      normalizeSessions,
+      sessionHistoryKey,
+      nextSessionName,
+      removeSession
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -33829,7 +33875,7 @@
   var GREETING = "Hey - I'm Ghost, your offline coding partner. Open a file and ask about it, or pause while typing for inline suggestions. Nothing leaves this device.";
   var historyScope = null;
   function historyKey() {
-    return "ghostide-history:" + historyScope;
+    return sessionHistoryKey(historyScope, activeSession);
   }
   function saveHistory() {
     if (!historyScope) return;
@@ -34303,6 +34349,7 @@
       const scope = d.workspace || "on-device";
       if (scope !== historyScope) {
         historyScope = scope;
+        loadSessions();
         loadHistory();
       }
       return d.workspace;
@@ -35643,7 +35690,7 @@
     }
   };
   function draftStorageKey() {
-    return historyScope ? chatDraftKey(historyScope) : null;
+    return historyScope ? chatDraftKey(historyScope) + ":" + activeSession : null;
   }
   function saveChatDraft() {
     const k = draftStorageKey();
@@ -35699,6 +35746,106 @@
     }
     $("chatText").value = CONTINUE_TEXT;
     sendChat();
+  };
+  var chatSessions = [{ id: "s1", name: "Chat 1" }];
+  var activeSession = "s1";
+  function sessionsKey() {
+    return "ghostide-sessions:" + historyScope;
+  }
+  function activeSessionKey() {
+    return "ghostide-activesession:" + historyScope;
+  }
+  function persistSessions() {
+    if (!historyScope) return;
+    try {
+      localStorage.setItem(
+        sessionsKey(),
+        JSON.stringify(chatSessions)
+      );
+      localStorage.setItem(activeSessionKey(), activeSession);
+    } catch (e) {
+    }
+  }
+  function renderSessionSel() {
+    const sel = $("sessionSel");
+    sel.innerHTML = "";
+    for (const s of chatSessions) {
+      const o = document.createElement("option");
+      o.value = s.id;
+      o.textContent = s.name;
+      sel.appendChild(o);
+    }
+    sel.value = activeSession;
+  }
+  function loadSessions() {
+    chatSessions = [{ id: "s1", name: "Chat 1" }];
+    activeSession = "s1";
+    if (historyScope) {
+      try {
+        chatSessions = normalizeSessions(JSON.parse(
+          localStorage.getItem(sessionsKey()) || "[]"
+        ));
+        const saved = localStorage.getItem(activeSessionKey());
+        if (saved && chatSessions.some((s) => s.id === saved))
+          activeSession = saved;
+      } catch (e) {
+      }
+    }
+    renderSessionSel();
+  }
+  function switchSession(id2) {
+    if (id2 === activeSession) {
+      renderSessionSel();
+      return;
+    }
+    saveHistory();
+    activeSession = id2;
+    primerContext = null;
+    recallContext = null;
+    recallTaskLabel = "";
+    persistSessions();
+    renderSessionSel();
+    loadHistory();
+  }
+  $("sessionSel").onchange = (e) => switchSession(e.target.value);
+  $("sessionNew").onclick = () => {
+    const id2 = "s" + Date.now().toString(36);
+    chatSessions.push({ id: id2, name: nextSessionName(chatSessions) });
+    persistSessions();
+    switchSession(id2);
+  };
+  $("sessionRename").onclick = () => {
+    const cur2 = chatSessions.find((s) => s.id === activeSession);
+    if (!cur2) return;
+    const name2 = prompt("Rename this chat", cur2.name);
+    if (name2 === null) return;
+    const clean = name2.trim().slice(0, 40);
+    if (clean) {
+      cur2.name = clean;
+      persistSessions();
+    }
+    renderSessionSel();
+  };
+  $("sessionDel").onclick = () => {
+    const cur2 = chatSessions.find((s) => s.id === activeSession);
+    if (!cur2) return;
+    const r = removeSession(chatSessions, cur2.id);
+    if (!r.removed) {
+      alert("This is the only chat for this project.");
+      return;
+    }
+    if (!confirm('Delete the chat "' + cur2.name + '"?')) return;
+    try {
+      localStorage.removeItem(
+        sessionHistoryKey(historyScope, cur2.id)
+      );
+    } catch (e) {
+    }
+    chatSessions = r.list;
+    activeSession = chatSessions[0].id;
+    persistSessions();
+    renderSessionSel();
+    loadHistory();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
