@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.91.0",
+   "date": "Oct 20, 2026",
+   "goal": "Starred sessions, plus two fixes",
+   "summary": "Star chat pins a chat to the top of the picker with a star. Also fixed before it ever reached a phone: the v1.90 auto-name called session helpers that do not exist (it would have broken sending), and the v1.86 prompt export called a missing loader. Both now use the real plumbing, with a regression check that fails if the dead names come back."
+  },
+  {
    "version": "1.90.0",
    "date": "Oct 20, 2026",
    "goal": "Chat auto-name",

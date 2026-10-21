@@ -2216,3 +2216,33 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.90.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.91.0 (versionCode 96) - Oct 21, 2026 - Starred sessions + phantom fixes
+
+- Star chat button: stars the active session into a
+  per-project ghostide-starred list; starred chats
+  sort to the top of the picker and render with a
+  star prefix (in renderSessionSel, on top of the
+  existing count label).
+- PHANTOM FIXES (caught in review, never shipped to
+  a device - v1.90 was never uploaded): v1.90's
+  maybeAutoName called activeSessionId /
+  saveSessions / syncSessionPicker, which do not
+  exist; it would have thrown inside sendChat and
+  broken sending. Now uses activeSession /
+  persistSessions / renderSessionSel. v1.86's
+  prompt export called loadPrompts(), also phantom;
+  now reads promptLib. The stars harness carries a
+  regression check asserting none of the four dead
+  identifiers appear anywhere in main.js, and the
+  autoname/sessions2 harnesses were corrected to
+  the real plumbing.
+- Proven: stars harness 6/6, autoname 4/4, export2
+  5/5, sessions 14/14, sessions2 6/6, i18n 7/7,
+  DOM-stub past extension construction.
+  (v1.90 pushes: 47b440a4/8f84d8d0.)
+- APK 20,292,202 bytes, md5
+  8755ccc62592787c5c64a2eabb3831ae, badging 96/1.91.0
+  verified, dex carries both 1.91.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

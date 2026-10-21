@@ -34559,6 +34559,24 @@
     };
   } catch (e) {
   }
+  function parseStars(raw) {
+    try {
+      const a = JSON.parse(raw || "[]");
+      return Array.isArray(a) ? a.filter((x) => typeof x === "string") : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function toggleStar(list, id2) {
+    return list.includes(id2) ? list.filter((x) => x !== id2) : list.concat([id2]);
+  }
+  try {
+    window.__ghostStars = {
+      parseStars,
+      toggleStar
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -36615,7 +36633,7 @@
     for (const s of chatSessions) {
       const o = document.createElement("option");
       o.value = s.id;
-      o.textContent = sessionOptionLabel(s, storedHistLen(s.id));
+      o.textContent = (loadStars().includes(s.id) ? "\u2605 " : "") + sessionOptionLabel(s, storedHistLen(s.id));
       sel.appendChild(o);
     }
     sel.value = activeSession;
@@ -37446,7 +37464,7 @@
     download("ghostide-all-chats.md", out, "text/markdown");
   };
   $("promptExport").onclick = () => {
-    const list = loadPrompts();
+    const list = promptLib;
     if (!list.length) {
       alert("No saved prompts yet.");
       return;
@@ -37552,7 +37570,7 @@
   });
   function maybeAutoName(text) {
     const s = chatSessions.find(
-      (x) => x.id === activeSessionId
+      (x) => x.id === activeSession
     );
     if (!s || !isDefaultChatName(s.name)) return;
     const users = history2.filter(
@@ -37562,9 +37580,38 @@
     const name2 = autoChatName(text);
     if (!name2) return;
     s.name = name2;
-    saveSessions();
-    syncSessionPicker();
+    persistSessions();
+    renderSessionSel();
   }
+  function starredKey() {
+    return "ghostide-starred:" + historyScope;
+  }
+  function loadStars() {
+    try {
+      return parseStars(localStorage.getItem(starredKey()));
+    } catch (e) {
+      return [];
+    }
+  }
+  function persistStars(list) {
+    try {
+      localStorage.setItem(
+        starredKey(),
+        JSON.stringify(list)
+      );
+    } catch (e) {
+    }
+  }
+  function sortSessionsByStars() {
+    const stars = loadStars();
+    chatSessions.sort((a, b) => (stars.includes(b.id) ? 1 : 0) - (stars.includes(a.id) ? 1 : 0));
+  }
+  $("sessionStar").onclick = () => {
+    persistStars(toggleStar(loadStars(), activeSession));
+    sortSessionsByStars();
+    persistSessions();
+    renderSessionSel();
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
