@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.74.0",
+   "date": "Oct 20, 2026",
+   "goal": "Accent colors",
+   "summary": "Settings gains an Accent color picker: Green (the current default), Violet, Blue, Amber, Rose or Teal. It recolors the primary buttons and highlights through one CSS variable, applies instantly, and is kept as part of your settings."
+  },
+  {
    "version": "1.73.0",
    "date": "Oct 20, 2026",
    "goal": "Help pack",

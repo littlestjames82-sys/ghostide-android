@@ -1895,3 +1895,24 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.73.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.74.0 (versionCode 79) - Oct 21, 2026 - Accent colors
+
+- The primary green (#2c6e49 / hover #35855a, from
+  the v1.49 polish) now lives behind one CSS
+  variable pair; Settings gains an Accent color
+  picker with six pairs (Green default, Violet -
+  the studio color, Blue, Amber, Rose, Teal). The
+  choice applies instantly, persists in settings,
+  and travels with JSON export/import. Green
+  reproduces the old hexes exactly, so default looks
+  unchanged.
+- Proven: accent harness 7/7, setutil 10/10, i18n
+  7/7, DOM-stub past extension construction.
+  (First patch attempt aborted on anchor/count
+  details and wrote nothing; fixed and re-applied.)
+- APK 20,284,011 bytes, md5
+  4c836d3d6e09cd4ff70856f2f6cf985a, badging 79/1.74.0
+  verified, dex carries both 1.74.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

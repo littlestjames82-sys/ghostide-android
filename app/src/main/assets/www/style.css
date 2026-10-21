@@ -1,4 +1,5 @@
 * { box-sizing: border-box; }
+:root { --ghost-accent: #2c6e49; --ghost-accent-hi: #35855a; }
 html, body { height: 100%; margin: 0; }
 body {
   font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
@@ -22,9 +23,9 @@ button {
 }
 button:hover { background: #30323b; }
 button.primary {
-  background: #2c6e49; border-color: #2c6e49; color: #fff;
+  background: var(--ghost-accent); border-color: var(--ghost-accent); color: #fff;
 }
-button.primary:hover { background: #35855a; }
+button.primary:hover { background: var(--ghost-accent-hi); }
 button:disabled {
   background: #26282f; color: #777; border-color: #2c2e36;
   cursor: default;
@@ -38,7 +39,7 @@ button:disabled {
 /* v1.50: the up state is an outline chip, like the concepts */
 .pill.up {
   background: rgba(44, 110, 73, .16);
-  border-color: #2c6e49; color: #9fe8bb;
+  border-color: var(--ghost-accent); color: #9fe8bb;
 }
 .pill.up { background: #22392b; color: #9fe8bb; }
 .pill.loading { background: #39352a; color: #f0dfa0; }
@@ -431,7 +432,7 @@ body.zen #files, body.zen #chat { display: none; }
   width: 5px; flex: none; cursor: col-resize; z-index: 5;
   background: transparent;
 }
-.dragHandle:hover, .dragHandle:active { background: #2c6e49; }
+.dragHandle:hover, .dragHandle:active { background: var(--ghost-accent); }
 @media (min-width: 901px) {
   body.bigscreen #files { width: 264px; }
   body.bigscreen #chat { width: 408px; }
@@ -488,7 +489,7 @@ body.onehand .fileMenuBtn { min-width: 40px; }
 #tourCard {
   position: fixed; left: 14px; bottom: 14px; z-index: 75;
   width: min(360px, 92vw); background: #23252c;
-  border: 1px solid #2c6e49; border-radius: 12px;
+  border: 1px solid var(--ghost-accent); border-radius: 12px;
   padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
 }
 #tourCard.hidden { display: none; }
@@ -694,7 +695,7 @@ body.onehand .fileMenuBtn { min-width: 40px; }
   }
   #viewBar button span { font-size: 10px; }
   #viewBar button.active {
-    color: #9fe8bb; border-color: #2c6e49;
+    color: #9fe8bb; border-color: var(--ghost-accent);
     background: rgba(44, 110, 73, .16);
   }
   body.onehand #viewBar { display: none; }

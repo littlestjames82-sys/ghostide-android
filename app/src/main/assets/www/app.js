@@ -32721,6 +32721,7 @@
       activeLine: true,
       chatFs: "13",
       chatWidth: "360",
+      accent: "green",
       bubbles: false,
       roleLabels: true,
       sliceBudget: 6e3,
@@ -34247,6 +34248,21 @@
   }
   try {
     window.__ghostHelp = { buildHelpText };
+  } catch (e) {
+  }
+  var ACCENTS = {
+    green: { base: "#2c6e49", hi: "#35855a" },
+    violet: { base: "#6716f3", hi: "#7d3bff" },
+    blue: { base: "#2563eb", hi: "#3b82f6" },
+    amber: { base: "#b45309", hi: "#d97706" },
+    rose: { base: "#be2f4a", hi: "#e0445f" },
+    teal: { base: "#0f766e", hi: "#14b8a6" }
+  };
+  function accentPair(name2) {
+    return ACCENTS[name2] || ACCENTS.green;
+  }
+  try {
+    window.__ghostAccent = { ACCENTS, accentPair };
   } catch (e) {
   }
   var history2 = [];
@@ -36691,6 +36707,18 @@
     hideTools();
     addMsg("SYSTEM", buildHelpText());
   };
+  function applyAccent() {
+    const p = accentPair(settings.accent);
+    document.documentElement.style.setProperty("--ghost-accent", p.base);
+    document.documentElement.style.setProperty("--ghost-accent-hi", p.hi);
+  }
+  $("setAccent").value = settings.accent;
+  $("setAccent").onchange = (e) => {
+    settings.accent = e.target.value;
+    saveSettings();
+    applyAccent();
+  };
+  applyAccent();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
