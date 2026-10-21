@@ -2469,3 +2469,20 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.04.0 (versionCode 109) - Oct 21, 2026 - Jump to latest
+
+- A Latest button under the chat log appears when
+  the reader is more than 120px above the bottom
+  (the scroll pack's isNearBottom with a wider
+  threshold) and jumps to the end on tap. Hidden
+  at rest, synced on every scroll event.
+- Proven: jump harness 3/3, scroll 7/7, i18n 7/7,
+  DOM-stub past extension construction.
+  (v2.03 pushes: ce4cf2c2/f9492787.)
+- APK 20,296,298 bytes, md5
+  caf15adbd5343ae7d37765a96a74065a, badging
+  109/2.04.0 verified, dex carries both 2.04.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

@@ -34751,6 +34751,13 @@
     window.__ghostDupFile = { copyName };
   } catch (e) {
   }
+  function showJump(st, ch, sh) {
+    return !isNearBottom(st, ch, sh, 120);
+  }
+  try {
+    window.__ghostJump = { showJump };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -38025,6 +38032,23 @@
     }
     await loadFiles();
     openFile(name2);
+  };
+  function syncJumpBtn() {
+    const el = $("chatLog");
+    $("jumpLatest").classList.toggle(
+      "hidden",
+      !showJump(
+        el.scrollTop,
+        el.clientHeight,
+        el.scrollHeight
+      )
+    );
+  }
+  $("chatLog").addEventListener("scroll", syncJumpBtn);
+  $("jumpLatest").onclick = () => {
+    const el = $("chatLog");
+    el.scrollTop = el.scrollHeight;
+    syncJumpBtn();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
