@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.92.0",
+   "date": "Oct 20, 2026",
+   "goal": "What Ghost sees",
+   "summary": "Chat options gains a What Ghost sees button: the answer style, persona, your custom instructions, sampling settings and context budget that shape the next reply, shown as a plain system message. Display only, it never enters the conversation or the model's context."
+  },
+  {
    "version": "1.91.0",
    "date": "Oct 20, 2026",
    "goal": "Starred sessions, plus two fixes",

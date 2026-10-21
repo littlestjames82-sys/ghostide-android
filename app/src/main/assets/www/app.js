@@ -34577,6 +34577,19 @@
     };
   } catch (e) {
   }
+  function systemPreview(o) {
+    return [
+      "Style: " + o.style,
+      "Persona: " + (o.persona || "(none)"),
+      "Custom instructions: " + (o.custom || "(none)"),
+      "Sampling: temp " + o.temp + " \xB7 max " + o.maxTok + " tok",
+      "Context: slice budget " + o.budget + " chars \xB7 history window " + o.window
+    ].join("\n");
+  }
+  try {
+    window.__ghostSysPrev = { systemPreview };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37611,6 +37624,22 @@
     sortSessionsByStars();
     persistSessions();
     renderSessionSel();
+  };
+  $("sysPreviewBtn").onclick = () => {
+    addMsg("SYSTEM", "What Ghost sees:\n" + systemPreview({
+      style: settings.chatStyle,
+      persona: personaSuffix(settings.chatStyle),
+      custom: (settings.customInstructions || "").trim(),
+      temp: settings.temperature,
+      maxTok: answerMaxTokens(
+        settings.chatLength,
+        settings.shortAnswers,
+        BEHAVIOR.chat.maxTokens,
+        settings.customTokens
+      ),
+      budget: sliceBudget(),
+      window: settings.historyWindow
+    }));
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

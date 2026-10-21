@@ -2246,3 +2246,22 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.91.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.92.0 (versionCode 97) - Oct 21, 2026 - What Ghost sees
+
+- Chat options gains a What Ghost sees button: the
+  live style, persona suffix, custom instructions,
+  sampling (real answerMaxTokens output) and
+  context budget behind the next reply, rendered
+  as a display-only SYSTEM message (addMsg never
+  touches history, so the preview cannot pollute
+  the model's context).
+- Proven: sysprev harness 4/4, sampling 12/12, i18n
+  7/7, DOM-stub past extension construction.
+  (v1.91 pushes: ghost-ide 2e11f1c7 then e39a8d13
+  on the split-push re-run, android f01509a3.)
+- APK 20,292,200 bytes, md5
+  2e8285fd7144cac23002bb9d56a3b6b3, badging 97/1.92.0
+  verified, dex carries both 1.92.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
