@@ -32898,7 +32898,16 @@
         if (u.selectionSet || u.docChanged) {
           const head = u.state.selection.main.head;
           const line = u.state.doc.lineAt(head);
-          $("cursorPos").textContent = `Ln ${line.number}, Col ${head - line.from + 1} \xB7 ${u.state.doc.lines} lines \xB7 ${u.state.doc.length} chars`;
+          const selM = u.state.selection.main;
+          $("cursorPos").textContent = cursorStatus(
+            line.number,
+            head - line.from + 1,
+            u.state.doc.lines,
+            u.state.doc.length,
+            selM.empty ? 0 : selM.to - selM.from,
+            selM.empty ? 0 : u.state.doc.lineAt(selM.to).number - line.number + 1
+          );
+          $("fileType").textContent = langName(currentFile);
           updateCrumbs();
         }
         if (u.docChanged) {
@@ -34181,6 +34190,56 @@
   }
   try {
     window.__ghostSpeak = { speakText };
+  } catch (e) {
+  }
+  var LANG_NAMES = {
+    js: "JavaScript",
+    mjs: "JavaScript",
+    ts: "TypeScript",
+    tsx: "TypeScript",
+    jsx: "JavaScript",
+    py: "Python",
+    html: "HTML",
+    css: "CSS",
+    json: "JSON",
+    md: "Markdown",
+    java: "Java",
+    kt: "Kotlin",
+    sh: "Shell",
+    yaml: "YAML",
+    yml: "YAML",
+    toml: "TOML",
+    xml: "XML",
+    sql: "SQL",
+    c: "C",
+    h: "C",
+    cpp: "C++",
+    rs: "Rust",
+    go: "Go",
+    php: "PHP",
+    rb: "Ruby",
+    txt: "Text"
+  };
+  function langName(path) {
+    if (!path) return "";
+    const ext = path.split(".").pop().toLowerCase();
+    if (!ext || ext === path.toLowerCase()) return "Text";
+    return LANG_NAMES[ext] || ext.toUpperCase();
+  }
+  function cursorStatus(line, col, lines, chars, selLen, selLines) {
+    let s = "Ln " + line + ", Col " + col + " \xB7 " + lines + " lines \xB7 " + chars + " chars";
+    if (selLen > 0) {
+      s += " \xB7 " + selLen + " selected";
+      if (selLines > 1) s += " (" + selLines + " lines)";
+    }
+    return s;
+  }
+  try {
+    window.__ghostStatus = {
+      LANG_NAMES,
+      langName,
+      cursorStatus
+    };
   } catch (e) {
   }
   var history2 = [];

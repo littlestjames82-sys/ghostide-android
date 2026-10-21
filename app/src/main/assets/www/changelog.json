@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.72.0",
+   "date": "Oct 20, 2026",
+   "goal": "Editor status pack",
+   "summary": "The status bar now shows the selection size (characters, plus lines when it spans several) and the current file's type (Python, JavaScript, Markdown and friends) next to the cursor position."
+  },
+  {
    "version": "1.71.0",
    "date": "Oct 20, 2026",
    "goal": "Speak answer",

@@ -1856,3 +1856,22 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.71.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.72.0 (versionCode 77) - Oct 21, 2026 - Editor status pack
+
+- The editor status bar learns two things: the
+  selection size (chars, plus a line count when the
+  selection spans lines) appended to the existing
+  Ln/Col/lines/chars readout, and the file type,
+  named from the extension (with an honest fallback
+  to the raw extension). Both ride the existing
+  editor update listener, so they stay live while
+  typing and selecting.
+- Proven: status harness 7/7, i18n 7/7, DOM-stub
+  past extension construction. (v1.71 pushes
+  verified against the GitHub API: 0d56e2c8/818b1315.)
+- APK 20,284,008 bytes, md5
+  7c0a84e745942cd84c40655b139857a0, badging 77/1.72.0
+  verified, dex carries both 1.72.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
