@@ -2394,3 +2394,21 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.00.0 (versionCode 105) - Oct 21, 2026 - Search all chats
+
+- The 2.0 milestone: Tools gains Search all chats.
+  Saves the current chat, reads every session's
+  stored history for the project, and prints up to
+  12 case-insensitive matches with chat name,
+  speaker, and a whitespace-collapsed excerpt
+  centered on the match.
+- Proven: chatsearch harness 5/5, export2 5/5,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.99 pushes: 26ad9f6f/f105b879.)
+- APK 20,296,299 bytes, md5
+  e46ee9ed9cb646db7ada31729990556b, badging
+  105/2.00.0 verified, dex carries both 2.00.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

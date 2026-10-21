@@ -34689,6 +34689,39 @@
     window.__ghostFsQuick = { FS_STEPS, stepFs };
   } catch (e) {
   }
+  function searchChats(chats, q, cap) {
+    const needle = String(q || "").trim().toLowerCase();
+    if (!needle) return [];
+    const limit = cap || 12;
+    const out = [];
+    for (const c of chats || []) {
+      for (const m of c.messages || []) {
+        const text = String(m.content || "");
+        const i2 = text.toLowerCase().indexOf(needle);
+        if (i2 < 0) continue;
+        const from = Math.max(0, i2 - 40);
+        out.push({
+          chat: c.name,
+          role: m.role,
+          excerpt: (from ? "\u2026" : "") + text.slice(from, i2 + needle.length + 60).replace(/\s+/g, " ") + "\u2026"
+        });
+        if (out.length >= limit) return out;
+      }
+    }
+    return out;
+  }
+  function searchResultsText(q, hits) {
+    if (!hits.length)
+      return 'No matches for "' + q + '" in this project.';
+    return hits.length + " match" + (hits.length === 1 ? "" : "es") + ' for "' + q + '":\n\n' + hits.map((h) => "[" + h.chat + "] " + (h.role === "user" ? "You" : "Ghost") + ": " + h.excerpt).join("\n\n");
+  }
+  try {
+    window.__ghostChatSearch = {
+      searchChats,
+      searchResultsText
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37875,6 +37908,28 @@
   }
   $("fsDown").onclick = () => bumpChatFs(-1);
   $("fsUp").onclick = () => bumpChatFs(1);
+  $("toolSearchChats").onclick = () => {
+    hideTools();
+    const q = prompt("Search all chats in this project:");
+    if (!q || !q.trim()) return;
+    saveHistory();
+    const chats = [];
+    for (const s of chatSessions) {
+      let items = [];
+      try {
+        items = JSON.parse(localStorage.getItem(
+          sessionHistoryKey(historyScope, s.id)
+        ) || "[]");
+      } catch (e) {
+      }
+      if (Array.isArray(items) && items.length)
+        chats.push({ name: s.name, messages: items });
+    }
+    addMsg("SYSTEM", searchResultsText(
+      q.trim(),
+      searchChats(chats, q, 12)
+    ));
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

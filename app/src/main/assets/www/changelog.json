@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.00.0",
+   "date": "Oct 20, 2026",
+   "goal": "Search all chats (v2.0)",
+   "summary": "GhostIDE 2.0: Tools gains Search all chats. One query scans every chat in the project and prints the matches in place, each with its chat name, who said it, and an excerpt around the match (capped at 12 so a common word cannot flood the chat)."
+  },
+  {
    "version": "1.99.0",
    "date": "Oct 20, 2026",
    "goal": "Chat text quick buttons",
