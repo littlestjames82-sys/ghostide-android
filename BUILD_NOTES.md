@@ -1754,3 +1754,32 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.66.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.67.0 (versionCode 72) - Oct 20, 2026 - Settings utilities
+
+- The settings panel (much longer after ten rounds)
+  gains a filter box: type and the rows narrow,
+  section headers hide when nothing under them
+  matches. Plus Export settings (JSON download),
+  Import settings (strict: only known keys with
+  matching types are applied, then a reload), and
+  Reset all settings (clears the settings and ping
+  keys, reloads; chats and files untouched).
+- Final gate sweep for the ten-round marathon:
+  all ten new harnesses green (chatopts 34,
+  composer 13, sessions 14, prompts 11, sampling 12,
+  reading 8, export 10, slash 11, display 8,
+  context 10, setutil 10), i18n 7/7, chip 9/9,
+  E4/E5/E6 UI harnesses 17/17, 26/26, 15/15 (the E6
+  UI budget check updated to the v1.66 settings
+  contract), python eco harnesses E1/E3/E4/E5/E6
+  ALL PASS, DOM-stub past extension construction.
+  (v1.66 pushes were foreground-verified:
+  f86f03e7/5910cd6d.)
+- APK 20,279,912 bytes, md5
+  3d36311bc07941d07035f514bf503198, badging 72/1.67.0
+  verified, dex carries both 1.67.0 literals, staged
+  www byte-matches sources, staged changelog leads
+  with 1.67.0, same signer (8ea8684a...). Uploaded
+  and delivered Oct 20, 2026 as the marathon build;
+  device pass is Ryan's.

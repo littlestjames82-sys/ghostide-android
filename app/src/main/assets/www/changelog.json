@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.67.0",
+   "date": "Oct 20, 2026",
+   "goal": "Settings utilities",
+   "summary": "Settings gains a filter box (type to find a setting, sections hide when nothing matches), Export and Import for carrying your settings between devices as JSON (import only accepts known settings with the right types), and a Reset all settings button. Chats and files are never touched."
+  },
+  {
    "version": "1.66.0",
    "date": "Oct 20, 2026",
    "goal": "Context control pack",

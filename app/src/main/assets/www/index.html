@@ -606,6 +606,7 @@ setTimeout(function () {
 </div>
 <div id="settingsPanel" class="hidden">
   <h3>Settings</h3>
+  <input type="search" id="setSearch" placeholder="Filter settings...">
   <h4>CHAT</h4>
   <label>Chat creativity (temperature)
     <input type="range" id="setTemp" min="0" max="1" step="0.1">
@@ -729,6 +730,9 @@ setTimeout(function () {
     </select></label>
   <label><input type="checkbox" id="setBubbles"> Message bubbles</label>
   <label><input type="checkbox" id="setRoleLabels"> Show who labels (You / Ghost)</label>
+  <h4>SETTINGS TOOLS</h4>
+  <div class="optRow"><button id="setExportBtn">Export settings</button><button id="setImportBtn">Import settings</button><button id="setResetBtn">Reset all settings</button></div>
+  <input type="file" id="setImportFile" accept="application/json" class="hidden">
   <p id="modelInfo" class="dim"></p>
   <label>Model file (desktop)
     <input id="modelPath" type="text" placeholder="/path/to/model.gguf"></label>

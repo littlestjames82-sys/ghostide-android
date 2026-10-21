@@ -34096,6 +34096,26 @@
     };
   } catch (e) {
   }
+  function rowMatches(text, q) {
+    if (!q) return true;
+    return String(text).toLowerCase().includes(String(q).toLowerCase());
+  }
+  function sanitizeImportedSettings(obj, schema) {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+    const out = {};
+    for (const k of Object.keys(schema)) {
+      if (k in obj && typeof obj[k] === typeof schema[k])
+        out[k] = obj[k];
+    }
+    return Object.keys(out).length ? out : null;
+  }
+  try {
+    window.__ghostSetUtil = {
+      rowMatches,
+      sanitizeImportedSettings
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -36356,6 +36376,68 @@
   $("setAttachDiff").onchange = (e) => {
     settings.attachDiff = e.target.checked;
     saveSettings();
+  };
+  function filterSettings() {
+    const q = $("setSearch").value.trim().toLowerCase();
+    const rows = $("settingsPanel").querySelectorAll("h4, label, .optRow");
+    let h4 = null;
+    let anyVisible = false;
+    const flush = () => {
+      if (h4) h4.style.display = !q || anyVisible ? "" : "none";
+    };
+    for (const el of rows) {
+      if (el.tagName === "H4") {
+        flush();
+        h4 = el;
+        anyVisible = false;
+        continue;
+      }
+      const show = rowMatches(el.textContent, q);
+      el.style.display = show ? "" : "none";
+      if (show) anyVisible = true;
+    }
+    flush();
+  }
+  $("setSearch").addEventListener("input", filterSettings);
+  $("setResetBtn").onclick = () => {
+    if (!confirm("Reset ALL settings to defaults? Chats and files are not touched.")) return;
+    try {
+      localStorage.removeItem("ghostide-settings");
+      localStorage.removeItem("ghostide-notify");
+    } catch (e) {
+    }
+    location.reload();
+  };
+  $("setExportBtn").onclick = () => {
+    const blob = new Blob(
+      [JSON.stringify(settings, null, 2)],
+      { type: "application/json" }
+    );
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "ghostide-settings.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2e3);
+  };
+  $("setImportBtn").onclick = () => $("setImportFile").click();
+  $("setImportFile").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      const clean = sanitizeImportedSettings(obj, settings);
+      if (!clean) {
+        alert("That file has no recognizable settings.");
+        return;
+      }
+      Object.assign(settings, clean);
+      saveSettings();
+      alert("Settings imported. Reloading to apply them.");
+      location.reload();
+    } catch (err) {
+      alert("Could not read that settings file.");
+    }
+    e.target.value = "";
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
