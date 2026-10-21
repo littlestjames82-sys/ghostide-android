@@ -1687,3 +1687,26 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.63.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.64.0 (versionCode 69) - Oct 20, 2026 - Slash commands
+
+- A leading /word in the chat box runs a command
+  instead of reaching the model: /explain, /fix,
+  /tests, /doc reuse the Tools quick actions (any
+  text after the command is appended as a note);
+  /clear, /export (in the picked format), /regen
+  drive the existing controls; /help lists all
+  eight in the chat. Unknown /words are treated as
+  plain text and sent normally.
+- Proven: slash harness 11/11 (parse rules,
+  catalogue, interception order inside sendChat,
+  single code paths), export 10/10, i18n 7/7,
+  DOM-stub past extension construction. One harness
+  check was itself wrong at first (it compared
+  against an unrelated earlier model check); the
+  check was scoped to sendChat and passes.
+- APK 20,279,915 bytes, md5
+  1bdd6544fe26e0f7c385c5316ef3782a, badging 69/1.64.0
+  verified, dex carries both 1.64.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

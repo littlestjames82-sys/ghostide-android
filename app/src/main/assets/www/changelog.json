@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.64.0",
+   "date": "Oct 20, 2026",
+   "goal": "Slash commands",
+   "summary": "Type / in the chat box: /explain, /fix, /tests and /doc run the file quick actions (add a note after the command to steer it), /clear clears the chat, /export exports it, /regen repeats the last answer, and /help lists them all."
+  },
+  {
    "version": "1.63.0",
    "date": "Oct 20, 2026",
    "goal": "Chat export pack",
