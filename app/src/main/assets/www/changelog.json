@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.73.0",
+   "date": "Oct 20, 2026",
+   "goal": "Help pack",
+   "summary": "Tools gains Help & shortcuts: one tap prints a help card into the chat covering the answer styles, quick prompts, slash commands and keyboard shortcuts. It is assembled from the app's live tables, so it always matches what the app can actually do."
+  },
+  {
    "version": "1.72.0",
    "date": "Oct 20, 2026",
    "goal": "Editor status pack",

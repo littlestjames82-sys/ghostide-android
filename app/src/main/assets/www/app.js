@@ -34242,6 +34242,13 @@
     };
   } catch (e) {
   }
+  function buildHelpText() {
+    return "GhostIDE help\nAnswer styles: " + Object.keys(CHAT_STYLES).join(", ") + "\nQuick prompts: " + QUICK_PROMPTS.map((q) => q.label).join(", ") + "\nSlash commands: " + SLASH_COMMANDS.map((c) => "/" + c.name).join(" ") + "\n" + shortcutHelpText() + "\nTips: quick prompts fill the box without sending. Continue asks for the next part of a cut-off answer. Edit & resend on one of your messages rewinds the chat to it. Find in chat lives in Chat options.";
+  }
+  try {
+    window.__ghostHelp = { buildHelpText };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -36680,6 +36687,10 @@
     }
   });
   $("shortcutBtn").onclick = () => addMsg("SYSTEM", shortcutHelpText());
+  $("toolHelp").onclick = () => {
+    hideTools();
+    addMsg("SYSTEM", buildHelpText());
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
