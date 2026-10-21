@@ -34473,6 +34473,32 @@
     };
   } catch (e) {
   }
+  function cmpVer(a, b) {
+    const pa = String(a).split(".").map(Number);
+    const pb = String(b).split(".").map(Number);
+    for (let i2 = 0; i2 < 3; i2++) {
+      const d = (pa[i2] || 0) - (pb[i2] || 0);
+      if (d) return d;
+    }
+    return 0;
+  }
+  function whatsNew(entries, seen) {
+    if (!entries || !entries.length) return null;
+    if (!seen) return null;
+    const top2 = entries[0];
+    return cmpVer(top2.version, seen) > 0 ? top2 : null;
+  }
+  function whatsNewText(e) {
+    return "What's new in v" + e.version + " (" + e.goal + "): " + e.summary;
+  }
+  try {
+    window.__ghostWhatsNew = {
+      cmpVer,
+      whatsNew,
+      whatsNewText
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37370,6 +37396,25 @@
       "application/json"
     );
   };
+  async function checkWhatsNew() {
+    try {
+      const r = await fetch("changelog.json");
+      const d = await r.json();
+      const entries = d.entries || [];
+      if (!entries.length) return;
+      const seen = localStorage.getItem(
+        "ghostide-seen-version"
+      );
+      const fresh = whatsNew(entries, seen);
+      localStorage.setItem(
+        "ghostide-seen-version",
+        entries[0].version
+      );
+      if (fresh) addMsg("SYSTEM", whatsNewText(fresh));
+    } catch (e) {
+    }
+  }
+  setTimeout(checkWhatsNew, 1200);
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

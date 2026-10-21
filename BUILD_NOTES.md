@@ -2144,3 +2144,26 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.86.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.87.0 (versionCode 92) - Oct 21, 2026 - What's new on update
+
+- After an update, the chat shows one quiet system
+  message naming the newest changelog entry. The
+  check reads the bundled changelog.json, compares
+  its top version (numeric compare) with the
+  device's ghostide-seen-version: first installs
+  baseline silently, and only the single newest
+  entry is ever shown however many versions were
+  skipped. Ends batch 3 (Ryan: "More") - ten
+  rounds, v1.78.0 through v1.87.0.
+- FINAL GATES for the whole batch: 31 UI harnesses
+  (264 checks across the three batches) + chip 9/9
+  + i18n 7/7 + eco UI 17/26/15 + python eco
+  E1/E3/E4/E5/E6 ALL PASS + DOM-stub past extension
+  construction on the final bundle.
+- APK 20,292,203 bytes, md5
+  8927488d6bec93a4decadf2dc2863451, badging 92/1.87.0
+  verified, dex carries both 1.87.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). Uploaded at Ryan's direction;
+  device pass is Ryan's.

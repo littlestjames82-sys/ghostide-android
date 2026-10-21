@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.87.0",
+   "date": "Oct 20, 2026",
+   "goal": "What's new on update",
+   "summary": "After an update, the chat quietly shows one system message naming the newest change (this one, the first time you open the new build). First installs set the baseline silently, and only the single newest entry is ever shown."
+  },
+  {
    "version": "1.86.0",
    "date": "Oct 20, 2026",
    "goal": "Export pack 2",
