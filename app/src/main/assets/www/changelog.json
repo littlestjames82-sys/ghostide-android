@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.05.0",
+   "date": "Oct 20, 2026",
+   "goal": "Clear all chats in this project",
+   "summary": "Settings gains a Clear all chats button for the current project: one confirmed action deletes every chat's stored history in the project. Settings, prompts, profiles and other projects are untouched."
+  },
+  {
    "version": "2.04.0",
    "date": "Oct 20, 2026",
    "goal": "Jump to latest",

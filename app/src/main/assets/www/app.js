@@ -34758,6 +34758,15 @@
     window.__ghostJump = { showJump };
   } catch (e) {
   }
+  function projectHistoryKeys(scope, sessions) {
+    return (sessions || []).map(
+      (s) => sessionHistoryKey(scope, s.id)
+    );
+  }
+  try {
+    window.__ghostClearChats = { projectHistoryKeys };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -38049,6 +38058,20 @@
     const el = $("chatLog");
     el.scrollTop = el.scrollHeight;
     syncJumpBtn();
+  };
+  $("clearChatsBtn").onclick = () => {
+    if (!confirm("Delete every chat in this project? This cannot be undone.")) return;
+    for (const k of projectHistoryKeys(
+      historyScope,
+      chatSessions
+    )) {
+      try {
+        localStorage.removeItem(k);
+      } catch (e) {
+      }
+    }
+    loadHistory();
+    renderSessionSel();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

@@ -2486,3 +2486,24 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.05.0 (versionCode 110) - Oct 21, 2026 - Clear all chats
+
+- Settings backup area gains Clear all chats in
+  this project. After a confirm, it removes
+  exactly the history keys computed by the real
+  sessionHistoryKey for each session (default
+  session's bare key included), then reloads the
+  now-empty chat and picker. No storage-wide
+  clear, no other project touched.
+- Proven: clearchats harness 3/3 (loading the real
+  SESSIONS block so the key rule under test is the
+  shipped one), sessions 14/14, backup 7/7, i18n
+  7/7, DOM-stub past extension construction.
+  (v2.04 pushes: fc6c0678/e0213d73.)
+- APK 20,296,299 bytes, md5
+  cabdca14cfef00b864d2bb1ae71ec051, badging
+  110/2.05.0 verified, dex carries both 2.05.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.
