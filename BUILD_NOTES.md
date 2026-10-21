@@ -2015,3 +2015,19 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.79.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.80.0 (versionCode 85) - Oct 21, 2026 - Sessions pack 2
+
+- Duplicate button for chats: saves the current
+  chat, copies its stored history verbatim to a new
+  session ("<name> copy"), and switches to it. The
+  session picker now labels each chat with its
+  stored message count.
+- Proven: sessions2 harness 6/6, sessions 14/14,
+  shortcuts 7/7, i18n 7/7, DOM-stub past extension
+  construction. (v1.79 pushes: 0762a9ac/bab87348.)
+- APK 20,288,104 bytes, md5
+  2b9c874ed3094146036333323bcf9e20, badging 85/1.80.0
+  verified, dex carries both 1.80.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

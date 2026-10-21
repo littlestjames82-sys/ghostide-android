@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.80.0",
+   "date": "Oct 20, 2026",
+   "goal": "Sessions pack 2",
+   "summary": "Chats can be duplicated: a Duplicate button copies the current chat (history included) as a new chat named with copy appended, and switches to it. The chat picker now shows a message count next to each chat name."
+  },
+  {
    "version": "1.79.0",
    "date": "Oct 20, 2026",
    "goal": "Insert answer",

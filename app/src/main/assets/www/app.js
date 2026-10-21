@@ -34369,6 +34369,26 @@
     window.__ghostInsert = { insertionText };
   } catch (e) {
   }
+  function dupSessionName(name2) {
+    return (name2 || "Chat") + " copy";
+  }
+  function sessionOptionLabel(s, count2) {
+    return s.name + " (" + count2 + ")";
+  }
+  function planDuplicate(list, activeId, newId) {
+    const src = list.find((s) => s.id === activeId);
+    if (!src) return null;
+    const copy = { id: newId, name: dupSessionName(src.name) };
+    return { list: [...list, copy], copy };
+  }
+  try {
+    window.__ghostSessions2 = {
+      dupSessionName,
+      sessionOptionLabel,
+      planDuplicate
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -36395,7 +36415,7 @@
     for (const s of chatSessions) {
       const o = document.createElement("option");
       o.value = s.id;
-      o.textContent = s.name;
+      o.textContent = sessionOptionLabel(s, storedHistLen(s.id));
       sel.appendChild(o);
     }
     sel.value = activeSession;
@@ -36987,6 +37007,39 @@
     updateChatCount();
     ta.setSelectionRange(ta.value.length, ta.value.length);
   });
+  function storedHistLen(sid) {
+    try {
+      const items = JSON.parse(localStorage.getItem(
+        sessionHistoryKey(historyScope, sid)
+      ) || "[]");
+      return Array.isArray(items) ? items.length : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  $("sessionDup").onclick = () => {
+    const plan = planDuplicate(
+      chatSessions,
+      activeSession,
+      "s" + Date.now().toString(36)
+    );
+    if (!plan) return;
+    saveHistory();
+    try {
+      const raw = localStorage.getItem(
+        sessionHistoryKey(historyScope, activeSession)
+      );
+      if (raw) localStorage.setItem(
+        sessionHistoryKey(historyScope, plan.copy.id),
+        raw
+      );
+    } catch (e) {
+    }
+    chatSessions = plan.list;
+    persistSessions();
+    switchSession(plan.copy.id);
+    addMsg("SYSTEM", 'Duplicated this chat as "' + plan.copy.name + '".');
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
