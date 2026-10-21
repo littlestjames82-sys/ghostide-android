@@ -1819,3 +1819,23 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.69.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.70.0 (versionCode 75) - Oct 21, 2026 - Keyboard shortcuts
+
+- Ctrl+. focuses the chat box from anywhere;
+  Ctrl+/ toggles Chat options; Ctrl+L clears the
+  chat (through the existing confirm); Ctrl+Shift+
+  Up/Down steps between chat sessions with
+  wraparound. Inside the code editor only Ctrl+.
+  is taken - CodeMirror keeps its own keys. A
+  Shortcuts button in Chat options prints the full
+  list (including the existing Ctrl+K / palette /
+  symbols keys) into the chat.
+- Proven: shortcuts harness 7/7, i18n 7/7, DOM-stub
+  past extension construction. (v1.69 pushes
+  verified against the GitHub API: f3f35a4b/25fb45d4.)
+- APK 20,284,011 bytes, md5
+  3a4b588bc29d1e312db50b3dcd78d280, badging 75/1.70.0
+  verified, dex carries both 1.70.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

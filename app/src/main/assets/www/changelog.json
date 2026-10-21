@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.70.0",
+   "date": "Oct 20, 2026",
+   "goal": "Keyboard shortcuts",
+   "summary": "Chat keyboard shortcuts: Ctrl+. jumps to the chat box from anywhere, Ctrl+/ toggles Chat options, Ctrl+L clears the chat (with the usual warning), and Ctrl+Shift+Up/Down moves between chats. They stay out of the code editor's way, and a Shortcuts button in Chat options lists them all."
+  },
+  {
    "version": "1.69.0",
    "date": "Oct 20, 2026",
    "goal": "Find in chat",
