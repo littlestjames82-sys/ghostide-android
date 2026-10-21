@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.95.0",
+   "date": "Oct 20, 2026",
+   "goal": "Retry last message",
+   "summary": "Chat options gains Retry last message: when a send fails and your message is left unanswered at the end of the chat, one tap removes it and sends it again, with no duplicate in the history."
+  },
+  {
    "version": "1.94.0",
    "date": "Oct 20, 2026",
    "goal": "Slash commands pack 2",

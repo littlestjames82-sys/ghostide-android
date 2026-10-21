@@ -34647,6 +34647,15 @@
     };
   } catch (e) {
   }
+  function retryText(hist) {
+    if (!hist || !hist.length) return "";
+    const last2 = hist[hist.length - 1];
+    return last2 && last2.role === "user" ? String(last2.content || "") : "";
+  }
+  try {
+    window.__ghostRetry = { retryText };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37770,6 +37779,17 @@
     }
     const recent = list.slice(-10).reverse();
     addMsg("SYSTEM", "Starred answers (" + list.length + ", showing " + recent.length + "):\n\n" + recent.map((x) => x.text).join("\n\n---\n\n"));
+  };
+  $("retryBtn").onclick = () => {
+    const text = retryText(history2);
+    if (!text) {
+      alert("Nothing to retry: the last message already has its answer.");
+      return;
+    }
+    history2.pop();
+    saveHistory();
+    $("chatText").value = text;
+    sendChat();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

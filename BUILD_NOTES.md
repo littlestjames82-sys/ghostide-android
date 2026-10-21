@@ -2302,3 +2302,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.94.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.95.0 (versionCode 100) - Oct 21, 2026 - Retry last message
+
+- Chat options gains Retry last message. It is
+  armed only when history ends on an unanswered
+  user message (the failed-send shape); the
+  handler pops that message, saves, refills the
+  box and calls sendChat, so the retry can never
+  duplicate the turn.
+- Proven: retry harness 4/4, chatopts 34/34, i18n
+  7/7, DOM-stub past extension construction.
+  (v1.94 pushes: 34306d26/abe94758.)
+- APK 20,292,200 bytes, md5
+  bffccd24ceae074fc98d3a7d147be5e0, badging
+  100/1.95.0 verified, dex carries both 1.95.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.
