@@ -34730,6 +34730,14 @@
     window.__ghostAutosave = { autosaveDue };
   } catch (e) {
   }
+  function summaryRequest(hist) {
+    if (!hist || hist.length < 2) return "";
+    return "Summarize our conversation so far in at most 5 short bullet points: what we set out to do, what we decided, and what is still open. Plain language, no code unless it matters.";
+  }
+  try {
+    window.__ghostSummarize = { summaryRequest };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37967,6 +37975,15 @@
       saveFile();
     }
   }, 1500);
+  $("summarizeBtn").onclick = () => {
+    const req = summaryRequest(history2);
+    if (!req) {
+      alert("Not enough conversation to summarize yet.");
+      return;
+    }
+    $("chatText").value = req;
+    sendChat();
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

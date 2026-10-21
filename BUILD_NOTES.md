@@ -2433,3 +2433,21 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.02.0 (versionCode 107) - Oct 21, 2026 - Summarize chat
+
+- Chat options gains Summarize chat. It fills the
+  box with a standing instruction (5 bullets max:
+  goal, decisions, still open) and calls the normal
+  sendChat, so the summary rides the same history
+  window as any answer. Chats under one full
+  exchange are refused with a plain alert.
+- Proven: summarize harness 4/4, chatopts 34/34,
+  i18n 7/7, DOM-stub past extension construction.
+  (v2.01 pushes: f894d0ef/1035ab62.)
+- APK 20,296,296 bytes, md5
+  70a35ba10c767759fc52d147c36ccfd3, badging
+  107/2.02.0 verified, dex carries both 2.02.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

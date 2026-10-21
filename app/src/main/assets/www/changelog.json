@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.02.0",
+   "date": "Oct 20, 2026",
+   "goal": "Summarize chat",
+   "summary": "Chat options gains Summarize chat: it sends a standing instruction through the normal send path and the model recaps the conversation in at most 5 bullets: the goal, the decisions, and what is still open."
+  },
+  {
    "version": "2.01.0",
    "date": "Oct 20, 2026",
    "goal": "Editor autosave",
