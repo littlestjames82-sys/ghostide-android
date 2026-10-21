@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.75.0",
+   "date": "Oct 20, 2026",
+   "goal": "Ping sounds",
+   "summary": "The completion ping gains a sound: Soft, Chime or Pop, synthesized in the app (no audio files), with a Test sound button in Settings. It only plays when the ping itself fires, and picking a sound previews it."
+  },
+  {
    "version": "1.74.0",
    "date": "Oct 20, 2026",
    "goal": "Accent colors",

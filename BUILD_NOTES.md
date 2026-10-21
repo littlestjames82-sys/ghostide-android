@@ -1916,3 +1916,23 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.74.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.75.0 (versionCode 80) - Oct 21, 2026 - Ping sounds
+
+- The completion ping gains a synthesized sound
+  (WebAudio, no audio files): Soft (one 880Hz note),
+  Chime (two rising notes) or Pop (two short notes),
+  chosen in Settings next to the ping toggle, with
+  a Test sound button and a preview on change. It
+  hooks notifyDone right after the existing ping
+  gate, so it plays exactly when a ping is
+  warranted, never more often.
+- Proven: sound harness 7/7, setutil 10/10 (the new
+  setting survives sanitize), i18n 7/7, DOM-stub
+  past extension construction. (v1.74 pushes:
+  01c94f6c/58705429, read back from the push log.)
+- APK 20,284,011 bytes, md5
+  4ac1dacc1fe9ff82a08566b9ac482e24, badging 80/1.75.0
+  verified, dex carries both 1.75.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

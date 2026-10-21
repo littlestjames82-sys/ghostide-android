@@ -32722,6 +32722,7 @@
       chatFs: "13",
       chatWidth: "360",
       accent: "green",
+      notifySound: "soft",
       bubbles: false,
       roleLabels: true,
       sliceBudget: 6e3,
@@ -34263,6 +34264,25 @@
   }
   try {
     window.__ghostAccent = { ACCENTS, accentPair };
+  } catch (e) {
+  }
+  var NOTIFY_SOUNDS = {
+    off: [],
+    soft: [{ f: 880, d: 0.12, at: 0 }],
+    chime: [
+      { f: 660, d: 0.14, at: 0 },
+      { f: 990, d: 0.2, at: 0.13 }
+    ],
+    pop: [
+      { f: 520, d: 0.07, at: 0 },
+      { f: 780, d: 0.09, at: 0.06 }
+    ]
+  };
+  function beepSpec(name2) {
+    return NOTIFY_SOUNDS[name2] || NOTIFY_SOUNDS.soft;
+  }
+  try {
+    window.__ghostSound = { NOTIFY_SOUNDS, beepSpec };
   } catch (e) {
   }
   var history2 = [];
@@ -36719,6 +36739,45 @@
     applyAccent();
   };
   applyAccent();
+  var actx = null;
+  function playNotifySound() {
+    const spec = beepSpec(settings.notifySound);
+    if (!spec.length) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      actx = actx || new AC();
+      if (actx.state === "suspended") actx.resume();
+      const t0 = actx.currentTime;
+      for (const b of spec) {
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = "sine";
+        o.frequency.value = b.f;
+        g.gain.setValueAtTime(1e-4, t0 + b.at);
+        g.gain.exponentialRampToValueAtTime(
+          0.18,
+          t0 + b.at + 0.02
+        );
+        g.gain.exponentialRampToValueAtTime(
+          1e-4,
+          t0 + b.at + b.d
+        );
+        o.connect(g);
+        g.connect(actx.destination);
+        o.start(t0 + b.at);
+        o.stop(t0 + b.at + b.d + 0.05);
+      }
+    } catch (e) {
+    }
+  }
+  $("setSound").value = settings.notifySound;
+  $("setSound").onchange = (e) => {
+    settings.notifySound = e.target.value;
+    saveSettings();
+    playNotifySound();
+  };
+  $("setSoundTest").onclick = () => playNotifySound();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
@@ -40446,6 +40505,7 @@
   function notifyDone(title, body, startedAt) {
     if (!pingWorthIt(startedAt, Date.now(), notifyEnabled()))
       return;
+    playNotifySound();
     if (document.hidden) flashTitle(title);
     try {
       if (window.GhostNative) {
