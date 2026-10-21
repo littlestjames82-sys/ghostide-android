@@ -2320,3 +2320,21 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v1.96.0 (versionCode 101) - Oct 21, 2026 - Tabs pack
+
+- Close others / Close all tabs buttons beside the
+  tab bar. Both iterate a snapshot of the open
+  order through the existing closeTab, so dirty
+  tabs keep their per-tab unsaved-changes prompt
+  and the split-view and activation behavior stay
+  exactly as they were.
+- Proven: tabspack harness 3/3, i18n 7/7, DOM-stub
+  past extension construction.
+  (v1.95 pushes: 09e7ac02/38feecdb.)
+- APK 20,292,200 bytes, md5
+  2751b9c3c5a747b925a93982ae4a8cc1, badging
+  101/1.96.0 verified, dex carries both 1.96.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

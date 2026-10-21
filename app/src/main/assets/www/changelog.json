@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.96.0",
+   "date": "Oct 20, 2026",
+   "goal": "Tabs pack",
+   "summary": "Two buttons join the tab bar: Close others and Close all tabs. Both ride the existing close logic, so a tab with unsaved changes still asks before it closes."
+  },
+  {
    "version": "1.95.0",
    "date": "Oct 20, 2026",
    "goal": "Retry last message",

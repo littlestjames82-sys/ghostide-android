@@ -34656,6 +34656,13 @@
     window.__ghostRetry = { retryText };
   } catch (e) {
   }
+  function othersOf(order, keep) {
+    return order.filter((p) => p !== keep);
+  }
+  try {
+    window.__ghostTabsPack = { othersOf };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37790,6 +37797,16 @@
     saveHistory();
     $("chatText").value = text;
     sendChat();
+  };
+  $("tabCloseOthers").onclick = () => {
+    if (!currentFile) return;
+    for (const p of othersOf(tabOrder.slice(), currentFile))
+      closeTab(p);
+    renderTabs();
+  };
+  $("tabCloseAll").onclick = () => {
+    for (const p of tabOrder.slice()) closeTab(p);
+    renderTabs();
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
