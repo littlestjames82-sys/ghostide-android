@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.76.0",
+   "date": "Oct 20, 2026",
+   "goal": "Full data backup",
+   "summary": "Settings gains Export all data and Import backup: one JSON file with everything the app keeps locally (settings, prompts, all chats and sessions, drafts, bookmarks). Import validates the file strictly before touching anything, asks first, then reloads."
+  },
+  {
    "version": "1.75.0",
    "date": "Oct 20, 2026",
    "goal": "Ping sounds",

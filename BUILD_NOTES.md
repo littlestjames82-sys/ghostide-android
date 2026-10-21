@@ -1936,3 +1936,25 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.75.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.76.0 (versionCode 81) - Oct 21, 2026 - Full data backup
+
+- Settings gains Export all data / Import backup:
+  one JSON with the whole ghostide- localStorage
+  namespace (settings, prompts, chats and sessions,
+  drafts, bookmarks...). Import is strict (envelope,
+  namespaced keys, string values, size caps),
+  confirms first, writes, reloads. The harness
+  caught a real bug pre-build: the first key check
+  whitelisted characters and would have rejected
+  real history keys (they embed file paths with
+  slashes); the shipped check is a prefix test with
+  length and control-character limits.
+- Proven: backup harness 7/7 (after the fix), i18n
+  7/7, DOM-stub past extension construction.
+  (v1.75 pushes: c59657e8/a621d073.)
+- APK 20,288,107 bytes, md5
+  1d2407a826a276aeefd4f9c742eed9ea, badging 81/1.76.0
+  verified, dex carries both 1.76.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

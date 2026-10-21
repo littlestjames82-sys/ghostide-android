@@ -34285,6 +34285,43 @@
     window.__ghostSound = { NOTIFY_SOUNDS, beepSpec };
   } catch (e) {
   }
+  function backupKeyOk(key) {
+    return typeof key === "string" && key.startsWith("ghostide-") && key.length > 9 && key.length <= 512 && !/[\x00-\x1f\x7f]/.test(key);
+  }
+  function buildBackup(map) {
+    const data2 = {};
+    for (const k of Object.keys(map)) {
+      if (backupKeyOk(k) && typeof map[k] === "string")
+        data2[k] = map[k];
+    }
+    return { app: "ghostide-backup", version: 1, data: data2 };
+  }
+  function parseBackup(text) {
+    let o;
+    try {
+      o = JSON.parse(text);
+    } catch (e) {
+      return null;
+    }
+    if (!o || o.app !== "ghostide-backup" || o.version !== 1 || !o.data || typeof o.data !== "object") return null;
+    const keys2 = Object.keys(o.data);
+    if (!keys2.length || keys2.length > 500) return null;
+    const out = {};
+    for (const k of keys2) {
+      if (!backupKeyOk(k)) return null;
+      if (typeof o.data[k] !== "string" || o.data[k].length > 2e6) return null;
+      out[k] = o.data[k];
+    }
+    return out;
+  }
+  try {
+    window.__ghostBackup = {
+      backupKeyOk,
+      buildBackup,
+      parseBackup
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -36778,6 +36815,39 @@
     playNotifySound();
   };
   $("setSoundTest").onclick = () => playNotifySound();
+  function collectLocalMap() {
+    const map = {};
+    try {
+      for (let i2 = 0; i2 < localStorage.length; i2++) {
+        const k = localStorage.key(i2);
+        map[k] = localStorage.getItem(k);
+      }
+    } catch (e) {
+    }
+    return map;
+  }
+  $("setExportData").onclick = () => {
+    download(
+      "ghostide-backup.json",
+      JSON.stringify(buildBackup(collectLocalMap()), null, 1),
+      "application/json"
+    );
+  };
+  $("setImportData").onclick = () => pickTextFile((text) => {
+    const data2 = parseBackup(text);
+    if (!data2) {
+      alert("That file is not a valid GhostIDE backup.");
+      return;
+    }
+    if (!confirm("Import this backup? It replaces the matching local data (settings, prompts, chats, drafts) and reloads the app.")) return;
+    for (const k of Object.keys(data2)) {
+      try {
+        localStorage.setItem(k, data2[k]);
+      } catch (e) {
+      }
+    }
+    location.reload();
+  });
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
