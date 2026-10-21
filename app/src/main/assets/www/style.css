@@ -794,6 +794,8 @@ body.chat-bubbles .msg {
   border-radius: 10px; padding: 8px 10px; margin: 8px 0;
 }
 body.no-roles .msg .who { display: none; }
+body.chat-wrap #chatLog .msg { overflow-wrap: anywhere; }
+body.chat-wrap .msg pre { white-space: pre-wrap; }
 
 /* Settings utilities (v1.67) */
 #setSearch { width: 100%; margin: 4px 0 10px; }

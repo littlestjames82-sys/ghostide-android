@@ -32727,6 +32727,7 @@
       density: false,
       chatFont: "default",
       bubbles: false,
+      wrapChat: false,
       roleLabels: true,
       sliceBudget: 6e3,
       attachSelection: true,
@@ -34668,6 +34669,13 @@
   }
   try {
     window.__ghostAppInfo = { appInfoText };
+  } catch (e) {
+  }
+  function wrapChatClass(on) {
+    return on ? "chat-wrap" : "";
+  }
+  try {
+    window.__ghostWrapChat = { wrapChatClass };
   } catch (e) {
   }
   var history2 = [];
@@ -37835,6 +37843,19 @@
     });
   }
   setTimeout(refreshAppInfo, 900);
+  function applyWrapChat() {
+    document.body.classList.toggle(
+      "chat-wrap",
+      !!settings.wrapChat
+    );
+  }
+  $("setWrapChat").checked = !!settings.wrapChat;
+  $("setWrapChat").onchange = (e) => {
+    settings.wrapChat = e.target.checked;
+    saveSettings();
+    applyWrapChat();
+  };
+  applyWrapChat();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

@@ -2361,3 +2361,18 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). Uploaded at Ryan's
   direction; device pass is Ryan's.
+
+## v1.98.0 (versionCode 103) - Oct 21, 2026 - Chat wrap toggle
+
+- Batch 5 opens with a Settings toggle: Wrap long
+  lines in chat. One body class (chat-wrap) adds
+  overflow-wrap on messages and pre-wrap on code
+  blocks in style.css. Default off.
+- Proven: wrapchat harness 4/4, display 8/8, i18n
+  7/7, DOM-stub past extension construction.
+- APK 20,296,296 bytes, md5
+  9cb3f7369cbe6b5e76e2cb76ad800fc5, badging
+  103/1.98.0 verified, dex carries both 1.98.0
+  literals, staged www (app.js + style.css)
+  byte-matches sources, same signer (8ea8684a...).
+  NOT uploaded; device pass is Ryan's.

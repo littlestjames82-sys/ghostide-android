@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.98.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat wrap toggle",
+   "summary": "Settings gains Wrap long lines in chat: long answers and code blocks wrap softly instead of scrolling sideways. Off by default, so nothing changes until you turn it on."
+  },
+  {
    "version": "1.97.0",
    "date": "Oct 20, 2026",
    "goal": "App info, batch 4 wrap",
