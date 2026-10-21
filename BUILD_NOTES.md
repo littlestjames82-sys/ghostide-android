@@ -2265,3 +2265,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.92.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.93.0 (versionCode 98) - Oct 21, 2026 - Starred answers
+
+- Answers gain a Star toggle in their button row.
+  Stars persist globally (ghostide-starred-answers,
+  newest last, capped at 50, identity = first 120
+  chars). Tools gains Starred answers, which prints
+  the ten most recent into the chat.
+- Proven: starans harness 5/5 (one test premise
+  corrected mid-round: key collision needs the
+  first 120 chars truly identical), msgtools 9/9,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.92 pushes: af95daf1/381a0834.)
+- APK 20,292,200 bytes, md5
+  41059fca177005ef9f7419ec5c55891a, badging 98/1.93.0
+  verified, dex carries both 1.93.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

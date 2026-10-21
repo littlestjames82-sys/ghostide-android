@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.93.0",
+   "date": "Oct 20, 2026",
+   "goal": "Starred answers",
+   "summary": "Every answer gains a Star button. Starred answers are kept in one list (up to 50) and Tools gains a Starred answers entry that shows the ten most recent in the chat."
+  },
+  {
    "version": "1.92.0",
    "date": "Oct 20, 2026",
    "goal": "What Ghost sees",
