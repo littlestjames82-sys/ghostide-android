@@ -500,6 +500,25 @@ setTimeout(function () {
         <option value="131072">128k window</option>
       </select></label>
   </div>
+  <div class="ctxSlice">
+    <div class="ctxSliceTitle">Export this slice (GhostConvert)</div>
+    <label>Format
+      <select id="ctxExportTarget">
+        <option value="agents">AGENTS.md</option>
+        <option value="cursor">Cursor rules</option>
+        <option value="copilot">Copilot instructions</option>
+        <option value="generic">Generic prompt.md</option>
+        <option value="all">All formats</option>
+      </select></label>
+    <button id="ctxExportBtn">Export slice</button>
+    <div id="ctxExportOut"></div>
+    <p class="dim">The current slice (the chat's slice mode and
+      budget; current-file and smart slices export as a
+      signatures project slice) is converted by GhostConvert
+      itself into .ghostide/convert/. What each format could
+      not carry is named in its losses list, from the tool's
+      own LOSSES.md.</p>
+  </div>
   <div id="ctxMethod" class="dbInfo"></div>
 </div>
 <div id="reviewPanel" class="hidden">

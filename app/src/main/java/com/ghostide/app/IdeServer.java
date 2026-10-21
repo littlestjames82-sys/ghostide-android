@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -627,14 +628,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"1.55.0\""
+                + ",\"version\":\"1.56.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"1.55.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"1.56.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -3166,6 +3167,259 @@ public final class IdeServer {
                 + rJson.substring(1));
             return;
         }
+        if (path.equals("/api/eco/convert") && method.equals("POST")) {
+            // Roadmap ECO E6: export the current slice to
+            // another agent format with the bundled
+            // GhostConvert tool itself. The slice is
+            // materialised as a GhostSlice bundle at
+            // .ghostide/slice by the bundled GhostSlice's own
+            // export (temp dir first, then moved in, so the
+            // bundle never scans itself; a "*" .gitignore in
+            // the IDE's own .ghostide state dir keeps later
+            // slices from folding IDE artifacts in). Then
+            // `ghostconvert convert <bundle> --to <target>
+            // -o .ghostide/convert/<target> --force`, and
+            // the output is checked with the tool's own
+            // `verify`. The response carries the artifacts
+            // plus LOSSES.md per format, so losses are named
+            // in the UI. The source bundle is read-only for
+            // the tool. Convert exit 2 = could not run;
+            // verify exit 1 = mismatch.
+            Map<String, Object> cReq = Json.obj(Json.parse(
+                new String(body, "UTF-8")));
+            String cTarget = Json.str(cReq, "target", "agents")
+                .trim().toLowerCase();
+            boolean cAll = cTarget.equals("all");
+            if (!cAll && !cTarget.equals("agents")
+                    && !cTarget.equals("cursor")
+                    && !cTarget.equals("copilot")
+                    && !cTarget.equals("generic")) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("unknown export target: "
+                        + cTarget) + "}");
+                return;
+            }
+            String cMode = Json.str(cReq, "mode", "signatures");
+            if (!cMode.equals("signatures")
+                    && !cMode.equals("full")
+                    && !cMode.equals("interfaces")
+                    && !cMode.equals("structure")
+                    && !cMode.equals("headings")
+                    && !cMode.equals("strip-tests"))
+                cMode = "signatures";
+            int cBudget = Json.num(cReq, "budget", 6000);
+            if (cBudget < 500) cBudget = 500;
+            if (cBudget > 200000) cBudget = 200000;
+            Object cReuseObj = cReq.get("reuse_bundle");
+            boolean cReuse = cReuseObj instanceof Boolean
+                && (Boolean) cReuseObj;
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            Map<String, String> cEnv = pythonEnv();
+            cEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            File cState = new File(workspace, ".ghostide");
+            cState.mkdirs();
+            File cBundle = new File(cState, "slice");
+            File cManifest = new File(cBundle, "manifest.json");
+            boolean cReused = false;
+            int cFiles = 0, cTokens = 0, cOrigTokens = 0;
+            boolean cFitted = true;
+            if (cReuse && cManifest.isFile()) {
+                cReused = true;
+            } else {
+                File cGi = new File(cState, ".gitignore");
+                if (!cGi.exists()) {
+                    try {
+                        FileOutputStream cGo =
+                            new FileOutputStream(cGi);
+                        cGo.write("*\n".getBytes("UTF-8"));
+                        cGo.close();
+                    } catch (Exception ignored) {}
+                }
+                File cTmp = new File(ctx.getCacheDir(),
+                    "ghostide-slice-tmp");
+                try {
+                    if (cTmp.exists()) deleteRecursive(cTmp);
+                } catch (Exception ignored) {}
+                cTmp.mkdirs();
+                ProcResult cX = runProcess(Arrays.asList(
+                    pythonBin(), "-m", "ghostslice", "export",
+                    workspace.getAbsolutePath(), "-o",
+                    cTmp.getAbsolutePath(), "--mode", cMode,
+                    "--fit", String.valueOf(cBudget)),
+                    workspace, 180, cEnv);
+                File cTmpMf = new File(cTmp, "manifest.json");
+                if (!cTmpMf.isFile()) {
+                    String cText = (cX.stdout == null ? ""
+                        : cX.stdout) + (cX.stderr == null ? ""
+                        : cX.stderr);
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote("GhostSlice could not "
+                            + "build a slice bundle: "
+                            + cText.trim().substring(0, Math.min(
+                                300, cText.trim().length())))
+                        + "}");
+                    return;
+                }
+                try {
+                    if (cBundle.exists())
+                        deleteRecursive(cBundle);
+                    copyEcoTree(cTmp, cBundle);
+                    deleteRecursive(cTmp);
+                } catch (Exception cCopy) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote("the slice bundle could "
+                            + "not be stored: " + msg(cCopy))
+                        + "}");
+                    return;
+                }
+            }
+            try {
+                Map<String, Object> cMfObj = Json.obj(
+                    Json.parse(readFile(cManifest)));
+                cFiles = Json.arr(cMfObj.get("files")).size();
+                cTokens = Json.num(cMfObj,
+                    "total_sliced_tokens", 0);
+                cOrigTokens = Json.num(cMfObj,
+                    "total_original_tokens", 0);
+                Map<String, Object> cFit = Json.obj(
+                    cMfObj.get("fit"));
+                Object cFitV = cFit.get("fitted");
+                if (cFitV instanceof Boolean)
+                    cFitted = (Boolean) cFitV;
+            } catch (Exception ignored) {}
+            if (cFiles == 0) {
+                sendJson(out, 400, "{\"error\":\"the current "
+                    + "slice is empty - there is nothing to "
+                    + "convert\"}");
+                return;
+            }
+            File cOutBase = new File(cState,
+                "convert/" + cTarget);
+            cOutBase.getParentFile().mkdirs();
+            ProcResult cC = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostconvert", "convert",
+                cBundle.getAbsolutePath(), "--to", cTarget,
+                "-o", cOutBase.getAbsolutePath(), "--force"),
+                workspace, 120, cEnv);
+            if (cC.code != 0) {
+                String cText = (cC.stdout == null ? ""
+                    : cC.stdout) + (cC.stderr == null ? ""
+                    : cC.stderr);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + cText.trim().substring(0, Math.min(
+                            300, cText.trim().length())))
+                    + "}");
+                return;
+            }
+            ProcResult cV = runProcess(Arrays.asList(
+                pythonBin(), "-m", "ghostconvert", "verify",
+                cBundle.getAbsolutePath(),
+                cOutBase.getAbsolutePath(), "--to", cTarget),
+                workspace, 120, cEnv);
+            String cVerifyOut = ((cV.stdout == null ? ""
+                : cV.stdout) + (cV.stderr == null ? ""
+                : cV.stderr)).trim();
+            if (cV.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the converted output did "
+                        + "not verify: "
+                        + cVerifyOut.substring(0, Math.min(
+                            300, cVerifyOut.length())))
+                    + "}");
+                return;
+            }
+            String[] cTargets = cAll
+                ? new String[]{"agents", "cursor", "copilot",
+                    "generic"}
+                : new String[]{cTarget};
+            StringBuilder cSb = new StringBuilder();
+            cSb.append("{\"ok\":true,\"target\":")
+                .append(Json.quote(cTarget))
+                .append(",\"bundle\":\".ghostide/slice\"")
+                .append(",\"slice\":{\"mode\":")
+                .append(Json.quote(cMode))
+                .append(",\"budget\":").append(cBudget)
+                .append(",\"reused\":").append(cReused)
+                .append(",\"files\":").append(cFiles)
+                .append(",\"tokens\":").append(cTokens)
+                .append(",\"originalTokens\":")
+                .append(cOrigTokens)
+                .append(",\"fitted\":").append(cFitted)
+                .append("},\"verify\":{\"code\":0,\"output\":")
+                .append(Json.quote(cVerifyOut))
+                .append("},\"outputs\":[");
+            for (int ci = 0; ci < cTargets.length; ci++) {
+                File cTDir = cAll
+                    ? new File(cOutBase, cTargets[ci])
+                    : cOutBase;
+                java.util.List<File> cArtFiles =
+                    new ArrayList<>();
+                java.util.List<String> cArtRels =
+                    new ArrayList<>();
+                gatherEcoFiles(cTDir, cTDir, cArtFiles,
+                    cArtRels);
+                String cLosses = "";
+                StringBuilder cNames = new StringBuilder("[");
+                boolean cFirstName = true;
+                StringBuilder cArts = new StringBuilder("[");
+                for (int cj = 0; cj < cArtFiles.size(); cj++) {
+                    String cContent;
+                    try {
+                        cContent = readFile(cArtFiles.get(cj));
+                    } catch (Exception cRead) {
+                        cContent = "";
+                    }
+                    if (cArtRels.get(cj).equals("LOSSES.md")) {
+                        cLosses = cContent;
+                        for (String cLine
+                                : cContent.split("\n")) {
+                            if (cLine.startsWith("## ")) {
+                                if (!cFirstName)
+                                    cNames.append(',');
+                                cFirstName = false;
+                                cNames.append(Json.quote(
+                                    cLine.substring(3)
+                                        .trim()));
+                            }
+                        }
+                    }
+                    if (cj > 0) cArts.append(',');
+                    cArts.append("{\"path\":")
+                        .append(Json.quote(cArtRels.get(cj)))
+                        .append(",\"content\":")
+                        .append(Json.quote(cContent))
+                        .append('}');
+                }
+                cNames.append(']');
+                cArts.append(']');
+                String cRelDir = cTDir.getAbsolutePath()
+                    .substring(
+                        workspace.getAbsolutePath().length()
+                            + 1)
+                    .replace(File.separatorChar, '/');
+                if (ci > 0) cSb.append(',');
+                cSb.append("{\"target\":")
+                    .append(Json.quote(cTargets[ci]))
+                    .append(",\"dir\":")
+                    .append(Json.quote(cRelDir))
+                    .append(",\"artifacts\":").append(cArts)
+                    .append(",\"losses\":")
+                    .append(Json.quote(cLosses))
+                    .append(",\"losses_names\":")
+                    .append(cNames)
+                    .append('}');
+            }
+            cSb.append("]}");
+            sendJson(out, cSb.toString());
+            return;
+        }
         sendJson(out, 400, "{\"error\":\"unknown eco path\"}");
     }
 
@@ -4416,7 +4670,53 @@ public final class IdeServer {
             File[] kids = f.listFiles();
             if (kids != null) for (File k : kids) deleteRecursive(k);
         }
-        if (!f.delete()) throw new IOException("could not delete " + f.getName());
+        if (f.exists() && !f.delete())
+            throw new IOException("could not delete " + f.getName());
+    }
+
+    // Roadmap ECO E6 helpers: copy a finished GhostSlice
+    // bundle out of its temp dir, and walk a convert output
+    // tree in stable order for the response.
+    private static void copyEcoTree(File src, File dst)
+            throws IOException {
+        if (src.isDirectory()) {
+            dst.mkdirs();
+            File[] kids = src.listFiles();
+            if (kids != null)
+                for (File k : kids)
+                    copyEcoTree(k, new File(dst, k.getName()));
+            return;
+        }
+        File parent = dst.getParentFile();
+        if (parent != null) parent.mkdirs();
+        java.io.InputStream in = new java.io.FileInputStream(src);
+        FileOutputStream out = new FileOutputStream(dst);
+        byte[] buf = new byte[65536];
+        int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        out.close();
+        in.close();
+    }
+
+    private static void gatherEcoFiles(File dir, File base,
+            java.util.List<File> files,
+            java.util.List<String> rels) {
+        File[] kids = dir.listFiles();
+        if (kids == null) return;
+        Arrays.sort(kids, new Comparator<File>() {
+            public int compare(File a, File b) {
+                return a.getName().compareTo(b.getName());
+            }
+        });
+        for (File k : kids) {
+            if (k.isDirectory()) {
+                gatherEcoFiles(k, base, files, rels);
+            } else if (k.isFile()) {
+                files.add(k);
+                rels.add(base.toURI().relativize(
+                    k.toURI()).getPath());
+            }
+        }
     }
 
     // ---------------- http plumbing ----------------

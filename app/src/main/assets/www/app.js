@@ -34976,6 +34976,130 @@
       btn.disabled = false;
     }
   };
+  function parseLosses(lossesMd) {
+    const out = [];
+    if (!lossesMd) return out;
+    let cur2 = null;
+    for (const ln of String(lossesMd).split("\n")) {
+      if (ln.startsWith("## ")) {
+        cur2 = { name: ln.slice(3).trim(), detail: "" };
+        out.push(cur2);
+      } else if (cur2 && ln.trim()) {
+        cur2.detail = cur2.detail ? cur2.detail + " " + ln.trim() : ln.trim();
+      }
+    }
+    return out;
+  }
+  function convertState(resp) {
+    if (!resp || resp.error || !resp.ok || !Array.isArray(resp.outputs)) return null;
+    return {
+      target: resp.target || "",
+      bundle: resp.bundle || ".ghostide/slice",
+      slice: resp.slice || null,
+      verify: resp.verify || null,
+      outputs: resp.outputs.map((o) => {
+        const parsed = parseLosses(o.losses || "");
+        return {
+          target: o.target || "",
+          dir: o.dir || "",
+          artifacts: (o.artifacts || []).map((a) => ({
+            path: a.path || "",
+            content: a.content || ""
+          })),
+          lossesList: parsed.length ? parsed : (o.losses_names || []).map((n) => ({
+            name: n,
+            detail: ""
+          }))
+        };
+      })
+    };
+  }
+  function downloadConverted(name2, content2) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(
+      [content2],
+      { type: "text/plain" }
+    ));
+    a.download = name2;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
+  }
+  function renderCtxExport(st) {
+    const out = $("ctxExportOut");
+    out.innerHTML = "";
+    const s = st.slice || {};
+    const head = document.createElement("div");
+    head.textContent = "Exported the current slice (" + (s.mode || "?") + " \xB7 " + (s.files || 0) + " files \xB7 ~" + (s.tokens || 0) + " est tok) from " + st.bundle + " \xB7 output verified by GhostConvert \u2713";
+    out.appendChild(head);
+    for (const o of st.outputs) {
+      const sec = document.createElement("div");
+      const title = document.createElement("div");
+      title.textContent = o.target + " \u2192 " + o.dir;
+      sec.appendChild(title);
+      for (const a of o.artifacts) {
+        const row = document.createElement("div");
+        row.className = "ctxRow";
+        const label = document.createElement("span");
+        label.textContent = a.path + " (" + a.content.length + " chars)";
+        row.appendChild(label);
+        const dl = document.createElement("button");
+        dl.textContent = "\u2B07 Save";
+        dl.onclick = () => downloadConverted(
+          a.path.split("/").pop(),
+          a.content
+        );
+        row.appendChild(dl);
+        sec.appendChild(row);
+        const det = document.createElement("details");
+        const sum = document.createElement("summary");
+        sum.textContent = "View " + a.path;
+        const pre = document.createElement("pre");
+        pre.textContent = a.content;
+        det.appendChild(sum);
+        det.appendChild(pre);
+        sec.appendChild(det);
+      }
+      const ldiv = document.createElement("div");
+      if (o.lossesList.length) {
+        const lh = document.createElement("div");
+        lh.textContent = "Losses for " + o.target + " (" + o.lossesList.length + ", from LOSSES.md):";
+        ldiv.appendChild(lh);
+        const ul = document.createElement("ul");
+        for (const l of o.lossesList) {
+          const li = document.createElement("li");
+          li.textContent = l.detail ? l.name + " - " + l.detail : l.name;
+          ul.appendChild(li);
+        }
+        ldiv.appendChild(ul);
+      } else {
+        ldiv.textContent = "Losses for " + o.target + ": none recorded.";
+      }
+      sec.appendChild(ldiv);
+      out.appendChild(sec);
+    }
+  }
+  $("ctxExportBtn").onclick = async () => {
+    const out = $("ctxExportOut");
+    const target = $("ctxExportTarget").value;
+    const raw = $("ctxMode").value;
+    const mode = raw === "file" || raw === "smart" ? "signatures" : raw;
+    out.textContent = "Slicing this project and converting with GhostConvert\u2026";
+    try {
+      const d = await postJson("/api/eco/convert", {
+        target,
+        mode,
+        budget: BEHAVIOR.context.sliceBudget
+      });
+      const st = convertState(d);
+      if (!st) {
+        out.textContent = "Export failed: " + (d.error || "the tool could not run.");
+        return;
+      }
+      renderCtxExport(st);
+    } catch (e) {
+      out.textContent = "Export failed to reach the server.";
+    }
+  };
   $("setWrap").checked = settings.wrap;
   $("setWrap").onchange = (e) => {
     settings.wrap = e.target.checked;

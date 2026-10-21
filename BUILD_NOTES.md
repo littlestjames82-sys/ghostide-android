@@ -1400,3 +1400,86 @@ On-device extraction + panel proof is Ryan's.
   the staged eco-manifest lists 25 packages /
   2,642 tests; same signer (8ea8684a...).
   On-device proof is Ryan's device pass.
+
+## v1.56.0 (versionCode 61) - Oct 20, 2026 - GhostConvert export (Roadmap ECO E6)
+
+- The Context lab gains an Export section, backed by
+  POST /api/eco/convert in both server.py (eco_convert)
+  and the phone IdeServer (handleEco branch). Both run
+  the GhostConvert tool itself; nothing is
+  reimplemented.
+- The current slice is materialised by GhostSlice
+  itself: `ghostslice export <ws> -o <tmp> --mode
+  <mode> --fit <budget>` (the export route behind the
+  existing context builders - no hand-rolled bundle
+  format), then the bundle moves to
+  <ws>/.ghostide/slice. Modes: signatures (default),
+  full, interfaces, structure, headings, strip-tests;
+  budget clamped 500-200000, default 6000 (the chat's
+  slice budget). The frontend sends the chat's slice
+  mode; current-file and smart slices export as a
+  signatures project slice, the same mapping the
+  Save-slice action already uses. The IDE keeps a "*"
+  .gitignore inside .ghostide/ (created only when
+  missing) so IDE artifacts - primer, handoff, recall,
+  convert outputs, the index db - never fold into a
+  slice; the harness proves the bundle lists exactly
+  the project files.
+- Convert: `ghostconvert convert <bundle> --to
+  <target> -o <ws>/.ghostide/convert/<target> --force`
+  (target=all writes one subdir per format), then
+  `ghostconvert verify` on the output; a nonzero
+  verify is a plain 400 with the tool's own output,
+  as are an unknown target, a bad mode, and an empty
+  slice. The response carries every artifact plus
+  LOSSES.md and the loss names parsed from it; the UI
+  renders each format's artifacts with a Save button
+  (the file menu's Blob download route) and names
+  the losses per format from LOSSES.md - losses are
+  shown, never hidden. The source bundle is read
+  only; an optional reuse_bundle request field
+  converts the on-disk bundle as-is (the harness
+  uses it to prove the convert step alone leaves
+  every bundle hash untouched).
+- Bundle: eco.zip unchanged - 25 packages / 251
+  files, GhostConvert already on-device since E2
+  (84 tests). The bundle gate spot re-ran
+  ghostconvert (84) and ghostslice (948) green
+  against the vendored copies; the state still
+  totals 2,642 tests. No extraction-stamp bump: the
+  tool set did not change. The /api/eco/run runnable
+  flag stays GhostIndex + GhostDeps only - convert
+  runs through its dedicated endpoint.
+- Proven (all foreground): new E6 harness
+  (test-fixtures/eco-convert-harness.py) ALL PASS,
+  37 checks - for EACH target (agents, cursor,
+  copilot, generic) and for all, the IDE's exported
+  tree is byte-identical to the CLI's own
+  `ghostconvert convert` output from the same slice
+  bundle INCLUDING LOSSES.md; the CLI's
+  `ghostconvert verify` exits 0 against the
+  IDE-produced output; bundle file hashes identical
+  before/after an IDE convert; unknown target is a
+  plain 400. New UI harness
+  (eco-convert-ui-harness.mjs) 15/15 on the pure
+  state steps (parseLosses / convertState) + static
+  wiring. Regressions: E1 eco-harness 13/13, E3
+  eco-search harness 11/11, E4 eco-prime harness
+  16/16, E5 eco-recall harness 21/21, E4/E5 UI
+  harnesses 17/17 and 26/26, i18n harness 7/7.
+  DOM-stub gate: bundle constructs the EditorView,
+  ends only on the known defaultView stub artifact.
+  Undefined-call scan over the new code: every
+  callee defined; zero closeOverlays in source and
+  bundle. (The phone branch compiles under the
+  house javac recipe - it has no lambdas; a first
+  build attempt taught that again.)
+- APK 20,267,624 bytes, md5
+  b4e7e88e3ec9a95273baceff88375eb6, badging
+  61/1.56.0 verified, dex carries both 1.56.0
+  route() literals and /api/eco/convert, the staged
+  eco-manifest lists 25 packages / 2,642 tests and
+  the staged changelog leads with the 1.56.0 entry;
+  same signer (8ea8684a...). The byte size happens
+  to equal v1.55.0's exactly; the md5 differs.
+  On-device proof is Ryan's device pass.
