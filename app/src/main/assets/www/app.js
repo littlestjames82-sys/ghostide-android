@@ -34678,6 +34678,17 @@
     window.__ghostWrapChat = { wrapChatClass };
   } catch (e) {
   }
+  var FS_STEPS = ["12", "13", "15"];
+  function stepFs(cur2, dir) {
+    let i2 = FS_STEPS.indexOf(String(cur2));
+    if (i2 < 0) i2 = 1;
+    i2 = Math.min(FS_STEPS.length - 1, Math.max(0, i2 + dir));
+    return FS_STEPS[i2];
+  }
+  try {
+    window.__ghostFsQuick = { FS_STEPS, stepFs };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37856,6 +37867,14 @@
     applyWrapChat();
   };
   applyWrapChat();
+  function bumpChatFs(dir) {
+    settings.chatFs = stepFs(settings.chatFs, dir);
+    $("setChatFs").value = String(settings.chatFs);
+    saveSettings();
+    applyChatLook();
+  }
+  $("fsDown").onclick = () => bumpChatFs(-1);
+  $("fsUp").onclick = () => bumpChatFs(1);
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

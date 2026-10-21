@@ -2376,3 +2376,21 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www (app.js + style.css)
   byte-matches sources, same signer (8ea8684a...).
   NOT uploaded; device pass is Ryan's.
+
+## v1.99.0 (versionCode 104) - Oct 21, 2026 - Chat text quick buttons
+
+- A- / A+ buttons in the chat panel header step
+  settings.chatFs through the real CHAT_FS list
+  (12/13/15, clamped), sync the Settings picker,
+  save, and apply through the existing
+  applyChatLook.
+- Proven: fsquick harness 4/4 (including a step
+  list equality check against the real CHAT_FS),
+  display 8/8, i18n 7/7, DOM-stub past extension
+  construction. (v1.98 pushes: b7759225/0944e928.)
+- APK 20,296,296 bytes, md5
+  7dd7396569fe1ba051c0d31f9a1b2945, badging
+  104/1.99.0 verified, dex carries both 1.99.0
+  literals, staged www byte-matches sources, same
+  signer (8ea8684a...). NOT uploaded; device pass
+  is Ryan's.

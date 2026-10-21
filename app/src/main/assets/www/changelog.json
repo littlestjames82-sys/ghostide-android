@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.99.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat text quick buttons",
+   "summary": "The chat header gains A- and A+ buttons that step the chat text size (12, 13, 15) without opening Settings. The Settings picker stays in sync."
+  },
+  {
    "version": "1.98.0",
    "date": "Oct 20, 2026",
    "goal": "Chat wrap toggle",
