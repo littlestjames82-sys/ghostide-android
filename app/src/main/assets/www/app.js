@@ -34499,6 +34499,15 @@
     };
   } catch (e) {
   }
+  function pathBase(path) {
+    if (!path) return "";
+    const parts = String(path).split("/").filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : path;
+  }
+  try {
+    window.__ghostFileAct = { pathBase };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37415,6 +37424,36 @@
     }
   }
   setTimeout(checkWhatsNew, 1200);
+  $("copyPathBtn").onclick = async () => {
+    if (!currentFile) {
+      alert("No file is open.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(currentFile);
+      $("copyPathBtn").textContent = "\u2713 Path";
+      setTimeout(() => {
+        $("copyPathBtn").textContent = "\u29C9 Path";
+      }, 1200);
+    } catch (e) {
+    }
+  };
+  $("copyFileBtn").onclick = async () => {
+    if (!currentFile) {
+      alert("No file is open.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(
+        view.state.doc.toString()
+      );
+      $("copyFileBtn").textContent = "\u2713 File";
+      setTimeout(() => {
+        $("copyFileBtn").textContent = "\u29C9 File";
+      }, 1200);
+    } catch (e) {
+    }
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

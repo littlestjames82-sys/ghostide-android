@@ -2167,3 +2167,19 @@ On-device extraction + panel proof is Ryan's.
   www byte-matches sources, same signer
   (8ea8684a...). Uploaded at Ryan's direction;
   device pass is Ryan's.
+
+## v1.88.0 (versionCode 93) - Oct 21, 2026 - File header actions
+
+- Batch 4 (Ryan: "Continue Improving the app")
+  opens with two header buttons for the open file:
+  copy path, and copy the file's current content
+  from the live editor buffer (unsaved edits
+  included). Both guard on a file being open and
+  confirm with a brief check label.
+- Proven: fileact harness 4/4, i18n 7/7, DOM-stub
+  past extension construction.
+- APK 20,292,200 bytes, md5
+  26d7f30b30e38258ccf150c6d717acc3, badging 93/1.88.0
+  verified, dex carries both 1.88.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

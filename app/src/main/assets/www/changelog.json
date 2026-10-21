@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.88.0",
+   "date": "Oct 20, 2026",
+   "goal": "File header actions",
+   "summary": "Two new header buttons for the open file: copy its path, or copy its full current content (unsaved edits included, since it copies the live editor buffer)."
+  },
+  {
    "version": "1.87.0",
    "date": "Oct 20, 2026",
    "goal": "What's new on update",
