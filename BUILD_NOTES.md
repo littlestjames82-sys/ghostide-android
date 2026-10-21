@@ -2109,3 +2109,20 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.84.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.85.0 (versionCode 90) - Oct 21, 2026 - Last run line
+
+- The completion stats (which used to flash in the
+  context meter) now also land in a persistent
+  Last run line in Chat options, together with the
+  temperature and max tokens from the real request
+  settings, and survive restarts via their own
+  localStorage key.
+- Proven: lastrun harness 5/5, sampling 12/12,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.84 pushes: abebc4cc/4889b32f.)
+- APK 20,288,104 bytes, md5
+  f3c7d1981bc52fe5e05e7b81bdfd949e, badging 90/1.85.0
+  verified, dex carries both 1.85.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

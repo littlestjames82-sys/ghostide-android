@@ -34449,6 +34449,14 @@
     };
   } catch (e) {
   }
+  function lastRunText(stats, temp, maxTok) {
+    if (!stats) return "";
+    return "Last run: " + stats + " \xB7 temp " + temp + " \xB7 max " + maxTok + " tok";
+  }
+  try {
+    window.__ghostLastRun = { lastRunText };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34863,7 +34871,24 @@
     sendBtn.onclick = sendChat;
     renderRich(body, full);
     const stats = genStats(full.length, Date.now() - chatT0);
-    if (stats) $("ctxMeter").textContent = stats;
+    if (stats) {
+      $("ctxMeter").textContent = stats;
+      const lr = lastRunText(
+        stats,
+        settings.temperature,
+        answerMaxTokens(
+          settings.chatLength,
+          settings.shortAnswers,
+          BEHAVIOR.chat.maxTokens,
+          settings.customTokens
+        )
+      );
+      $("lastRun").textContent = lr;
+      try {
+        localStorage.setItem("ghostide-lastrun", lr);
+      } catch (e) {
+      }
+    }
     history2.push({ role: "assistant", content: full });
     saveHistory();
     notifyDone(
@@ -37287,6 +37312,11 @@
     applyAppear2();
   };
   applyAppear2();
+  try {
+    const lr = localStorage.getItem("ghostide-lastrun");
+    if (lr) $("lastRun").textContent = lr;
+  } catch (e) {
+  }
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

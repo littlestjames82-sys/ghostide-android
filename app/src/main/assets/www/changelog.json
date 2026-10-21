@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.85.0",
+   "date": "Oct 20, 2026",
+   "goal": "Last run line",
+   "summary": "Chat options gains a Last run line: the latest answer's time, token and speed estimates plus the temperature and token cap that produced them. It persists across restarts instead of flashing in the context meter and vanishing."
+  },
+  {
    "version": "1.84.0",
    "date": "Oct 20, 2026",
    "goal": "Appearance pack 2",
