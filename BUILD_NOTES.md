@@ -2091,3 +2091,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.83.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.84.0 (versionCode 89) - Oct 21, 2026 - Appearance pack 2
+
+- Compact density toggle: one body class tightens
+  button padding, message spacing and the header
+  across the UI. Chat font picker (Default / System
+  sans / Monospace / Serif) rides a --ghost-chat-font
+  variable on the chat log, the same pattern as the
+  chat text size; Default removes the variable so
+  rendering is untouched.
+- Proven: appear2 harness 5/5, display 8/8, setutil
+  10/10, i18n 7/7, DOM-stub past extension
+  construction. (v1.83 pushes: cc118caf/dd4e1f04.)
+- APK 20,288,104 bytes, md5
+  31286912a97c6356d38907dc833ecf36, badging 89/1.84.0
+  verified, dex carries both 1.84.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

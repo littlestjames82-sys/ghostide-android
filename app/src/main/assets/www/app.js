@@ -32724,6 +32724,8 @@
       accent: "green",
       notifySound: "soft",
       autoScroll: true,
+      density: false,
+      chatFont: "default",
       bubbles: false,
       roleLabels: true,
       sliceBudget: 6e3,
@@ -34429,6 +34431,22 @@
   }
   try {
     window.__ghostScratch = { trimScratch };
+  } catch (e) {
+  }
+  var CHAT_FONTS = {
+    default: "",
+    system: "ui-sans-serif, system-ui, sans-serif",
+    mono: "ui-monospace, Menlo, Consolas, monospace",
+    serif: "Georgia, 'Times New Roman', serif"
+  };
+  function chatFontStack(name2) {
+    return CHAT_FONTS[name2] || "";
+  }
+  try {
+    window.__ghostAppear2 = {
+      CHAT_FONTS,
+      chatFontStack
+    };
   } catch (e) {
   }
   var history2 = [];
@@ -37245,6 +37263,30 @@
     await loadFiles();
     addMsg("SYSTEM", "Scratchpad saved as scratchpad.md.");
   };
+  function applyAppear2() {
+    document.body.classList.toggle(
+      "density-compact",
+      !!settings.density
+    );
+    const stack = chatFontStack(settings.chatFont);
+    if (stack)
+      document.documentElement.style.setProperty("--ghost-chat-font", stack);
+    else
+      document.documentElement.style.removeProperty("--ghost-chat-font");
+  }
+  $("setDensity").checked = !!settings.density;
+  $("setDensity").onchange = (e) => {
+    settings.density = e.target.checked;
+    saveSettings();
+    applyAppear2();
+  };
+  $("setChatFont").value = settings.chatFont;
+  $("setChatFont").onchange = (e) => {
+    settings.chatFont = e.target.value;
+    saveSettings();
+    applyAppear2();
+  };
+  applyAppear2();
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

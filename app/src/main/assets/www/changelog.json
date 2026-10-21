@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.84.0",
+   "date": "Oct 20, 2026",
+   "goal": "Appearance pack 2",
+   "summary": "Settings gains a Compact density toggle (tighter buttons, messages and header across the UI) and a Chat font picker (Default, System sans, Monospace, Serif) applied through a CSS variable, like the chat text size."
+  },
+  {
    "version": "1.83.0",
    "date": "Oct 20, 2026",
    "goal": "Scratchpad",
