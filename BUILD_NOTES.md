@@ -1839,3 +1839,20 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.70.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.71.0 (versionCode 76) - Oct 21, 2026 - Speak answer
+
+- Answers can be read aloud: a Speak button beside
+  Save/Code uses the platform speech engine with
+  the markdown flattened first (fences become
+  "(code block)", inline code and bold become plain
+  words, capped at 4000 chars). Tapping while it
+  speaks stops it; devices without speech get a
+  plain message, never a silent failure.
+- Proven: speak harness 6/6, msgtools 9/9, i18n 7/7,
+  DOM-stub past extension construction.
+- APK 20,284,009 bytes, md5
+  2d2ef06f2179822bb7e16fe05dc39c0c, badging 76/1.71.0
+  verified, dex carries both 1.71.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

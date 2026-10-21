@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.71.0",
+   "date": "Oct 20, 2026",
+   "goal": "Speak answer",
+   "summary": "Every answer gains a Speak button: the device reads it aloud with markdown flattened (code blocks become a spoken placeholder instead of symbols). Tap again to stop. If the device has no speech engine, the button says so instead of failing silently."
+  },
+  {
    "version": "1.70.0",
    "date": "Oct 20, 2026",
    "goal": "Keyboard shortcuts",

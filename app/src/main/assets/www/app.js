@@ -34176,6 +34176,13 @@
     };
   } catch (e) {
   }
+  function speakText(text) {
+    return String(text).replace(/```[\s\S]*?```/g, " (code block) ").replace(/`([^`]+)`/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\s+/g, " ").trim().slice(0, 4e3);
+  }
+  try {
+    window.__ghostSpeak = { speakText };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34284,6 +34291,23 @@
         }, 1200);
       };
       el.appendChild(sv);
+      const sp = document.createElement("button");
+      sp.className = "msgCopy";
+      sp.textContent = "\u{1F50A} Speak";
+      sp.onclick = () => {
+        if (!("speechSynthesis" in window)) {
+          alert("Speech is not available on this device.");
+          return;
+        }
+        if (speechSynthesis.speaking) {
+          speechSynthesis.cancel();
+          return;
+        }
+        speechSynthesis.speak(
+          new SpeechSynthesisUtterance(speakText(text))
+        );
+      };
+      el.appendChild(sp);
       const blocks = extractCodeBlocks(text);
       if (blocks.length) {
         const cb2 = document.createElement("button");
