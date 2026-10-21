@@ -705,6 +705,21 @@ setTimeout(function () {
   <label><input type="checkbox" id="setOneHand"> One-handed mode (big bottom action bar)</label>
   <label><input type="checkbox" id="setCompactChat"> Compact chat (tighter messages)</label>
   <label><input type="checkbox" id="setReduceMotion"> Reduce motion (no animations)</label>
+  <label>Chat text size
+    <select id="setChatFs">
+      <option value="12">Small</option>
+      <option value="13">Default</option>
+      <option value="15">Large</option>
+    </select></label>
+  <label>Chat panel width (desktop)
+    <select id="setChatWidth">
+      <option value="320">Slim</option>
+      <option value="360">Default</option>
+      <option value="460">Wide</option>
+      <option value="560">Extra wide</option>
+    </select></label>
+  <label><input type="checkbox" id="setBubbles"> Message bubbles</label>
+  <label><input type="checkbox" id="setRoleLabels"> Show who labels (You / Ghost)</label>
   <p id="modelInfo" class="dim"></p>
   <label>Model file (desktop)
     <input id="modelPath" type="text" placeholder="/path/to/model.gguf"></label>

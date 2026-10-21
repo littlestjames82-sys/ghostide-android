@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.65.0",
+   "date": "Oct 20, 2026",
+   "goal": "Chat display pack",
+   "summary": "Chat appearance settings: text size (Small, Default, Large), panel width on desktop (Slim to Extra wide), message bubbles, and a toggle for the You / Ghost labels. All apply live and combine with Compact chat."
+  },
+  {
    "version": "1.64.0",
    "date": "Oct 20, 2026",
    "goal": "Slash commands",

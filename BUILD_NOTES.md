@@ -1710,3 +1710,24 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.64.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.65.0 (versionCode 70) - Oct 20, 2026 - Chat display pack
+
+- Chat appearance in Settings: text size (Small 12 /
+  Default 13 / Large 15 px, via --ghost-chat-fs on
+  the chat log), panel width on desktop (Slim 320 /
+  Default 360 / Wide 460 / Extra wide 560, via
+  --ghost-chat-w), message bubbles (cards with a
+  border and radius), and a who-labels toggle.
+  Compact chat density still wins over the text size
+  when both are on (its rule is more specific).
+- Proven: display harness 8/8, chatopts 34/34,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.64 pushes verified against the GitHub API:
+  532ca2b7/96e5ff5b, after the backgrounded delivery
+  garbled its numbers again.)
+- APK 20,279,912 bytes, md5
+  87d4898c31a47b02b015ec386ab260c3, badging 70/1.65.0
+  verified, dex carries the 1.65.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
