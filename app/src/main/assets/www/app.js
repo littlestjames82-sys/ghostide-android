@@ -34336,6 +34336,31 @@
     };
   } catch (e) {
   }
+  var SENT_CAP = 50;
+  function pushSent(list, text) {
+    const t2 = String(text || "").trim();
+    const out = list.filter((x) => x !== t2);
+    if (t2) out.push(t2);
+    return out.slice(-SENT_CAP);
+  }
+  function navSent(list, idx, dir) {
+    if (!list.length) return { idx: -1, text: null };
+    if (dir < 0) {
+      const n = idx === -1 ? list.length - 1 : Math.max(0, idx - 1);
+      return { idx: n, text: list[n] };
+    }
+    if (idx === -1 || idx + 1 >= list.length)
+      return { idx: -1, text: null };
+    return { idx: idx + 1, text: list[idx + 1] };
+  }
+  try {
+    window.__ghostInputHist = {
+      SENT_CAP,
+      pushSent,
+      navSent
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34513,6 +34538,7 @@
     const ta = $("chatText");
     const text = ta.value.trim();
     if (!text) return;
+    recordSent(text);
     const slash4 = parseSlash(text);
     if (slash4) {
       ta.value = "";
@@ -36883,6 +36909,50 @@
     settings.autoScroll = e.target.checked;
     saveSettings();
   };
+  var sentList = [];
+  try {
+    sentList = JSON.parse(
+      localStorage.getItem("ghostide-sent") || "[]"
+    );
+    if (!Array.isArray(sentList)) sentList = [];
+  } catch (e) {
+    sentList = [];
+  }
+  var sentIdx = -1;
+  var sentDraft = "";
+  function recordSent(text) {
+    sentList = pushSent(sentList, text);
+    sentIdx = -1;
+    try {
+      localStorage.setItem(
+        "ghostide-sent",
+        JSON.stringify(sentList)
+      );
+    } catch (e) {
+    }
+  }
+  $("chatText").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    const ta = $("chatText");
+    const before = ta.value.slice(0, ta.selectionStart);
+    const after = ta.value.slice(ta.selectionEnd);
+    if (e.key === "ArrowUp" && before.includes("\n")) return;
+    if (e.key === "ArrowDown" && after.includes("\n")) return;
+    const step = navSent(
+      sentList,
+      sentIdx,
+      e.key === "ArrowUp" ? -1 : 1
+    );
+    if (step.idx === sentIdx && step.text === null) return;
+    e.preventDefault();
+    if (sentIdx === -1 && step.idx !== -1)
+      sentDraft = ta.value;
+    sentIdx = step.idx;
+    ta.value = step.idx === -1 ? sentDraft : step.text;
+    growChatText();
+    updateChatCount();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  });
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {

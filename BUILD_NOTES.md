@@ -1979,3 +1979,21 @@ On-device extraction + panel proof is Ryan's.
   www byte-matches sources, same signer
   (8ea8684a...). Uploaded at Ryan's direction;
   device pass is Ryan's.
+
+## v1.78.0 (versionCode 83) - Oct 21, 2026 - Input history
+
+- Batch 3 (Ryan: "More") opens with shell-style
+  recall for the chat box: Up/Down walk the last 50
+  submitted messages (de-duplicated, re-sends move
+  to the end), persisted in localStorage. Stepping
+  down past the newest returns to the draft you were
+  typing; recall only hijacks the arrows at the
+  first/last line so multi-line editing is
+  untouched.
+- Proven: inputhist harness 7/7, composer 13/13,
+  i18n 7/7, DOM-stub past extension construction.
+- APK 20,288,104 bytes, md5
+  220617c20bd26caf3d7b3f328d35c831, badging 83/1.78.0
+  verified, dex carries both 1.78.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.

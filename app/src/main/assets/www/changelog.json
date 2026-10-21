@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.78.0",
+   "date": "Oct 20, 2026",
+   "goal": "Input history",
+   "summary": "The chat box remembers what you sent: press Up to recall previous messages (shell style), Down to walk back to your draft. The last 50 submissions are kept, de-duplicated, and survive restarts."
+  },
+  {
    "version": "1.77.0",
    "date": "Oct 20, 2026",
    "goal": "Auto-scroll control",
