@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.66.0",
+   "date": "Oct 20, 2026",
+   "goal": "Context control pack",
+   "summary": "Choose how much project context rides with each message: a context budget (Lean 3,000 to Huge 20,000 tokens, used by chat, slices, recall and convert alike), a switch for attaching the editor selection, and an opt-in switch that attaches the git diff of your uncommitted changes, capped so it cannot flood the model."
+  },
+  {
    "version": "1.65.0",
    "date": "Oct 20, 2026",
    "goal": "Chat display pack",

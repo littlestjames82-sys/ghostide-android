@@ -628,6 +628,15 @@ setTimeout(function () {
   <label><input type="checkbox" id="setShort"> Short answers (same choice as Answer length: Short)</label>
   <label>Custom answer length (tokens, when length is Custom)
     <input type="number" id="setCustomTokens" min="128" max="2048" step="64"></label>
+  <label>Project context budget (tokens)
+    <select id="setSliceBudget">
+      <option value="3000">Lean 3,000</option>
+      <option value="6000">Default 6,000</option>
+      <option value="12000">Large 12,000</option>
+      <option value="20000">Huge 20,000</option>
+    </select></label>
+  <label><input type="checkbox" id="setAttachSelection"> Attach the editor selection to messages</label>
+  <label><input type="checkbox" id="setAttachDiff"> Attach the git diff (changes vs HEAD) to messages</label>
   <div class="optRow"><button id="tempPrecise">Precise 0.1</button><button id="tempBalanced">Balanced 0.3</button><button id="tempCreative">Creative 0.7</button></div>
   <label>Your instructions for Ghost (added to every chat)
     <textarea id="setCustomInstr" rows="3" maxlength="1000" placeholder="e.g. Answer in plain words. Prefer small functions."></textarea></label>

@@ -32722,7 +32722,10 @@
       chatFs: "13",
       chatWidth: "360",
       bubbles: false,
-      roleLabels: true
+      roleLabels: true,
+      sliceBudget: 6e3,
+      attachSelection: true,
+      attachDiff: false
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -34071,6 +34074,28 @@
     };
   } catch (e) {
   }
+  var SLICE_BUDGETS = [3e3, 6e3, 12e3, 2e4];
+  function clampSliceBudget(v) {
+    const n = parseInt(v, 10);
+    return SLICE_BUDGETS.includes(n) ? n : 6e3;
+  }
+  function sliceBudget() {
+    return clampSliceBudget(settings.sliceBudget);
+  }
+  var DIFF_CAP = 6e3;
+  function diffSnippet(diff) {
+    if (!diff || !diff.trim()) return "";
+    if (diff.length <= DIFF_CAP) return diff;
+    return diff.slice(0, DIFF_CAP) + "\n... (diff truncated)";
+  }
+  try {
+    window.__ghostContextCtl = {
+      SLICE_BUDGETS,
+      clampSliceBudget,
+      diffSnippet
+    };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -34216,18 +34241,18 @@
       } else if (mode !== "file") {
         const d = await postJson("/api/context", {
           mode,
-          budget: BEHAVIOR.context.sliceBudget,
+          budget: sliceBudget(),
           seed: currentFile || void 0
         });
         if (d.error) {
           addMsg("SYSTEM", "Project slice unavailable: " + d.error + " - sending with no project context.");
           $("ctxMeter").textContent = "context: none (slice failed)";
         } else if (d.over) {
-          addMsg("SYSTEM", "Project slice is ~" + d.tokens + " tokens - over the " + BEHAVIOR.context.sliceBudget.toLocaleString() + " budget, so this message was NOT sent. Switch context to current file, or shrink the project.");
+          addMsg("SYSTEM", "Project slice is ~" + d.tokens + " tokens - over the " + sliceBudget().toLocaleString() + " budget, so this message was NOT sent. Switch context to current file, or shrink the project.");
           return;
         } else {
           sysContent = SYS + "\nProject context (" + d.mode + " slice, " + d.files + " files):\n" + d.text;
-          $("ctxMeter").textContent = "context: " + d.mode + " slice \xB7 " + d.tokens.toLocaleString() + " / " + BEHAVIOR.context.sliceBudget.toLocaleString() + " tok \xB7 " + d.files + " files (full project ~" + d.originalTokens.toLocaleString() + " tok)";
+          $("ctxMeter").textContent = "context: " + d.mode + " slice \xB7 " + d.tokens.toLocaleString() + " / " + sliceBudget().toLocaleString() + " tok \xB7 " + d.files + " files (full project ~" + d.originalTokens.toLocaleString() + " tok)";
           if (d.mode === "smart" && d.included) {
             $("ctxMeter").textContent += " \xB7 " + d.included.map((i2) => i2.path).join(", ");
           }
@@ -34261,7 +34286,7 @@
       }
     }
     const selNow = view.state.selection.main;
-    if (!selNow.empty && currentFile) {
+    if (!selNow.empty && currentFile && settings.attachSelection !== false) {
       const selText = view.state.doc.sliceString(selNow.from, selNow.to).slice(0, 3e3);
       if (selText.trim()) {
         sysContent += "\nSelected code from " + currentFile + ":\n```\n" + selText + "\n```";
@@ -34309,6 +34334,15 @@
     sendBtn.onclick = () => {
       if (chatAbort) chatAbort.abort();
     };
+    if (settings.attachDiff) {
+      try {
+        const dr = await fetch("/api/git/diff-all");
+        const dg = await dr.json();
+        const snip = diffSnippet(dg.diff || "");
+        if (snip) sysContent += "\nUncommitted changes (git diff vs HEAD):\n" + snip;
+      } catch (e) {
+      }
+    }
     try {
       const r = await fetch("/api/chat", {
         method: "POST",
@@ -35280,7 +35314,7 @@
     try {
       const d = await postJson("/api/eco/recall", {
         task: task || "",
-        budget: BEHAVIOR.context.sliceBudget,
+        budget: sliceBudget(),
         context: true
       });
       const st = recallContextState(d);
@@ -35492,7 +35526,7 @@
       const d = await postJson("/api/eco/convert", {
         target,
         mode,
-        budget: BEHAVIOR.context.sliceBudget
+        budget: sliceBudget()
       });
       const st = convertState(d);
       if (!st) {
@@ -36308,6 +36342,21 @@
     applyChatLook();
   };
   applyChatLook();
+  $("setSliceBudget").value = String(clampSliceBudget(settings.sliceBudget));
+  $("setSliceBudget").onchange = (e) => {
+    settings.sliceBudget = parseInt(e.target.value, 10);
+    saveSettings();
+  };
+  $("setAttachSelection").checked = settings.attachSelection !== false;
+  $("setAttachSelection").onchange = (e) => {
+    settings.attachSelection = e.target.checked;
+    saveSettings();
+  };
+  $("setAttachDiff").checked = settings.attachDiff === true;
+  $("setAttachDiff").onchange = (e) => {
+    settings.attachDiff = e.target.checked;
+    saveSettings();
+  };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
   function hideTools() {
@@ -36965,7 +37014,7 @@
     const mode = $("ctxMode").value === "file" ? "signatures" : $("ctxMode").value;
     const d = await postJson("/api/context", {
       mode,
-      budget: BEHAVIOR.context.sliceBudget
+      budget: sliceBudget()
     });
     if (d.error) {
       alert(d.error);

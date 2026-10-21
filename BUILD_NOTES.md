@@ -1731,3 +1731,26 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries the 1.65.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.66.0 (versionCode 71) - Oct 20, 2026 - Context control pack
+
+- The project slice budget is a setting now (Lean
+  3,000 / Default 6,000 / Large 12,000 / Huge
+  20,000 tokens); all six call sites (chat context,
+  over-budget message, slice save, recall, convert)
+  read it through sliceBudget() instead of the fixed
+  BEHAVIOR value.
+- Two attach switches: the editor selection (on,
+  as before, now switchable off) and the git diff
+  vs HEAD (off by default; fetched from the existing
+  /api/git/diff-all on both builds, capped at 6,000
+  chars with a truncation marker).
+- Proven: context harness 10/10, chatopts 34/34,
+  i18n 7/7, DOM-stub past extension construction.
+  (v1.65 pushes verified against the GitHub API:
+  681d5bad/af9c9320.)
+- APK 20,279,912 bytes, md5
+  e6aa66803955f0f49f6eadb055e783a2, badging 71/1.66.0
+  verified, dex carries both 1.66.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
