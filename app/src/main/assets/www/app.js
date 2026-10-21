@@ -34423,6 +34423,14 @@
     };
   } catch (e) {
   }
+  function trimScratch(text) {
+    const t2 = String(text || "").trim();
+    return t2 ? t2 : null;
+  }
+  try {
+    window.__ghostScratch = { trimScratch };
+  } catch (e) {
+  }
   var history2 = [];
   var primerContext = null;
   var recallContext = null;
@@ -37190,6 +37198,52 @@
     }
     pinnedFiles = togglePin(pinnedFiles, currentFile);
     savePinned();
+  };
+  $("toolScratch").onclick = () => {
+    hideTools();
+    try {
+      $("scratchText").value = localStorage.getItem("ghostide-scratch") || "";
+    } catch (e) {
+    }
+    $("scratchPanel").classList.remove("hidden");
+    $("scratchText").focus();
+  };
+  $("scratchClose").onclick = () => $("scratchPanel").classList.add("hidden");
+  $("scratchText").addEventListener("input", (e) => {
+    try {
+      localStorage.setItem("ghostide-scratch", e.target.value);
+    } catch (err) {
+    }
+  });
+  $("scratchToChat").onclick = () => {
+    const t2 = trimScratch($("scratchText").value);
+    if (!t2) {
+      alert("The scratchpad is empty.");
+      return;
+    }
+    $("chatText").value = t2;
+    growChatText();
+    updateChatCount();
+    saveChatDraft();
+    $("scratchPanel").classList.add("hidden");
+    $("chatText").focus();
+  };
+  $("scratchSave").onclick = async () => {
+    const t2 = trimScratch($("scratchText").value);
+    if (!t2) {
+      alert("The scratchpad is empty.");
+      return;
+    }
+    const d = await postJson(
+      "/api/file",
+      { path: "scratchpad.md", content: t2 }
+    );
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    await loadFiles();
+    addMsg("SYSTEM", "Scratchpad saved as scratchpad.md.");
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");

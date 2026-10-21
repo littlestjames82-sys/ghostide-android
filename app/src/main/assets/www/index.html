@@ -316,6 +316,7 @@ setTimeout(function () {
     <button id="toolRegen">Regenerate answer</button>
     <button id="toolExportChat">Export chat as file</button>
     <button id="toolHelp">❓ Help & shortcuts</button>
+    <button id="toolScratch">📝 Scratchpad</button>
   </div>
   <h4>Go</h4>
   <div class="toolGrid">
@@ -460,6 +461,17 @@ setTimeout(function () {
       <div id="iconMsg" class="dim"></div>
     </div>
   </div>
+</div>
+<div id="scratchPanel" class="hidden">
+  <div class="run-head">
+    <span>📝 Scratchpad</span>
+    <span>
+      <button id="scratchToChat">Send to chat</button>
+      <button id="scratchSave">Save as file</button>
+      <button id="scratchClose">✕</button>
+    </span>
+  </div>
+  <textarea id="scratchText" rows="8" placeholder="Scratch notes - saved automatically on this device"></textarea>
 </div>
 <div id="macroPanel" class="hidden">
   <div class="run-head">

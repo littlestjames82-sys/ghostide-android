@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "1.83.0",
+   "date": "Oct 20, 2026",
+   "goal": "Scratchpad",
+   "summary": "Tools gains a Scratchpad: one persistent note that saves itself as you type on this device. Send to chat drops it into the message box, Save as file writes it to scratchpad.md in the workspace."
+  },
+  {
    "version": "1.82.0",
    "date": "Oct 20, 2026",
    "goal": "Pinned files",

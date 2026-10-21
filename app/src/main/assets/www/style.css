@@ -651,6 +651,8 @@ body.onehand .fileMenuBtn { min-width: 40px; }
 
 /* Roadmap G31: macros */
 #macroPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#scratchPanel { border-top: 1px solid #2e3038; margin-top: 8px; }
+#scratchText { width: 100%; background: #17181f; color: #e6e6e6; border: 1px solid #2e3038; border-radius: 8px; padding: 8px; font-family: ui-monospace, monospace; font-size: 13px; }
 #macroLog {
   margin: 0; padding: 6px 10px; font-size: 12px;
   white-space: pre-wrap; color: #cfd3e0; max-height: 200px;

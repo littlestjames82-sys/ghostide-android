@@ -2073,3 +2073,21 @@ On-device extraction + panel proof is Ryan's.
   verified, dex carries both 1.82.0 literals, staged
   www byte-matches sources, same signer
   (8ea8684a...). NOT uploaded; device pass is Ryan's.
+
+## v1.83.0 (versionCode 88) - Oct 21, 2026 - Scratchpad
+
+- Tools gains a Scratchpad panel (cloned from the
+  macro panel pattern): a single note persisted in
+  localStorage on every keystroke, reopened with
+  its content intact. Send to chat fills the chat
+  box with it; Save as file writes scratchpad.md
+  through the file endpoint. Empty pad gates both
+  actions with a plain message.
+- Proven: scratch harness 5/5, i18n 7/7, DOM-stub
+  past extension construction. (v1.82 pushes:
+  8e6928fb/36c34af0.)
+- APK 20,288,104 bytes, md5
+  70cf2ee7e4823005664b0ec7f17054b6, badging 88/1.83.0
+  verified, dex carries both 1.83.0 literals, staged
+  www byte-matches sources, same signer
+  (8ea8684a...). NOT uploaded; device pass is Ryan's.
