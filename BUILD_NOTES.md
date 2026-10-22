@@ -2635,3 +2635,6 @@ On-device extraction + panel proof is Ryan's.
 - BackupCrypto.encrypt + server.py backup_encrypt (v1 and v2 envelopes) now write createdBy: "GhostIDE" and appVersion. Decrypt ignores meta (old envelopes unaffected - BkTest legacy restore still green; BkTest asserts both new fields). Inspect returns appVersion (both), and the R7 preview appends "made by GhostIDE <version>" when present.
 - IdeServer.VERSION constant is now the single source for the health + update-check literals and the BackupService appVersion; release.py bump learned the field.
 - Push discipline note: a late-landing backgrounded push regressed ghostide-android to the v2.25 generation mid-R15; recovered by foreground re-push + content verification (manifest 2.26.0, PathCheck present). Content checks after every push from here.
+
+## v2.28.0 (versionCode 133) - Oct 21, 2026 - R17 About evidence
+- aboutText gains an optional evidence segment (2-arg callers unchanged); the About handler fetches /api/health and composes "backups v1 + v2 · pairing required for other devices · target SDK 36" (fields present per build). about2 harness 5/5; DOM-stub clean.

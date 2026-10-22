@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.28.0",
+   "date": "Oct 22, 2026",
+   "goal": "About shows its evidence",
+   "summary": "The About panel now ends with a build-evidence line read live from the host: which backup formats it reads, whether pairing is required for other devices, and on Android the target SDK. It is the audit's publish-your-evidence idea at app scale: what the build claims, it shows from the running server, not from a label."
+  },
+  {
    "version": "2.27.0",
    "date": "Oct 22, 2026",
    "goal": "Backups say who made them",

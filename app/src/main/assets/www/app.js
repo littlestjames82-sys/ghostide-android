@@ -34862,9 +34862,11 @@
     const u = String(url || "").trim();
     return !!u && !u.startsWith("-");
   }
-  function aboutText(info, entry) {
-    if (!entry) return info;
-    return info + "\n\nLatest change (v" + entry.version + ", " + entry.goal + "): " + entry.summary;
+  function aboutText(info, entry, evidence) {
+    let out = info;
+    if (entry) out += "\n\nLatest change (v" + entry.version + ", " + entry.goal + "): " + entry.summary;
+    if (evidence) out += "\n\nBuild evidence: " + evidence;
+    return out;
   }
   try {
     window.__ghostAbout = { aboutText };
@@ -38324,6 +38326,21 @@
       }
     } catch (e) {
     }
+    let evidence = "";
+    try {
+      const hr = await fetch("/api/health");
+      const h = await hr.json();
+      const parts = [];
+      if (h.backupFormats) parts.push(
+        "backups v" + h.backupFormats.join(" + v")
+      );
+      if (h.pairRequired) parts.push(
+        "pairing required for other devices"
+      );
+      if (h.targetSdk) parts.push("target SDK " + h.targetSdk);
+      evidence = parts.join(" \xB7 ");
+    } catch (e) {
+    }
     addMsg("SYSTEM", aboutText(appInfoText({
       version,
       chats: chatSessions.length,
@@ -38331,7 +38348,7 @@
       profiles: Object.keys(loadProfiles()).length,
       starred: loadStarAnswers().length,
       eco: "25 packages / 2,642 tests"
-    }), entry));
+    }), entry, evidence));
   };
   $("toolsBtn").onclick = () => $("toolsPanel").classList.toggle("hidden");
   $("toolsClose").onclick = () => $("toolsPanel").classList.add("hidden");
