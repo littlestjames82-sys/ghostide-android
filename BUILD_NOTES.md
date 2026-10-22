@@ -2638,3 +2638,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.28.0 (versionCode 133) - Oct 21, 2026 - R17 About evidence
 - aboutText gains an optional evidence segment (2-arg callers unchanged); the About handler fetches /api/health and composes "backups v1 + v2 · pairing required for other devices · target SDK 36" (fields present per build). about2 harness 5/5; DOM-stub clean.
+
+## v2.29.0 (versionCode 134) - Oct 21, 2026 - R18 streaming guard
+- beforeunload listener keyed on chatAbort (non-null only mid-stream): preventDefault + returnValue. Honest scope in the changelog: app swipe-close on Android does not surface beforeunload. streamguard harness 4/4; DOM-stub clean.

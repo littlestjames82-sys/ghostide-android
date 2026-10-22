@@ -35330,6 +35330,12 @@
     );
   }
   var chatAbort = null;
+  window.addEventListener("beforeunload", (e) => {
+    if (chatAbort) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
   $("chatSend").onclick = sendChat;
   $("chatText").addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.shiftKey) return;

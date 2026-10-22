@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="133"
-    android:versionName="2.28.0"
+    android:versionCode="134"
+    android:versionName="2.29.0"
     package="com.ghostide.app">
 
     <uses-permission android:name="android.permission.INTERNET" />

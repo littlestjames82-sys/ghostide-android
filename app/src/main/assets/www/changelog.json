@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.29.0",
+   "date": "Oct 22, 2026",
+   "goal": "Do not lose the answer to a stray reload",
+   "summary": "While an answer is streaming, a page reload or close now triggers the browser's leave warning instead of silently discarding the in-flight answer, wherever the platform surfaces that event (desktop browsers and WebView reloads; an Android app swipe-close does not surface it). The guard keys on the same stream state as the Stop button, so it never fires when nothing is running."
+  },
+  {
    "version": "2.28.0",
    "date": "Oct 22, 2026",
    "goal": "About shows its evidence",
