@@ -2524,3 +2524,26 @@ On-device extraction + panel proof is Ryan's.
   literals, staged www byte-matches sources, same
   signer (8ea8684a...). NOT uploaded; device pass
   is Ryan's.
+
+## v2.07.0 (versionCode 112) - Oct 21, 2026 - About this build, batch 5 wrap
+
+- Tools gains About this build: the app info line
+  (version + live library counts) plus the newest
+  changelog entry, printed in the chat. Ends
+  batch 5 (Ryan: "Continue") - ten rounds, v1.98.0
+  through v2.07.0: chat wrap, text-size quick
+  buttons, search all chats (2.0), autosave,
+  summarize chat, duplicate file, jump to latest,
+  clear all chats, speak last answer, about.
+- FINAL GATES for the whole batch: 51 UI harnesses
+  (343 checks across the five batches) + chip 9/9
+  + i18n 7/7 + eco UI 17/26/15 + python eco
+  E1/E3/E4/E5/E6 ALL PASS + DOM-stub past extension
+  construction on the final bundle.
+- APK 20,296,298 bytes, md5
+  e3c34dd924960ff6c8b31e9724c22e06, badging
+  112/2.07.0 verified, dex carries both 2.07.0
+  literals, staged www (app.js + style.css)
+  byte-matches sources, same signer (8ea8684a...).
+  Uploaded at Ryan's direction; device pass is
+  Ryan's.

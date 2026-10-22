@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.07.0",
+   "date": "Oct 20, 2026",
+   "goal": "About this build, batch 5 wrap",
+   "summary": "Tools gains About this build: the version, your on-device library counts, and the latest change, in one message. This build closes batch 5: chat wrap, text-size quick buttons, search all chats (the 2.0 milestone), editor autosave, summarize chat, duplicate file, jump to latest, clear all chats, and speak last answer."
+  },
+  {
    "version": "2.06.0",
    "date": "Oct 20, 2026",
    "goal": "Speak last answer",
