@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.37.0",
+   "date": "Oct 22, 2026",
+   "goal": "Autosave untangle",
+   "summary": "Autosave is one setting again: the v2.01 checkbox wiring that shared the key and the Settings element id (and silently stomped the mode) is removed, the duplicate default is gone, and any boolean left in stored settings is migrated to the mode it meant."
+  },
+  {
    "version": "2.36.0",
    "date": "Oct 22, 2026",
    "goal": "Markdown preview injection fixes",
