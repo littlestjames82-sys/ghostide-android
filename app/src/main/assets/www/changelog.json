@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.16.0",
+   "date": "Oct 20, 2026",
+   "goal": "BackupService: backups leave the server class",
+   "summary": "Internal split, no behavior change: backup create and the staged restore moved from IdeServer into a dedicated BackupService (ZIP assembly, envelope calls, ZipGuard staging and rollback), the third step of the server split after GitSupport and PairHub. One quiet improvement rides along: the restore path check is now component-aware instead of a string-prefix match. JVM backup suites pass unchanged."
+  },
+  {
    "version": "2.15.0",
    "date": "Oct 20, 2026",
    "goal": "PairHub: pair state leaves the server class",

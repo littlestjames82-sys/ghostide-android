@@ -527,6 +527,18 @@ public final class IdeServer {
         this.modelName = modelName;
         this.workspace = new File(this.ctx.getFilesDir(), "workspace");
         this.workspace.mkdirs();
+        this.backupService = new BackupService(
+            this.workspace, new BackupService.JsonSink() {
+                @Override public void send(OutputStream out,
+                        String json) throws IOException {
+                    sendJson(out, json);
+                }
+                @Override public void send(OutputStream out,
+                        int status, String json)
+                        throws IOException {
+                    sendJson(out, status, json);
+                }
+            });
         this.git = new GitSupport(this.ctx, this.workspace,
             new GitSupport.Runner() {
                 @Override public GitSupport.Result run(
@@ -656,14 +668,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.15.0\""
+                + ",\"version\":\"2.16.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.15.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.16.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1254,241 +1266,12 @@ public final class IdeServer {
         }
         if (path.equals("/api/backup/create")
                 && method.equals("POST")) {
-            try {
-                Map<String, Object> bkD = Json.obj(Json.parse(
-                    new String(body, StandardCharsets.UTF_8)));
-                String bkPw = Json.str(bkD, "passphrase", "");
-                if (bkPw.length() < 8)
-                    throw new IOException(
-                        "passphrase needs at least 8 characters");
-                java.io.ByteArrayOutputStream bkBuf =
-                    new java.io.ByteArrayOutputStream();
-                java.util.zip.ZipOutputStream bkZ =
-                    new java.util.zip.ZipOutputStream(bkBuf);
-                List<File> bkFiles = new ArrayList<>();
-                bkCollect(workspace, bkFiles);
-                long bkTotal = 0;
-                int bkCount = 0;
-                for (File bf : bkFiles) {
-                    String bkRel = workspace.toURI()
-                        .relativize(bf.toURI()).getPath();
-                    bkTotal += bf.length();
-                    bkCount++;
-                    if (bkTotal > 50L * 1024 * 1024)
-                        throw new IOException(
-                            "workspace is over the 50 MB "
-                            + "backup cap");
-                    bkZ.putNextEntry(
-                        new java.util.zip.ZipEntry(bkRel));
-                    java.io.FileInputStream bkIn =
-                        new java.io.FileInputStream(bf);
-                    byte[] bkChunk = new byte[8192];
-                    int bkN;
-                    while ((bkN = bkIn.read(bkChunk)) > 0)
-                        bkZ.write(bkChunk, 0, bkN);
-                    bkIn.close();
-                    bkZ.closeEntry();
-                }
-                bkZ.close();
-                String bkCreated =
-                    new java.text.SimpleDateFormat(
-                        "yyyy-MM-dd'T'HH:mm:ss",
-                        java.util.Locale.US)
-                        .format(new java.util.Date());
-                String bkEnv = BackupCrypto.encrypt(
-                    bkPw, bkBuf.toByteArray(), bkCount,
-                    bkTotal, bkCreated);
-                File bkDir = new File(workspace, "backups");
-                bkDir.mkdirs();
-                String bkName = "ghostide-backup-"
-                    + new java.text.SimpleDateFormat(
-                        "yyyyMMdd-HHmmss", java.util.Locale.US)
-                        .format(new java.util.Date())
-                    + ".ghostbak";
-                writeFile(new File(bkDir, bkName), bkEnv);
-                sendJson(out, "{\"ok\":true,\"path\":"
-                    + Json.quote("backups/" + bkName)
-                    + ",\"files\":" + bkCount
-                    + ",\"bytes\":" + bkTotal
-                    + ",\"size\":" + bkEnv.length() + "}");
-            } catch (Exception e) {
-                sendJson(out, 400, "{\"error\":"
-                    + Json.quote(msg(e)) + "}");
-            }
+            backupService.create(out, body);
             return;
         }
         if (path.equals("/api/backup/restore")
                 && method.equals("POST")) {
-            try {
-                Map<String, Object> bkD = Json.obj(Json.parse(
-                    new String(body, StandardCharsets.UTF_8)));
-                String bkPw = Json.str(bkD, "passphrase", "");
-                File bkFile = safe(
-                    Json.str(bkD, "path", ""));
-                if (!bkFile.isFile())
-                    throw new IOException(
-                        "backup file not found");
-                byte[] bkRaw = BackupCrypto.decrypt(bkPw,
-                    readFile(bkFile));
-                // Item 11: staged restore. Extract to a
-                // staging dir under ZipGuard rules with
-                // live counters, validate the manifest,
-                // then apply with rollback copies, so a
-                // hostile or broken backup changes
-                // nothing.
-                File bkRoot = new File(workspace,
-                    ".ghostide-restore");
-                File bkStage = new File(bkRoot, "stage");
-                File bkRoll = new File(bkRoot, "rollback");
-                deleteTree(bkRoot);
-                bkStage.mkdirs();
-                List<String> bkPaths = new ArrayList<>();
-                List<Long> bkSizes = new ArrayList<>();
-                long bkTotal = 0;
-                try {
-                    java.util.zip.ZipInputStream bkZ =
-                        new java.util.zip.ZipInputStream(
-                            new java.io.ByteArrayInputStream(
-                                bkRaw));
-                    java.util.zip.ZipEntry bkE;
-                    byte[] bkChunk = new byte[8192];
-                    while ((bkE = bkZ.getNextEntry()) != null) {
-                        String bkClean = ZipGuard.cleanEntry(
-                            bkE.getName());
-                        if (bkClean == null) continue;
-                        if (bkPaths.size()
-                                >= ZipGuard.MAX_ENTRIES)
-                            throw new IOException(
-                                "backup has too many entries");
-                        File bkOutF = bkStage;
-                        for (String bkPart
-                                : bkClean.split("/"))
-                            bkOutF = new File(bkOutF, bkPart);
-                        if (bkE.isDirectory()) {
-                            bkOutF.mkdirs();
-                            continue;
-                        }
-                        if (bkOutF.getParentFile() != null)
-                            bkOutF.getParentFile().mkdirs();
-                        java.io.FileOutputStream bkOut =
-                            new java.io.FileOutputStream(
-                                bkOutF);
-                        long bkEntryBytes = 0;
-                        int bkN;
-                        while ((bkN = bkZ.read(bkChunk)) > 0) {
-                            bkOut.write(bkChunk, 0, bkN);
-                            bkEntryBytes += bkN;
-                            if (bkEntryBytes
-                                    > ZipGuard.MAX_ENTRY_BYTES)
-                                throw new IOException(
-                                    "backup entry too "
-                                    + "large: " + bkClean);
-                        }
-                        bkOut.close();
-                        bkPaths.add(bkClean);
-                        bkSizes.add(bkEntryBytes);
-                        bkTotal += bkEntryBytes;
-                        if (bkTotal
-                                > ZipGuard.MAX_TOTAL_BYTES)
-                            throw new IOException(
-                                "backup expands past the "
-                                + "512 MB restore cap");
-                    }
-                    bkZ.close();
-                    String bkErr = ZipGuard.validate(
-                        bkPaths, bkSizes);
-                    if (bkErr != null)
-                        throw new IOException(bkErr);
-                    // Apply, keeping rollback copies of
-                    // everything overwritten.
-                    List<String> bkApplied =
-                        new ArrayList<>();
-                    try {
-                        for (String bkClean : bkPaths) {
-                            File bkSrc = bkStage;
-                            File bkDst = workspace;
-                            File bkRb = bkRoll;
-                            for (String bkPart
-                                    : bkClean.split("/")) {
-                                bkSrc = new File(bkSrc,
-                                    bkPart);
-                                bkDst = new File(bkDst,
-                                    bkPart);
-                                bkRb = new File(bkRb,
-                                    bkPart);
-                            }
-                            if (bkDst.getParentFile()
-                                    != null)
-                                bkDst.getParentFile()
-                                    .mkdirs();
-                            if (bkDst.isFile()) {
-                                if (bkRb.getParentFile()
-                                        != null)
-                                    bkRb.getParentFile()
-                                        .mkdirs();
-                                java.nio.file.Files.move(
-                                    bkDst.toPath(),
-                                    bkRb.toPath(),
-                                    java.nio.file
-                                        .StandardCopyOption
-                                        .REPLACE_EXISTING);
-                            }
-                            java.nio.file.Files.move(
-                                bkSrc.toPath(),
-                                bkDst.toPath(),
-                                java.nio.file
-                                    .StandardCopyOption
-                                    .REPLACE_EXISTING);
-                            bkApplied.add(bkClean);
-                        }
-                    } catch (Exception applyErr) {
-                        // Roll back: drop applied files,
-                        // move the originals home.
-                        for (int i = bkApplied.size() - 1;
-                                i >= 0; i--) {
-                            String bkClean =
-                                bkApplied.get(i);
-                            File bkDst = workspace;
-                            File bkRb = bkRoll;
-                            for (String bkPart
-                                    : bkClean.split("/")) {
-                                bkDst = new File(bkDst,
-                                    bkPart);
-                                bkRb = new File(bkRb,
-                                    bkPart);
-                            }
-                            try {
-                                bkDst.delete();
-                                if (bkRb.isFile()) {
-                                    if (bkDst
-                                            .getParentFile()
-                                            != null)
-                                        bkDst
-                                            .getParentFile()
-                                            .mkdirs();
-                                    java.nio.file.Files.move(
-                                        bkRb.toPath(),
-                                        bkDst.toPath(),
-                                        java.nio.file
-                                            .StandardCopyOption
-                                            .REPLACE_EXISTING);
-                                }
-                            } catch (Exception ignored) { }
-                        }
-                        throw new IOException(
-                            "restore failed and was rolled "
-                            + "back: " + msg(applyErr));
-                    }
-                } finally {
-                    deleteTree(bkRoot);
-                }
-                sendJson(out, "{\"ok\":true,\"files\":"
-                    + bkPaths.size() + ",\"bytes\":"
-                    + bkTotal + ",\"staged\":true}");
-            } catch (Exception e) {
-                sendJson(out, 400, "{\"error\":"
-                    + Json.quote(msg(e)) + "}");
-            }
+            backupService.restore(out, body);
             return;
         }
         if (path.equals("/api/pair/join")
@@ -2677,17 +2460,7 @@ public final class IdeServer {
     // ---------------- files ----------------
 
 
-    /* Recursive delete for the restore staging
-       area (item 11) and other scratch trees. */
-    private static void deleteTree(File f) {
-        if (f == null || !f.exists()) return;
-        if (f.isDirectory()) {
-            File[] kids = f.listFiles();
-            if (kids != null)
-                for (File k : kids) deleteTree(k);
-        }
-        f.delete();
-    }
+
 
     private File safe(String rel) throws IOException {
         if (rel == null || rel.isEmpty()) throw new IOException("no path");
@@ -4974,18 +4747,7 @@ public final class IdeServer {
     // Backup walk (Roadmap G17): same skip rules as the
     // desktop build - dot paths, the backups folder, and
     // backup files themselves stay out of the archive.
-    private void bkCollect(File dir, List<File> out) {
-        File[] kids = dir.listFiles();
-        if (kids == null) return;
-        for (File k : kids) {
-            if (k.getName().startsWith(".")) continue;
-            if (dir == workspace && k.getName().equals("backups")
-                    && k.isDirectory()) continue;
-            if (k.isDirectory()) bkCollect(k, out);
-            else if (!k.getName().endsWith(".ghostbak"))
-                out.add(k);
-        }
-    }
+
 
     private void collectTextFiles(File dir, List<File> out) {
         File[] kids = dir.listFiles();
@@ -5287,6 +5049,7 @@ public final class IdeServer {
     /* Bundled git lives in GitSupport (item 10
        split); these delegates keep call sites as-is. */
     private GitSupport git;
+    private BackupService backupService;
 
     private Map<String, String> gitEnv() {
         return git.gitEnv();

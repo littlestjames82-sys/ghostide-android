@@ -2593,3 +2593,8 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.15.0 (versionCode 120) - Oct 21, 2026 - R4 PairHub split
 - IdeServer's pair block (PairPeer, presence map, PAIR_CODE, tokens, R1 rate limiter, peers JSON) extracted verbatim-in-behavior to PairHub.java (beat/peersJson/validToken/issueToken/joinLocked/joinRecord). Call sites updated: handle() gate + code route, join route, heartbeat + peers routes. Compiles clean; pair probes cover the desktop mirror (18/18 at R1) and the Java behavior is identical by construction.
+
+## v2.16.0 (versionCode 121) - Oct 21, 2026 - R5 BackupService split
+- Backup create + staged restore route bodies moved verbatim to BackupService.java (JsonSink interface keeps HTTP framing in IdeServer; create/restore declare IOException end-to-end). bkCollect + deleteTree moved with them. BackupService.safe() is component-aware (equals or separator-prefixed), stricter than IdeServer.safe()'s string prefix - restore path only; the general fix is R15.
+- Also in this push: the GH e2e askpass check updated for R2's per-process file (it asserted the old predictable path; CI caught the staleness - hardening 11/11, restore 15/15, pair 18/18 were green there, e2e now 19/19 locally with the fix).
+- CI state: run on the R1 commit went fully green (39714363877); later runs failed only on that stale e2e check.
