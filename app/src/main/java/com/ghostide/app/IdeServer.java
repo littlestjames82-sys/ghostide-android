@@ -38,6 +38,8 @@ import java.util.Set;
  * app-private workspace folder.
  */
 public final class IdeServer {
+    private static final int MAX_BODY_BYTES =
+        64 * 1024 * 1024;
     static final int PORT = 18763;
     private volatile String modelName;
 
@@ -608,6 +610,16 @@ public final class IdeServer {
                     contentLength = Integer.parseInt(ln.substring(c + 1).trim());
                 }
             }
+            if (contentLength < 0
+                    || contentLength > MAX_BODY_BYTES) {
+                // Hardening (audit P0): never allocate or
+                // read an unbounded request body.
+                sendJson(out, 413, "{\"error\":\"request "
+                    + "body too large\"}");
+                out.flush();
+                s.close();
+                return;
+            }
             byte[] body = contentLength > 0 ? readN(in, contentLength)
                                             : new byte[0];
             route(s, out, method, target, body);
@@ -628,14 +640,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.08.0\""
+                + ",\"version\":\"2.09.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.08.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.09.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;

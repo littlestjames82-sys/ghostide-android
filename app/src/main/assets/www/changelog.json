@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.09.0",
+   "date": "Oct 20, 2026",
+   "goal": "Hardening pass: AES-GCM backups, request and KDF bounds",
+   "summary": "Backups are now encrypted with standard AES-256-GCM instead of the old custom construction, with hostile-file protections: KDF iteration counts and field sizes in a backup file are validated before any work is done, on both the new format and old v1 backups (which still restore). The local server now caps request bodies at 64 MB on both builds, and Android-managed backup of app data is turned off so workspaces and tokens never leave through OS backup; the in-app encrypted backup is the supported path."
+  },
+  {
    "version": "2.08.0",
    "date": "Oct 20, 2026",
    "goal": "GitHub connect: clone, pull and push from the phone",

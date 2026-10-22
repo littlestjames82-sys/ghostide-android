@@ -4,24 +4,37 @@ import android.util.Base64;
 
 import java.util.Map;
 
+import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Encrypted backup format (Roadmap G17). Mirrors
- * server.py's backup_encrypt / backup_decrypt byte for
- * byte, so a backup made on one build restores on the
- * other: PBKDF2-HMAC-SHA256 (200k rounds, random salt)
- * derives an encryption key and a MAC key; the zip is
- * XORed with an HMAC-SHA256 keystream keyed by a random
- * nonce; the MAC covers salt || nonce || ciphertext
- * (encrypt-then-MAC), so a wrong passphrase fails
- * integrity before anything is decrypted.
+ * Encrypted backup format. v2 (Oct 2026 hardening,
+ * from the external audit): standard AES-256-GCM
+ * (AEAD) with a PBKDF2-HMAC-SHA256 derived key, so
+ * tampering, truncation and wrong passphrases all
+ * fail inside the cipher. v1 was a custom
+ * HMAC-keystream construction; decrypt keeps a v1
+ * reader so older backups still restore.
+ *
+ * Both decrypt paths validate every decoded field
+ * BEFORE key derivation: KDF iterations bounded
+ * (a hostile file once could set iter arbitrarily
+ * high and hang the restore), salt / nonce / IV
+ * lengths bounded, v1 MAC exactly 32 bytes, payload
+ * capped. Mirrors server.py's backup_encrypt /
+ * backup_decrypt: a backup made on one build
+ * restores on the other (the desktop writes v2
+ * when its crypto package is available).
  */
 final class BackupCrypto {
     static final int ITER = 200000;
+    private static final int ITER_MIN = 10000;
+    private static final int ITER_MAX = 2000000;
+    private static final long DATA_MAX = 512L * 1024 * 1024;
 
     private static byte[][] keys(String pw, byte[] salt,
             int iter) throws Exception {
@@ -45,6 +58,7 @@ final class BackupCrypto {
         return m.doFinal();
     }
 
+    /* v1 legacy keystream (decrypt of old backups). */
     private static byte[] crypt(byte[] encKey, byte[] nonce,
             byte[] data) throws Exception {
         byte[] out = new byte[data.length];
@@ -71,21 +85,43 @@ final class BackupCrypto {
         return Base64.encodeToString(b, Base64.NO_WRAP);
     }
 
+    private static byte[] unb64(String s) throws Exception {
+        try {
+            return Base64.decode(s, Base64.DEFAULT);
+        } catch (Exception e) {
+            throw new Exception("damaged backup (bad base64)");
+        }
+    }
+
+    private static void checkKdf(byte[] salt, int iter)
+            throws Exception {
+        if (salt.length < 8 || salt.length > 64)
+            throw new Exception(
+                "damaged backup (salt length out of bounds)");
+        if (iter < ITER_MIN || iter > ITER_MAX)
+            throw new Exception(
+                "backup KDF parameters out of bounds");
+    }
+
     static String encrypt(String pw, byte[] zip, int files,
             long nbytes, String created) throws Exception {
         java.security.SecureRandom rnd =
             new java.security.SecureRandom();
         byte[] salt = new byte[16];
-        byte[] nonce = new byte[16];
+        byte[] iv = new byte[12];
         rnd.nextBytes(salt);
-        rnd.nextBytes(nonce);
+        rnd.nextBytes(iv);
         byte[][] k = keys(pw, salt, ITER);
-        byte[] ct = crypt(k[0], nonce, zip);
-        byte[] mac = hmac(k[1], salt, nonce, ct);
+        Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+        c.init(Cipher.ENCRYPT_MODE,
+            new SecretKeySpec(k[0], "AES"),
+            new GCMParameterSpec(128, iv));
+        byte[] ct = c.doFinal(zip);
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
         sb.append(" \"app\": \"ghostide-backup\",\n");
-        sb.append(" \"v\": 1,\n");
+        sb.append(" \"v\": 2,\n");
+        sb.append(" \"cipher\": \"AES-256-GCM\",\n");
         sb.append(" \"created\": ")
             .append(Json.quote(created)).append(",\n");
         sb.append(" \"files\": ").append(files).append(",\n");
@@ -94,9 +130,7 @@ final class BackupCrypto {
             .append(" \"iter\": ").append(ITER)
             .append(", \"salt\": ").append(Json.quote(b64(salt)))
             .append("},\n");
-        sb.append(" \"nonce\": ").append(Json.quote(b64(nonce)))
-            .append(",\n");
-        sb.append(" \"mac\": ").append(Json.quote(b64(mac)))
+        sb.append(" \"iv\": ").append(Json.quote(b64(iv)))
             .append(",\n");
         sb.append(" \"data\": ").append(Json.quote(b64(ct)))
             .append("\n}");
@@ -107,26 +141,61 @@ final class BackupCrypto {
             throws Exception {
         Map<String, Object> env = Json.obj(Json.parse(text));
         if (!"ghostide-backup".equals(
-                Json.str(env, "app", ""))
-                || Json.num(env, "v", 0) != 1)
+                Json.str(env, "app", "")))
             throw new Exception("not a GhostIDE backup file");
+        int v = (int) Json.num(env, "v", 0);
         Map<String, Object> kdf = Json.obj(env.get("kdf"));
-        byte[] salt = Base64.decode(
-            Json.str(kdf, "salt", ""), Base64.DEFAULT);
+        byte[] salt = unb64(Json.str(kdf, "salt", ""));
         int iter = (int) Json.num(kdf, "iter", ITER);
-        byte[] nonce = Base64.decode(
-            Json.str(env, "nonce", ""), Base64.DEFAULT);
-        byte[] ct = Base64.decode(
-            Json.str(env, "data", ""), Base64.DEFAULT);
-        byte[] macWant = Base64.decode(
-            Json.str(env, "mac", ""), Base64.DEFAULT);
-        byte[][] k = keys(pw, salt, iter);
-        byte[] mac = hmac(k[1], salt, nonce, ct);
-        if (!java.security.MessageDigest.isEqual(mac, macWant))
+        checkKdf(salt, iter);
+        String dataStr = Json.str(env, "data", "");
+        if (dataStr.length() > DATA_MAX * 2)
             throw new Exception(
-                "wrong passphrase or damaged backup "
-                + "(integrity check failed)");
-        return crypt(k[0], nonce, ct);
+                "damaged backup (payload too large)");
+        byte[] ct = unb64(dataStr);
+        if (ct.length > DATA_MAX)
+            throw new Exception(
+                "damaged backup (payload too large)");
+        byte[][] k = keys(pw, salt, iter);
+        if (v == 2) {
+            byte[] iv = unb64(Json.str(env, "iv", ""));
+            if (iv.length < 12 || iv.length > 16)
+                throw new Exception(
+                    "damaged backup (iv length out of bounds)");
+            try {
+                Cipher c = Cipher.getInstance(
+                    "AES/GCM/NoPadding");
+                c.init(Cipher.DECRYPT_MODE,
+                    new SecretKeySpec(k[0], "AES"),
+                    new GCMParameterSpec(128, iv));
+                return c.doFinal(ct);
+            } catch (javax.crypto.AEADBadTagException e) {
+                throw new Exception(
+                    "wrong passphrase or damaged backup "
+                    + "(integrity check failed)");
+            }
+        }
+        if (v == 1) {
+            byte[] nonce = unb64(Json.str(env, "nonce", ""));
+            if (nonce.length < 8 || nonce.length > 32)
+                throw new Exception(
+                    "damaged backup (nonce length out of "
+                    + "bounds)");
+            byte[] macWant = unb64(Json.str(env, "mac", ""));
+            if (macWant.length != 32)
+                throw new Exception(
+                    "damaged backup (mac length out of "
+                    + "bounds)");
+            byte[] mac = hmac(k[1], salt, nonce, ct);
+            if (!java.security.MessageDigest.isEqual(mac,
+                    macWant))
+                throw new Exception(
+                    "wrong passphrase or damaged backup "
+                    + "(integrity check failed)");
+            return crypt(k[0], nonce, ct);
+        }
+        throw new Exception(
+            "unsupported backup version: " + v);
     }
 
     private BackupCrypto() {}
