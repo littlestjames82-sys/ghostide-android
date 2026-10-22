@@ -37397,7 +37397,9 @@
     settings.attachDiff = e.target.checked;
     saveSettings();
   };
+  var setFirstHit = null;
   function filterSettings() {
+    setFirstHit = null;
     const q = $("setSearch").value.trim().toLowerCase();
     const rows = $("settingsPanel").querySelectorAll("h4, label, .optRow");
     let h4 = null;
@@ -37414,11 +37416,21 @@
       }
       const show = rowMatches(el.textContent, q);
       el.style.display = show ? "" : "none";
-      if (show) anyVisible = true;
+      el.classList.toggle("setHit", !!q && show);
+      if (show) {
+        anyVisible = true;
+        if (q && !setFirstHit) setFirstHit = el;
+      }
     }
     flush();
   }
   $("setSearch").addEventListener("input", filterSettings);
+  $("setSearch").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && setFirstHit) {
+      e.preventDefault();
+      setFirstHit.scrollIntoView({ block: "center" });
+    }
+  });
   $("setResetBtn").onclick = () => {
     if (!confirm("Reset ALL settings to defaults? Chats and files are not touched.")) return;
     try {

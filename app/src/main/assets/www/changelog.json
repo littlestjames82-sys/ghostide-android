@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.22.0",
+   "date": "Oct 21, 2026",
+   "goal": "Settings search points at the answer",
+   "summary": "The settings filter now highlights every matching row in the studio violet instead of only hiding the rest, and pressing Enter in the search box jumps straight to the first match. Small, but settings is long now and finding one toggle should not be a scroll hunt."
+  },
+  {
    "version": "2.21.0",
    "date": "Oct 21, 2026",
    "goal": "CI keeps its own evidence",

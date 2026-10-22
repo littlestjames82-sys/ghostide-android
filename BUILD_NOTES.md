@@ -2615,3 +2615,6 @@ On-device extraction + panel proof is Ryan's.
 ## v2.21.0 (versionCode 126) - Oct 21, 2026 - R10 CI evidence
 - ci.yml probes job: each suite tees to /tmp/probe-logs/*.log (pipefail preserved); on failure an upload-artifact step publishes probe-logs (incl. /tmp/ghtest/server-*.log). No app code changed.
 - CI state at this round: four consecutive green runs on main (ad76638a, 19231dfb, 2c9c7dc4, 5385aab5) - frontend, jvm-tests, java-compile, probes all passing with the R1-R8 content.
+
+## v2.22.0 (versionCode 127) - Oct 21, 2026 - R11 settings search
+- filterSettings toggles a .setHit highlight on visible matches while filtering; Enter in the search box scrollIntoView's the first match. setsearch harness 5/5; DOM-stub clean.
