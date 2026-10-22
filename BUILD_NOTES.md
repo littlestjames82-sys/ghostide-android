@@ -2579,4 +2579,4 @@ On-device extraction + panel proof is Ryan's.
 - Gates for v2.11.0: 57 UI harness files ALL PASS, JVM BkTest 13/13 + ZgTest 14/14, GH e2e 19/19, hardening probes 11/11, restore probes 15/15, pair probes 10/10, DOM-stub clean, badging targetSdk 36. APK: see below.
 - Found while gating (not an app regression): the E1 eco parity harness compared IDE stats against a CLI run whose PYTHONPATH lacked GhostSlice, so the CLI used the v1 fallback estimator while the IDE used calibrated v2. The harness env was fixed (ghostslice/src added) and E1 re-ran ALL PASS. Note for the ECO line: harness drift, no app change.
 - Suites now live in the repos (item 8 prep): ghost-ide tools/harness (57 files) + tools/probes (hardening/restore/pair/gh-e2e, repo-relative paths), ghostide-android tests/jvm (BkTest + ZgTest + Base64 stub + run.sh), CI workflow at ghostide-android/.github/workflows/ci.yml.
-- Built APK: 20,304,487 B, md5 PENDING-FINAL (recorded in the release notes at push time).
+- Built APK: 20,304,487 B, md5 03f95ed5aab3975e75f1605f0f262755, SHA-256 recorded with the GitHub Release.
