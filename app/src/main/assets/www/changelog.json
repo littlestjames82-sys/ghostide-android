@@ -3,74 +3,80 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.20.0",
+   "date": "Oct 21, 2026",
+   "goal": "Release tooling tells the right date",
+   "summary": "Housekeeping with teeth: the in-app changelog generator stamped every entry with a fixed date, so a day of releases all claimed the same day. It now uses the real build date, the twelve entries it had mis-stamped were corrected, and commit messages again name the version they carry."
+  },
+  {
    "version": "2.19.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Health tells the truth about the host",
    "summary": "The health endpoint on both builds now reports pairRequired, the backup formats it can read (v1 and v2), and on Android the target SDK, so any client can see what it is talking to. The pair panel uses it: a line under the pairing code shows the host build, whether pairing is required for other devices, and the backup formats supported."
   },
   {
    "version": "2.18.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Restore shows its hand first",
    "summary": "Restoring a backup now previews before it confirms: enter the passphrase and the confirm dialog shows the backup's creation date, file count, size, and format version, all validated by the new inspect endpoint without changing a file. A wrong passphrase or a damaged backup is refused at the preview, before anything is overwritten."
   },
   {
    "version": "2.17.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Backup inspect: preview before you restore",
    "summary": "New /api/backup/inspect on both builds: decrypts a backup and validates its whole manifest (entry rules, duplicates, size caps) WITHOUT changing a single file, returning its format version, file count, total bytes, and creation time. Restores also gained adversarial coverage: symlink entries land as plain files, and a truncated backup is refused cleanly."
   },
   {
    "version": "2.16.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "BackupService: backups leave the server class",
    "summary": "Internal split, no behavior change: backup create and the staged restore moved from IdeServer into a dedicated BackupService (ZIP assembly, envelope calls, ZipGuard staging and rollback), the third step of the server split after GitSupport and PairHub. One quiet improvement rides along: the restore path check is now component-aware instead of a string-prefix match. JVM backup suites pass unchanged."
   },
   {
    "version": "2.15.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "PairHub: pair state leaves the server class",
    "summary": "Internal split, no behavior change: pair presence, the pairing code, guest tokens, and the join rate limiter moved from IdeServer into a dedicated PairHub class, the second step of the server split after GitSupport. The heartbeat, peers, join, and gate call sites are unchanged in shape, and the pair probe suite passes unchanged."
   },
   {
    "version": "2.14.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Pair panel: status and unpair",
    "summary": "The pair panel now says plainly whether this device holds a pair token for the host, and a paired guest can unpair with one tap, which forgets the stored token on this device. The host code line stays as before. Unpairing is per device; restarting the host still revokes every guest at once."
   },
   {
    "version": "2.13.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Askpass script hygiene",
    "summary": "GitHub connect hardening: the desktop askpass helper now lives in a per-process unique temp file created owner-only, instead of a predictable shared temp path that another process could have planted first; the script itself never contains the token, it reads it from the environment at push time. The Android askpass file is explicitly owner-only inside the app sandbox."
   },
   {
    "version": "2.12.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Pairing joins are rate limited",
    "summary": "Pair mode hardening: after 5 wrong pairing-code attempts from one device, joins from that device are locked for 10 minutes (the host answers 429), and a successful join clears the counter. The code itself still rotates on every server start. PAIRING.md documents the limit."
   },
   {
    "version": "2.11.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Hardening, round two: staged restores, pair codes, reproducible build",
    "summary": "Backup restore is now staged and atomic: entries are unpacked to a staging area under strict rules (size and count caps, duplicate and traversal checks) and only applied once the whole backup validates, with rollback if anything fails mid-apply, so a hostile or damaged backup changes nothing. Pair mode gains a trust step: the host shows a fresh 6-digit code each boot and other devices enter it once to pair; loopback needs none. Under the hood: the Android build is now reproducible from a documented clean checkout, and the bundled-git code moved into its own GitSupport class."
   },
   {
    "version": "2.10.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Now targeting Android 16 (API 36)",
    "summary": "GhostIDE now targets API 36, the level Google Play requires for new apps and updates from August 31, 2026, while still running on everything down to Android 7 (API 24). Built with the API 36 platform and build-tools. No feature changes in this build; it carries the v2.09 hardening (AES-GCM backups, request and KDF bounds) plus everything before it. On-device behavior under the new target is part of the current device pass."
   },
   {
    "version": "2.09.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Hardening pass: AES-GCM backups, request and KDF bounds",
    "summary": "Backups are now encrypted with standard AES-256-GCM instead of the old custom construction, with hostile-file protections: KDF iteration counts and field sizes in a backup file are validated before any work is done, on both the new format and old v1 backups (which still restore). The local server now caps request bodies at 64 MB on both builds, and Android-managed backup of app data is turned off so workspaces and tokens never leave through OS backup; the in-app encrypted backup is the supported path."
   },
   {
    "version": "2.08.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "GitHub connect: clone, pull and push from the phone",
    "summary": "The git panel grows a GitHub / remote section: paste a personal access token (kept only on this device), save the origin remote, and Clone, Fetch, Pull or Push without leaving the app. The token is passed to git through a private askpass helper and is never written into .git/config. First push sets the upstream automatically."
   },

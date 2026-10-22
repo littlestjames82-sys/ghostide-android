@@ -2607,3 +2607,7 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.19.0 (versionCode 124) - Oct 21, 2026 - R8 health build info
 - /api/health (both): pairRequired: true, backupFormats: [1, 2]; Android also targetSdk: 36. Pair panel renders a host-build line from it (version / pairing required / backup formats).
+
+## v2.20.0 (versionCode 125) - Oct 21, 2026 - R9 release tooling honesty
+- release.py changelog() stamped a hardcoded "Oct 20, 2026" on every entry; now uses the real date. The 12 mis-stamped entries (v2.08.0-v2.19.0, all shipped Oct 21 per these notes) corrected in changelog.json.
+- push_repos.py commit messages had also frozen at v2.11.0 text; pushmsg is now run per round (this push carries per-version messages again).
