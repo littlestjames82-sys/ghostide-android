@@ -39,6 +39,15 @@ final class BackupService {
     }
 
     private File safe(String rel) throws IOException {
+        // R14: C0 controls and DEL refused.
+        if (rel != null) {
+            for (int i = 0; i < rel.length(); i++) {
+                char c = rel.charAt(i);
+                if (c < 32 || c == 127)
+                    throw new IOException(
+                        "control characters in path");
+            }
+        }
         File f = new File(workspace, rel)
             .getCanonicalFile();
         String root = workspace.getCanonicalPath();

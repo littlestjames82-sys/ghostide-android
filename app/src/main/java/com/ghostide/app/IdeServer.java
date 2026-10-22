@@ -711,7 +711,7 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.24.0\""
+                + ",\"version\":\"2.25.0\""
                 + ",\"pairRequired\":true"
                 + ",\"backupFormats\":[1,2]"
                 + ",\"targetSdk\":36"
@@ -721,7 +721,7 @@ public final class IdeServer {
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.24.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.25.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -2517,6 +2517,15 @@ public final class IdeServer {
 
 
     private File safe(String rel) throws IOException {
+        // R14: C0 controls and DEL refused.
+        if (rel != null) {
+            for (int i = 0; i < rel.length(); i++) {
+                char c = rel.charAt(i);
+                if (c < 32 || c == 127)
+                    throw new IOException(
+                        "control characters in path");
+            }
+        }
         if (rel == null || rel.isEmpty()) throw new IOException("no path");
         File f = new File(workspace, rel).getCanonicalFile();
         File root = workspace.getCanonicalFile();

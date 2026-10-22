@@ -2624,3 +2624,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.24.0 (versionCode 129) - Oct 21, 2026 - R13 settings import strictness
 - New setutil harness (9 checks) runs the real @@SETUTIL@@ block adversarially: clean pass-through, unknown keys dropped, all-wrong-types -> null, null/array/string top level refused, empty -> null, __proto__ pollution neutralized, object/array values for string keys dropped. Pre-fix run: 8/9 - the overlong-string case failed; sanitizeImportedSettings now drops string values over 20000 chars (at-cap survives). 9/9 after.
+
+## v2.25.0 (versionCode 130) - Oct 21, 2026 - R14 path hygiene
+- safe_path (py) and safe() (IdeServer + BackupService) refuse C0 controls (<32) and DEL (127) in path params before resolution. Hardening probes 14/14 live: \x01 GET refused 400, DEL write refused 400, unicode (café.txt) write still 200.

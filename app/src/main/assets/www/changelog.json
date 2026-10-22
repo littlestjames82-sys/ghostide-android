@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.25.0",
+   "date": "Oct 21, 2026",
+   "goal": "Control characters do not belong in paths",
+   "summary": "Path hygiene at the choke points: both servers now refuse any file path containing C0 control characters or DEL, before the path is resolved, while ordinary unicode names keep working. It closes a class of log-forging and terminal-escape tricks through crafted filenames, and the live probes prove refusal and the unicode case side by side."
+  },
+  {
    "version": "2.24.0",
    "date": "Oct 21, 2026",
    "goal": "Settings import, proven strict",
