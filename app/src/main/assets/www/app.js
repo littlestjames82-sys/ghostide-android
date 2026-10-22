@@ -34217,8 +34217,10 @@
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
     const out = {};
     for (const k of Object.keys(schema)) {
-      if (k in obj && typeof obj[k] === typeof schema[k])
+      if (k in obj && typeof obj[k] === typeof schema[k]) {
+        if (typeof obj[k] === "string" && obj[k].length > 2e4) continue;
         out[k] = obj[k];
+      }
     }
     return Object.keys(out).length ? out : null;
   }

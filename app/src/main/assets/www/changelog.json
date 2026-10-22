@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.24.0",
+   "date": "Oct 21, 2026",
+   "goal": "Settings import, proven strict",
+   "summary": "Settings and profile imports now carry an adversarial test in the gate set: unknown keys dropped, wrong types dropped, nested objects refused, prototype-pollution attempts neutralized. The one gap the test found is fixed in this build: imported string values are capped at 20000 characters, so an import file cannot smuggle a payload in as a setting."
+  },
+  {
    "version": "2.23.0",
    "date": "Oct 21, 2026",
    "goal": "Guest roles: look without touching",
