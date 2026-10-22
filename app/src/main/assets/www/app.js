@@ -32626,6 +32626,87 @@
 
   // web/src/main.js
   var $ = (id2) => document.getElementById(id2);
+  var ghostTheme = EditorView.theme({
+    "&": { backgroundColor: "#0d0e13", color: "#e8eaf0" },
+    ".cm-content": { caretColor: "#bb9af7" },
+    ".cm-cursor, .cm-dropCursor": { borderLeftColor: "#bb9af7" },
+    ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": { backgroundColor: "rgba(103, 22, 243, 0.30)" },
+    ".cm-activeLine": { backgroundColor: "rgba(255, 255, 255, 0.045)" },
+    ".cm-gutters": {
+      backgroundColor: "#0d0e13",
+      color: "#71768a",
+      borderRight: "1px solid #20222c"
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "rgba(255, 255, 255, 0.045)",
+      color: "#ccd2e0"
+    },
+    ".cm-foldPlaceholder": {
+      backgroundColor: "#23252f",
+      color: "#a3a8ba",
+      border: "1px solid #2c2f3b"
+    }
+  }, { dark: true });
+  var ghostHighlight = HighlightStyle.define([
+    { tag: tags.keyword, color: "#bb9af7" },
+    {
+      tag: [tags.name, tags.deleted, tags.character, tags.macroName],
+      color: "#e8eaf0"
+    },
+    {
+      tag: [tags.function(tags.variableName), tags.labelName],
+      color: "#7aa2f7"
+    },
+    {
+      tag: [tags.color, tags.constant(tags.name), tags.standard(tags.name)],
+      color: "#f0b269"
+    },
+    { tag: [tags.definition(tags.name), tags.separator], color: "#a3a8ba" },
+    {
+      tag: [
+        tags.typeName,
+        tags.className,
+        tags.number,
+        tags.changed,
+        tags.annotation,
+        tags.modifier,
+        tags.self,
+        tags.namespace
+      ],
+      color: "#e0af68"
+    },
+    { tag: [
+      tags.operator,
+      tags.operatorKeyword,
+      tags.url,
+      tags.escape,
+      tags.regexp,
+      tags.special(tags.string)
+    ], color: "#7ee0d2" },
+    {
+      tag: [tags.meta, tags.comment],
+      color: "#71768a",
+      fontStyle: "italic"
+    },
+    { tag: tags.strong, fontWeight: "bold" },
+    { tag: tags.emphasis, fontStyle: "italic" },
+    { tag: tags.strikethrough, textDecoration: "line-through" },
+    { tag: tags.link, color: "#7ee0d2", textDecoration: "underline" },
+    { tag: tags.heading, fontWeight: "bold", color: "#bb9af7" },
+    {
+      tag: [tags.atom, tags.bool, tags.special(tags.variableName)],
+      color: "#f0b269"
+    },
+    {
+      tag: [tags.processingInstruction, tags.string, tags.inserted],
+      color: "#9ece6a"
+    },
+    { tag: tags.invalid, color: "#ff7a72" },
+    { tag: tags.propertyName, color: "#8ab8ff" },
+    { tag: tags.tagName, color: "#7aa2f7" },
+    { tag: tags.attributeName, color: "#7ee0d2" },
+    { tag: tags.attributeValue, color: "#9ece6a" }
+  ]);
   var setGhost = StateEffect.define();
   var GhostWidget = class extends WidgetType {
     constructor(text, onTap) {
@@ -32875,6 +32956,8 @@
     return [
       basicSetup,
       oneDark,
+      ghostTheme,
+      syntaxHighlighting(ghostHighlight),
       bpVersion,
       bpGutter,
       ghostField,
@@ -35860,6 +35943,8 @@
     return [
       basicSetup,
       oneDark,
+      ghostTheme,
+      syntaxHighlighting(ghostHighlight),
       wrapComp.of(wrapExt()),
       indentComp.of(indentExt()),
       wsComp.of(wsExt()),

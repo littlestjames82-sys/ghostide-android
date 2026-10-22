@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.40.0",
+   "date": "Oct 22, 2026",
+   "goal": "Visual refresh, take two: Ghost editor theme",
+   "summary": "The editor gets its own theme through CodeMirror: near-black background, violet-forward syntax colors, violet cursor and selection. Phone surfaces get the gradient header, a lifted chat sheet, and an accent sheet grip."
+  },
+  {
    "version": "2.39.0",
    "date": "Oct 22, 2026",
    "goal": "Visual refresh",
