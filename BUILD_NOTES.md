@@ -2601,3 +2601,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.17.0 (versionCode 122) - Oct 21, 2026 - R6 backup inspect
 - POST /api/backup/inspect {path, passphrase} -> {ok, version, files, bytes, created}: decrypts and runs the full ZipGuard manifest validation with zero writes (no staging dir left). Desktop probes: inspect correctness (2 files / 7 bytes / created+version), wrong passphrase refused, workspace untouched. Restore probes now 25/25, incl. symlink-entry (restores as a plain file containing the target text, never a live link) and truncated-envelope (refused, earlier restore intact).
+
+## v2.18.0 (versionCode 123) - Oct 21, 2026 - R7 restore preview dialog
+- Frontend: the restore row now prompts for the passphrase, calls /api/backup/inspect, and only then confirms with "Backup from <created> - N files, K KB, format vV". Inspect errors (wrong passphrase, hostile manifest) surface before any overwrite. backupui harness 6/6; DOM-stub clean.

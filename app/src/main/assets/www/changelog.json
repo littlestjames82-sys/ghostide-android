@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.18.0",
+   "date": "Oct 20, 2026",
+   "goal": "Restore shows its hand first",
+   "summary": "Restoring a backup now previews before it confirms: enter the passphrase and the confirm dialog shows the backup's creation date, file count, size, and format version, all validated by the new inspect endpoint without changing a file. A wrong passphrase or a damaged backup is refused at the preview, before anything is overwritten."
+  },
+  {
    "version": "2.17.0",
    "date": "Oct 20, 2026",
    "goal": "Backup inspect: preview before you restore",
