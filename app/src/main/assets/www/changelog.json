@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.39.0",
+   "date": "Oct 22, 2026",
+   "goal": "Visual refresh",
+   "summary": "One token palette (violet-tinted neutrals) under every surface, depth on floating panels, accent focus rings, slim scrollbars, and the editor blended into the app background. No layout or behavior changes."
+  },
+  {
    "version": "2.38.0",
    "date": "Oct 22, 2026",
    "goal": "LAN pairing is encrypted (TLS phase 1)",
