@@ -52,6 +52,16 @@ public final class IdeServer {
     private static final java.util.Map<String, PairPeer> PAIR =
         new java.util.concurrent.ConcurrentHashMap<>();
 
+    /* Pair trust (item 12): a per-boot 6-digit code
+       gates every /api route for non-loopback
+       callers; loopback is trusted. PAIRING.md. */
+    static final String PAIR_CODE = String.format(
+        java.util.Locale.US, "%06d",
+        new java.security.SecureRandom().nextInt(1000000));
+    static final java.util.Set<String> PAIR_TOKENS =
+        java.util.Collections.synchronizedSet(
+            new java.util.HashSet<String>());
+
     private static String pairPeersJson() {
         long now = System.currentTimeMillis();
         StringBuilder sb = new StringBuilder("{\"peers\":[");
@@ -557,6 +567,19 @@ public final class IdeServer {
         this.modelName = modelName;
         this.workspace = new File(this.ctx.getFilesDir(), "workspace");
         this.workspace.mkdirs();
+        this.git = new GitSupport(this.ctx, this.workspace,
+            new GitSupport.Runner() {
+                @Override public GitSupport.Result run(
+                        List<String> cmd, File cwd,
+                        int timeoutSec,
+                        Map<String, String> env)
+                        throws IOException {
+                    ProcResult r = runProcess(cmd, cwd,
+                        timeoutSec, env);
+                    return GitSupport.result(r.code,
+                        r.stdout, r.stderr, r.ms);
+                }
+            });
     }
 
     File workspaceDir() { return workspace; }
@@ -603,11 +626,16 @@ public final class IdeServer {
             String method = first[0];
             String target = first.length > 1 ? first[1] : "/";
             int contentLength = 0;
+            String pairTokenHdr = "";
             for (String ln : lines) {
                 int c = ln.indexOf(':');
                 if (c > 0 && ln.substring(0, c).trim()
                         .equalsIgnoreCase("Content-Length")) {
                     contentLength = Integer.parseInt(ln.substring(c + 1).trim());
+                }
+                if (c > 0 && ln.substring(0, c).trim()
+                        .equalsIgnoreCase("X-Pair-Token")) {
+                    pairTokenHdr = ln.substring(c + 1).trim();
                 }
             }
             if (contentLength < 0
@@ -616,6 +644,34 @@ public final class IdeServer {
                 // read an unbounded request body.
                 sendJson(out, 413, "{\"error\":\"request "
                     + "body too large\"}");
+                out.flush();
+                s.close();
+                return;
+            }
+            // Pair gate (item 12): non-loopback API
+            // callers must hold a token from a code
+            // join; the code itself is loopback-only.
+            String reqPath = target.split("\\?")[0];
+            boolean loopback = s.getInetAddress() != null
+                && s.getInetAddress().isLoopbackAddress();
+            if (reqPath.equals("/api/pair/code")) {
+                if (!loopback) {
+                    sendJson(out, 403, "{\"error\":"
+                        + "\"pairing code is only shown "
+                        + "on the host\"}");
+                } else {
+                    sendJson(out, "{\"code\":\"" + PAIR_CODE
+                        + "\"}");
+                }
+                out.flush();
+                s.close();
+                return;
+            }
+            if (!loopback && reqPath.startsWith("/api/")
+                    && !reqPath.equals("/api/pair/join")
+                    && !PAIR_TOKENS.contains(pairTokenHdr)) {
+                sendJson(out, 401, "{\"error\":"
+                    + "\"pairing required\"}");
                 out.flush();
                 s.close();
                 return;
@@ -640,14 +696,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.10.0\""
+                + ",\"version\":\"2.11.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.10.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.11.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1314,52 +1370,189 @@ public final class IdeServer {
                         "backup file not found");
                 byte[] bkRaw = BackupCrypto.decrypt(bkPw,
                     readFile(bkFile));
-                java.util.zip.ZipInputStream bkZ =
-                    new java.util.zip.ZipInputStream(
-                        new java.io.ByteArrayInputStream(bkRaw));
-                int bkCount = 0;
+                // Item 11: staged restore. Extract to a
+                // staging dir under ZipGuard rules with
+                // live counters, validate the manifest,
+                // then apply with rollback copies, so a
+                // hostile or broken backup changes
+                // nothing.
+                File bkRoot = new File(workspace,
+                    ".ghostide-restore");
+                File bkStage = new File(bkRoot, "stage");
+                File bkRoll = new File(bkRoot, "rollback");
+                deleteTree(bkRoot);
+                bkStage.mkdirs();
+                List<String> bkPaths = new ArrayList<>();
+                List<Long> bkSizes = new ArrayList<>();
                 long bkTotal = 0;
-                java.util.zip.ZipEntry bkE;
-                byte[] bkChunk = new byte[8192];
-                while ((bkE = bkZ.getNextEntry()) != null) {
-                    String[] bkParts = bkE.getName()
-                        .replace('\\', '/').split("/");
-                    List<String> bkKeep = new ArrayList<>();
-                    boolean bkBad = false;
-                    for (String bkPart : bkParts) {
-                        if (bkPart.isEmpty()
-                                || bkPart.equals(".")
-                                || bkPart.equals("..")) {
+                try {
+                    java.util.zip.ZipInputStream bkZ =
+                        new java.util.zip.ZipInputStream(
+                            new java.io.ByteArrayInputStream(
+                                bkRaw));
+                    java.util.zip.ZipEntry bkE;
+                    byte[] bkChunk = new byte[8192];
+                    while ((bkE = bkZ.getNextEntry()) != null) {
+                        String bkClean = ZipGuard.cleanEntry(
+                            bkE.getName());
+                        if (bkClean == null) continue;
+                        if (bkPaths.size()
+                                >= ZipGuard.MAX_ENTRIES)
+                            throw new IOException(
+                                "backup has too many entries");
+                        File bkOutF = bkStage;
+                        for (String bkPart
+                                : bkClean.split("/"))
+                            bkOutF = new File(bkOutF, bkPart);
+                        if (bkE.isDirectory()) {
+                            bkOutF.mkdirs();
                             continue;
                         }
-                        if (bkPart.startsWith(".")) bkBad = true;
-                        bkKeep.add(bkPart);
+                        if (bkOutF.getParentFile() != null)
+                            bkOutF.getParentFile().mkdirs();
+                        java.io.FileOutputStream bkOut =
+                            new java.io.FileOutputStream(
+                                bkOutF);
+                        long bkEntryBytes = 0;
+                        int bkN;
+                        while ((bkN = bkZ.read(bkChunk)) > 0) {
+                            bkOut.write(bkChunk, 0, bkN);
+                            bkEntryBytes += bkN;
+                            if (bkEntryBytes
+                                    > ZipGuard.MAX_ENTRY_BYTES)
+                                throw new IOException(
+                                    "backup entry too "
+                                    + "large: " + bkClean);
+                        }
+                        bkOut.close();
+                        bkPaths.add(bkClean);
+                        bkSizes.add(bkEntryBytes);
+                        bkTotal += bkEntryBytes;
+                        if (bkTotal
+                                > ZipGuard.MAX_TOTAL_BYTES)
+                            throw new IOException(
+                                "backup expands past the "
+                                + "512 MB restore cap");
                     }
-                    if (bkBad || bkKeep.isEmpty()) continue;
-                    if (bkKeep.get(0).equals("backups"))
-                        continue;
-                    File bkDst = workspace;
-                    for (String bkPart : bkKeep)
-                        bkDst = new File(bkDst, bkPart);
-                    if (bkE.isDirectory()) {
-                        bkDst.mkdirs();
-                        continue;
+                    bkZ.close();
+                    String bkErr = ZipGuard.validate(
+                        bkPaths, bkSizes);
+                    if (bkErr != null)
+                        throw new IOException(bkErr);
+                    // Apply, keeping rollback copies of
+                    // everything overwritten.
+                    List<String> bkApplied =
+                        new ArrayList<>();
+                    try {
+                        for (String bkClean : bkPaths) {
+                            File bkSrc = bkStage;
+                            File bkDst = workspace;
+                            File bkRb = bkRoll;
+                            for (String bkPart
+                                    : bkClean.split("/")) {
+                                bkSrc = new File(bkSrc,
+                                    bkPart);
+                                bkDst = new File(bkDst,
+                                    bkPart);
+                                bkRb = new File(bkRb,
+                                    bkPart);
+                            }
+                            if (bkDst.getParentFile()
+                                    != null)
+                                bkDst.getParentFile()
+                                    .mkdirs();
+                            if (bkDst.isFile()) {
+                                if (bkRb.getParentFile()
+                                        != null)
+                                    bkRb.getParentFile()
+                                        .mkdirs();
+                                java.nio.file.Files.move(
+                                    bkDst.toPath(),
+                                    bkRb.toPath(),
+                                    java.nio.file
+                                        .StandardCopyOption
+                                        .REPLACE_EXISTING);
+                            }
+                            java.nio.file.Files.move(
+                                bkSrc.toPath(),
+                                bkDst.toPath(),
+                                java.nio.file
+                                    .StandardCopyOption
+                                    .REPLACE_EXISTING);
+                            bkApplied.add(bkClean);
+                        }
+                    } catch (Exception applyErr) {
+                        // Roll back: drop applied files,
+                        // move the originals home.
+                        for (int i = bkApplied.size() - 1;
+                                i >= 0; i--) {
+                            String bkClean =
+                                bkApplied.get(i);
+                            File bkDst = workspace;
+                            File bkRb = bkRoll;
+                            for (String bkPart
+                                    : bkClean.split("/")) {
+                                bkDst = new File(bkDst,
+                                    bkPart);
+                                bkRb = new File(bkRb,
+                                    bkPart);
+                            }
+                            try {
+                                bkDst.delete();
+                                if (bkRb.isFile()) {
+                                    if (bkDst
+                                            .getParentFile()
+                                            != null)
+                                        bkDst
+                                            .getParentFile()
+                                            .mkdirs();
+                                    java.nio.file.Files.move(
+                                        bkRb.toPath(),
+                                        bkDst.toPath(),
+                                        java.nio.file
+                                            .StandardCopyOption
+                                            .REPLACE_EXISTING);
+                                }
+                            } catch (Exception ignored) { }
+                        }
+                        throw new IOException(
+                            "restore failed and was rolled "
+                            + "back: " + msg(applyErr));
                     }
-                    if (bkDst.getParentFile() != null)
-                        bkDst.getParentFile().mkdirs();
-                    java.io.FileOutputStream bkOut =
-                        new java.io.FileOutputStream(bkDst);
-                    int bkN;
-                    while ((bkN = bkZ.read(bkChunk)) > 0) {
-                        bkOut.write(bkChunk, 0, bkN);
-                        bkTotal += bkN;
-                    }
-                    bkOut.close();
-                    bkCount++;
+                } finally {
+                    deleteTree(bkRoot);
                 }
-                bkZ.close();
                 sendJson(out, "{\"ok\":true,\"files\":"
-                    + bkCount + ",\"bytes\":" + bkTotal + "}");
+                    + bkPaths.size() + ",\"bytes\":"
+                    + bkTotal + ",\"staged\":true}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/pair/join")
+                && method.equals("POST")) {
+            try {
+                Map<String, Object> pairD = Json.obj(Json.parse(
+                    new String(body, StandardCharsets.UTF_8)));
+                if (!PAIR_CODE.equals(
+                        Json.str(pairD, "code", "").trim())) {
+                    sendJson(out, 401, "{\"error\":"
+                        + "\"wrong pairing code\"}");
+                    return;
+                }
+                byte[] pairRaw = new byte[16];
+                new java.security.SecureRandom()
+                    .nextBytes(pairRaw);
+                StringBuilder pairHex = new StringBuilder();
+                for (byte pairB : pairRaw)
+                    pairHex.append(String.format(
+                        "%02x", pairB));
+                String pairToken = pairHex.toString();
+                PAIR_TOKENS.add(pairToken);
+                sendJson(out, "{\"ok\":true,\"token\":"
+                    + Json.quote(pairToken) + "}");
             } catch (Exception e) {
                 sendJson(out, 400, "{\"error\":"
                     + Json.quote(msg(e)) + "}");
@@ -2070,7 +2263,7 @@ public final class IdeServer {
                         throw new IOException("bad clone url");
                     String ctarget = Json.str(gd, "dir", "").trim();
                     if (ctarget.isEmpty())
-                        ctarget = repoNameFromUrl(curl);
+                        ctarget = GitSupport.repoNameFromUrl(curl);
                     if (ctarget.isEmpty())
                         throw new IOException(
                             "cannot name the ctarget folder");
@@ -2521,6 +2714,19 @@ public final class IdeServer {
     }
 
     // ---------------- files ----------------
+
+
+    /* Recursive delete for the restore staging
+       area (item 11) and other scratch trees. */
+    private static void deleteTree(File f) {
+        if (f == null || !f.exists()) return;
+        if (f.isDirectory()) {
+            File[] kids = f.listFiles();
+            if (kids != null)
+                for (File k : kids) deleteTree(k);
+        }
+        f.delete();
+    }
 
     private File safe(String rel) throws IOException {
         if (rel == null || rel.isEmpty()) throw new IOException("no path");
@@ -5117,123 +5323,27 @@ public final class IdeServer {
         r.ms = System.currentTimeMillis() - t0;
         return r;
     }
+    /* Bundled git lives in GitSupport (item 10
+       split); these delegates keep call sites as-is. */
+    private GitSupport git;
 
-    /* ---------------- Roadmap G11: bundled git ----------------
-       Termux git 2.56 staged exactly like the Python runtime:
-       libgitbin.so (multicall binary) + libgitremotehttp.so in
-       nativeLibraryDir, GIT_EXEC_PATH a filesDir directory of
-       symlinks giving the binaries their dashed names, and
-       GIT_TEMPLATE_DIR the unpacked templates asset. */
+    private Map<String, String> gitEnv() {
+        return git.gitEnv();
+    }
 
-    private File gitTemplatesDir() {
-        return new File(ctx.getFilesDir(), "git-templates");
+    private boolean ensureGitAssets() {
+        return git.ensureGitAssets();
     }
 
     private File gitExecDir() {
-        return new File(ctx.getFilesDir(), "gitexec");
+        return git.gitExecDir();
     }
 
-    private String gitBin() {
-        return new File(ctx.getApplicationInfo().nativeLibraryDir,
-            "libgitbin.so").getAbsolutePath();
-    }
-
-    private synchronized boolean ensureGitAssets() {
-        File tdir = gitTemplatesDir();
-        File stamp = new File(tdir, ".ready-2.56");
-        File edir = gitExecDir();
-        if (!stamp.isFile()) {
-            java.util.zip.ZipInputStream zin = null;
-            try {
-                if (tdir.exists()) deleteRecursive(tdir);
-                tdir.mkdirs();
-                zin = new java.util.zip.ZipInputStream(
-                    ctx.getAssets().open("git-templates.zip"));
-                java.util.zip.ZipEntry e;
-                byte[] buf = new byte[16384];
-                while ((e = zin.getNextEntry()) != null) {
-                    File f = new File(tdir, e.getName());
-                    if (!f.getCanonicalPath().startsWith(
-                            tdir.getCanonicalPath())) continue;
-                    if (e.isDirectory()) { f.mkdirs(); continue; }
-                    if (f.getParentFile() != null)
-                        f.getParentFile().mkdirs();
-                    FileOutputStream fo = new FileOutputStream(f);
-                    int n;
-                    while ((n = zin.read(buf)) > 0)
-                        fo.write(buf, 0, n);
-                    fo.close();
-                }
-                zin.close();
-                zin = null;
-                FileOutputStream so = new FileOutputStream(stamp);
-                so.write(1);
-                so.close();
-            } catch (Exception ex) {
-                if (zin != null) {
-                    try { zin.close(); } catch (Exception z) {}
-                }
-                return false;
-            }
-        }
-        try {
-            edir.mkdirs();
-            String nl = ctx.getApplicationInfo().nativeLibraryDir;
-            String[][] links = {
-                {"git", "libgitbin.so"},
-                {"git-upload-pack", "libgitbin.so"},
-                {"git-receive-pack", "libgitbin.so"},
-                {"git-upload-archive", "libgitbin.so"},
-                {"git-remote-http", "libgitremotehttp.so"},
-                {"git-remote-https", "libgitremotehttp.so"},
-            };
-            for (String[] l : links) {
-                File link = new File(edir, l[0]);
-                if (!link.exists()) {
-                    try {
-                        android.system.Os.symlink(
-                            new File(nl, l[1]).getAbsolutePath(),
-                            link.getAbsolutePath());
-                    } catch (Exception ignored) {}
-                }
-            }
-        } catch (Exception ignored) {}
-        return true;
-    }
-
-    private Map<String, String> gitEnv() {
-        Map<String, String> env = new HashMap<>();
-        String nl = ctx.getApplicationInfo().nativeLibraryDir;
-        env.put("LD_LIBRARY_PATH", nl);
-        env.put("GIT_EXEC_PATH",
-            gitExecDir().getAbsolutePath());
-        env.put("GIT_TEMPLATE_DIR",
-            gitTemplatesDir().getAbsolutePath());
-        env.put("GIT_CONFIG_NOSYSTEM", "1");
-        env.put("HOME", ctx.getFilesDir().getAbsolutePath());
-        env.put("GIT_PAGER", "cat");
-        env.put("PAGER", "cat");
-        return env;
-    }
-
-    /* Runs the bundled git in the workspace. Throws with a
-       plain message when git cannot start at all. */
     private ProcResult gitRun(List<String> args,
-            Map<String, String> extraEnv) throws IOException {
-        if (!ensureGitAssets())
-            throw new IOException("git assets could not be "
-                + "unpacked");
-        List<String> cmd = new ArrayList<>();
-        cmd.add(gitBin());
-        cmd.addAll(args);
-        Map<String, String> env = gitEnv();
-        if (extraEnv != null) env.putAll(extraEnv);
-        try {
-            return runProcess(cmd, workspace, 30, env);
-        } catch (IOException ioe) {
-            throw new IOException("bundled git failed to start "
-                + "on this device: " + msg(ioe));
-        }
+            Map<String, String> extraEnv)
+            throws IOException {
+        GitSupport.Result r = git.gitRun(args, extraEnv);
+        return procResult(r);
     }
 
     private ProcResult gitRun(List<String> args)
@@ -5241,69 +5351,24 @@ public final class IdeServer {
         return gitRun(args, null);
     }
 
-    /* GitHub connect (v2.08): network git with token
-       auth that never lands in .git/config. The token
-       travels in an env var; a tiny askpass script in
-       the app-private files dir answers git's prompts
-       from it. */
-    private File askpassFile() {
-        File f = new File(ctx.getFilesDir(), "askpass.sh");
-        if (!f.exists()) {
-            try {
-                java.io.FileOutputStream o =
-                    new java.io.FileOutputStream(f);
-                o.write(("#!/bin/sh\n"
-                    + "case \"$1\" in\n"
-                    + "*Username*) echo \"x-access-token\" ;;\n"
-                    + "*) echo \"$GHOSTIDE_GH_TOKEN\" ;;\n"
-                    + "esac\n").getBytes(
-                        StandardCharsets.UTF_8));
-                o.close();
-                f.setExecutable(true);
-            } catch (Exception ignored) { }
-        }
-        return f;
-    }
-
-    private static String repoNameFromUrl(String url) {
-        String clean = url == null ? "" : url.trim();
-        while (clean.endsWith("/"))
-            clean = clean.substring(0, clean.length() - 1);
-        if (clean.endsWith(".git"))
-            clean = clean.substring(0, clean.length() - 4);
-        String[] parts = clean.split("[/:]");
-        for (int i = parts.length - 1; i >= 0; i--)
-            if (!parts[i].isEmpty()) return parts[i];
-        return "";
-    }
-
     private ProcResult gitNetRun(List<String> args,
-            String token, int timeoutSec) throws IOException {
-        if (!ensureGitAssets())
-            throw new IOException("git assets could not be "
-                + "unpacked");
-        List<String> cmd = new ArrayList<>();
-        cmd.add(gitBin());
-        cmd.addAll(args);
-        Map<String, String> env = gitEnv();
-        env.put("GIT_TERMINAL_PROMPT", "0");
-        if (token != null && !token.isEmpty()) {
-            env.put("GIT_ASKPASS",
-                askpassFile().getAbsolutePath());
-            env.put("GHOSTIDE_GH_TOKEN", token);
-        }
-        try {
-            return runProcess(cmd, workspace, timeoutSec, env);
-        } catch (IOException ioe) {
-            throw new IOException("bundled git failed to "
-                + "start on this device: " + msg(ioe));
-        }
+            String token, int timeoutSec)
+            throws IOException {
+        GitSupport.Result r = git.gitNetRun(args, token,
+            timeoutSec);
+        return procResult(r);
+    }
+
+    private static ProcResult procResult(
+            GitSupport.Result r) {
+        ProcResult p = new ProcResult();
+        p.code = r.code; p.stdout = r.stdout;
+        p.stderr = r.stderr; p.ms = r.ms;
+        return p;
     }
 
     private static List<String> gitArgs(String... a) {
-        List<String> l = new ArrayList<>();
-        for (String s : a) l.add(s);
-        return l;
+        return GitSupport.gitArgs(a);
     }
 
     private static String trimTo(String s, int n) {

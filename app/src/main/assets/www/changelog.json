@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.11.0",
+   "date": "Oct 20, 2026",
+   "goal": "Hardening, round two: staged restores, pair codes, reproducible build",
+   "summary": "Backup restore is now staged and atomic: entries are unpacked to a staging area under strict rules (size and count caps, duplicate and traversal checks) and only applied once the whole backup validates, with rollback if anything fails mid-apply, so a hostile or damaged backup changes nothing. Pair mode gains a trust step: the host shows a fresh 6-digit code each boot and other devices enter it once to pair; loopback needs none. Under the hood: the Android build is now reproducible from a documented clean checkout, and the bundled-git code moved into its own GitSupport class."
+  },
+  {
    "version": "2.10.0",
    "date": "Oct 20, 2026",
    "goal": "Now targeting Android 16 (API 36)",

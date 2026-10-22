@@ -33332,6 +33332,65 @@
     checkDraft(path, d.content);
     checkQuiet();
   }
+  var PAIR_TOKEN_KEY = "ghostide-pair-token:" + location.host;
+  function storedPairToken() {
+    try {
+      return localStorage.getItem(PAIR_TOKEN_KEY) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  var _rawFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init) {
+    init = init || {};
+    const headers = new Headers(
+      init.headers || input && input.headers || {}
+    );
+    const tok = storedPairToken();
+    if (tok && !headers.has("X-Pair-Token"))
+      headers.set("X-Pair-Token", tok);
+    init = Object.assign({}, init, { headers });
+    let resp = await _rawFetch(input, init);
+    if (resp.status === 401) {
+      let need = false;
+      try {
+        const d = await resp.clone().json();
+        need = d && d.error === "pairing required";
+      } catch (e) {
+      }
+      if (need) {
+        const code2 = prompt(
+          "This GhostIDE host asks for a pairing code. It is shown in the pair panel on the host device."
+        );
+        if (code2) {
+          const jr = await _rawFetch("/api/pair/join", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code: code2.trim(),
+              id: typeof pairId !== "undefined" ? pairId : "",
+              name: "guest device"
+            })
+          });
+          const jd = await jr.json().catch(() => null);
+          if (jd && jd.token) {
+            try {
+              localStorage.setItem(PAIR_TOKEN_KEY, jd.token);
+            } catch (e) {
+            }
+            headers.set("X-Pair-Token", jd.token);
+            init = Object.assign(
+              {},
+              init,
+              { headers }
+            );
+            resp = await _rawFetch(input, init);
+          }
+        }
+      }
+    }
+    return resp;
+  };
   function postJson(url, obj) {
     return fetch(url, {
       method: "POST",
@@ -43435,6 +43494,14 @@
       }
     }
     if (pairOn) {
+      const codeRow = document.createElement("div");
+      codeRow.className = "dim";
+      box.appendChild(codeRow);
+      fetch("/api/pair/code").then((r) => r.ok ? r.json() : null).then((d) => {
+        codeRow.textContent = d && d.code ? "Pairing code for this host: " + d.code + " - a new device enters it once to pair. It resets when the server restarts." : "This device is a guest here; the pairing code is shown on the host.";
+      }).catch(() => {
+        codeRow.textContent = "";
+      });
       await pairHeartbeat();
       if (!pairPeers.length) {
         const none5 = document.createElement("div");
