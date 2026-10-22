@@ -112,7 +112,18 @@ jobs:
       - name: Live-server probe suites
         working-directory: ghost-ide/tools/probes
         run: |
-          python3 hardening_probes.py
-          python3 restore_probes.py
-          python3 pair_probes.py
-          python3 gh_connect_e2e.py
+          set -o pipefail
+          mkdir -p /tmp/probe-logs
+          python3 hardening_probes.py 2>&1 | tee /tmp/probe-logs/hardening.log
+          python3 restore_probes.py 2>&1 | tee /tmp/probe-logs/restore.log
+          python3 pair_probes.py 2>&1 | tee /tmp/probe-logs/pair.log
+          python3 gh_connect_e2e.py 2>&1 | tee /tmp/probe-logs/ghconnect.log
+      - name: Upload probe logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-logs
+          path: |
+            /tmp/probe-logs/
+            /tmp/ghtest/server-*.log
+          if-no-files-found: ignore

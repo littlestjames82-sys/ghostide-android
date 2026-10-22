@@ -2611,3 +2611,7 @@ On-device extraction + panel proof is Ryan's.
 ## v2.20.0 (versionCode 125) - Oct 21, 2026 - R9 release tooling honesty
 - release.py changelog() stamped a hardcoded "Oct 20, 2026" on every entry; now uses the real date. The 12 mis-stamped entries (v2.08.0-v2.19.0, all shipped Oct 21 per these notes) corrected in changelog.json.
 - push_repos.py commit messages had also frozen at v2.11.0 text; pushmsg is now run per round (this push carries per-version messages again).
+
+## v2.21.0 (versionCode 126) - Oct 21, 2026 - R10 CI evidence
+- ci.yml probes job: each suite tees to /tmp/probe-logs/*.log (pipefail preserved); on failure an upload-artifact step publishes probe-logs (incl. /tmp/ghtest/server-*.log). No app code changed.
+- CI state at this round: four consecutive green runs on main (ad76638a, 19231dfb, 2c9c7dc4, 5385aab5) - frontend, jvm-tests, java-compile, probes all passing with the R1-R8 content.

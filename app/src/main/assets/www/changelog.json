@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.21.0",
+   "date": "Oct 21, 2026",
+   "goal": "CI keeps its own evidence",
+   "summary": "No app changes in this build. The continuous-integration probes job now saves its full logs (and the GitHub-connect server logs) as a downloadable artifact whenever a run fails, so a red run explains itself inside GitHub instead of needing a local rerun to diagnose. The last four CI runs on main are green."
+  },
+  {
    "version": "2.20.0",
    "date": "Oct 21, 2026",
    "goal": "Release tooling tells the right date",
