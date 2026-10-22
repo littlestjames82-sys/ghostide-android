@@ -9,6 +9,7 @@ name: CI
 # are not in git (native libs, python runtime stage).
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
