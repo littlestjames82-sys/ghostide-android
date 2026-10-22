@@ -11,8 +11,8 @@
 # - Model (Qwen2.5-Coder-1.5B Q4_K_M, 986,048,800 bytes) is NOT in the
 #   APK; the app downloads it once into private storage.
 set -e
-BT=~/workspace/android-sdk/build-tools/34.0.0
-AJAR=~/workspace/android-sdk/platforms/android-34/android.jar
+BT=~/workspace/android-sdk/build-tools/36.0.0
+AJAR=~/workspace/android-sdk/platforms/android-36/android.jar
 JDK=~/workspace/jdk17
 export JAVA_HOME="$JDK"
 export PATH="$JDK/bin:$PATH"
@@ -103,7 +103,7 @@ echo '[2/8] linking'
   --manifest "$SRC/AndroidManifest.xml" \
   -A "$SRC/assets" \
   --java "$OUT/gen" \
-  --min-sdk-version 24 --target-sdk-version 34 \
+  --min-sdk-version 24 --target-sdk-version 36 \
   "$OUT/compiled_res.zip"
 
 echo '[3/8] compiling java'
