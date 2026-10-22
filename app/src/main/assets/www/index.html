@@ -82,6 +82,20 @@ setTimeout(function () {
         <button id="gitAiMsg" disabled title="Let Ghost write the commit message from the diff (desktop git)">✨ AI</button>
       </div>
       <div id="gitLog" class="dim"></div>
+      <div class="git-remote">
+        <div class="dim">GitHub / remote</div>
+        <input id="ghToken" type="password" placeholder="GitHub token (stays on this device)">
+        <input id="ghRemoteUrl" placeholder="Remote URL (https://github.com/you/repo.git)">
+        <div class="ghBtns">
+          <button id="ghSaveRemote">Save remote</button>
+          <button id="ghClone">Clone</button>
+          <button id="ghFetch">Fetch</button>
+          <button id="ghPull">Pull</button>
+          <button id="ghPush">Push</button>
+        </div>
+        <div id="ghRemoteInfo" class="dim"></div>
+        <div id="ghOut" class="dim"></div>
+      </div>
     </div>
     <div class="hint">Files save for real, in the workspace folder.</div>
   </aside>

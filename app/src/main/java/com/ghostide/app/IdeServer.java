@@ -628,14 +628,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.07.0\""
+                + ",\"version\":\"2.08.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.07.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.08.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1836,6 +1836,32 @@ public final class IdeServer {
                         + ch + "]}");
                     return;
                 }
+                if (path.equals("/api/git/remote")) {
+                    ProcResult gr = gitRun(gitArgs("remote"));
+                    if (gr.code != 0) {
+                        sendJson(out, "{\"repo\":false,\"error\":"
+                            + Json.quote(trimTo(gr.stderr, 200))
+                            + "}");
+                        return;
+                    }
+                    StringBuilder rb = new StringBuilder();
+                    for (String ln : gr.stdout.split("\n")) {
+                        String name = ln.trim();
+                        if (name.isEmpty()) continue;
+                        if (rb.length() > 0) rb.append(",");
+                        ProcResult gu = gitRun(gitArgs(
+                            "remote", "get-url", name));
+                        rb.append("{\"name\":")
+                          .append(Json.quote(name))
+                          .append(",\"url\":")
+                          .append(Json.quote(gu.code == 0
+                              ? gu.stdout.trim() : ""))
+                          .append("}");
+                    }
+                    sendJson(out, "{\"repo\":true,\"remotes\":["
+                        + rb + "]}");
+                    return;
+                }
                 if (path.equals("/api/git/diff")) {
                     String rel = queryParam(query, "path");
                     safe(rel);
@@ -1992,6 +2018,133 @@ public final class IdeServer {
                                 ? gr.stdout : gr.stderr, 400));
                     sendJson(out, "{\"ok\":true,\"output\":"
                         + Json.quote(gr.stdout.trim()) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/remote-set")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String rname = Json.str(gd, "name", "origin")
+                        .trim();
+                    String rurl = Json.str(gd, "url", "").trim();
+                    if (rname.isEmpty() || rname.startsWith("-"))
+                        throw new IOException("bad remote name");
+                    if (rurl.isEmpty() || rurl.startsWith("-"))
+                        throw new IOException("bad remote url");
+                    ProcResult list = gitRun(gitArgs("remote"));
+                    if (list.code != 0)
+                        throw new IOException(trimTo(list.stderr,
+                            300));
+                    boolean exists = false;
+                    for (String ln : list.stdout.split("\n"))
+                        if (ln.trim().equals(rname)) exists = true;
+                    ProcResult gr = exists
+                        ? gitRun(gitArgs("remote", "set-url",
+                            rname, rurl))
+                        : gitRun(gitArgs("remote", "add",
+                            rname, rurl));
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(gr.stderr,
+                            300));
+                    sendJson(out, "{\"ok\":true}");
+                    return;
+                }
+                if (path.equals("/api/git/clone")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String curl = Json.str(gd, "url", "").trim();
+                    if (curl.isEmpty() || curl.startsWith("-"))
+                        throw new IOException("bad clone url");
+                    String ctarget = Json.str(gd, "dir", "").trim();
+                    if (ctarget.isEmpty())
+                        ctarget = repoNameFromUrl(curl);
+                    if (ctarget.isEmpty())
+                        throw new IOException(
+                            "cannot name the ctarget folder");
+                    safe(ctarget);
+                    File dest = new File(workspace, ctarget);
+                    if (dest.exists() && dest.isDirectory()
+                            && dest.list() != null
+                            && dest.list().length > 0)
+                        throw new IOException(
+                            "ctarget folder exists and is not "
+                            + "empty: " + ctarget);
+                    ProcResult gr = gitNetRun(gitArgs("clone",
+                        curl, ctarget),
+                        Json.str(gd, "token", "").trim(), 300);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            (gr.stderr == null
+                                || gr.stderr.trim().isEmpty())
+                                ? gr.stdout : gr.stderr, 400));
+                    sendJson(out, "{\"ok\":true,\"dir\":"
+                        + Json.quote(ctarget) + ",\"output\":"
+                        + Json.quote(trimTo(gr.stdout, 300))
+                        + "}");
+                    return;
+                }
+                if (path.equals("/api/git/fetch")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    List<String> fargs = gitArgs("fetch");
+                    String remote = Json.str(gd, "remote", "")
+                        .trim();
+                    if (!remote.isEmpty()) {
+                        if (remote.startsWith("-"))
+                            throw new IOException(
+                                "bad remote name");
+                        fargs.add(remote);
+                    }
+                    ProcResult gr = gitNetRun(fargs,
+                        Json.str(gd, "token", "").trim(), 180);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            (gr.stderr == null
+                                || gr.stderr.trim().isEmpty())
+                                ? gr.stdout : gr.stderr, 400));
+                    sendJson(out, "{\"ok\":true,\"output\":"
+                        + Json.quote(trimTo(gr.stdout + "\n"
+                            + gr.stderr, 300)) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/pull")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    ProcResult gr = gitNetRun(gitArgs("pull"),
+                        Json.str(gd, "token", "").trim(), 180);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            (gr.stderr == null
+                                || gr.stderr.trim().isEmpty())
+                                ? gr.stdout : gr.stderr, 400));
+                    sendJson(out, "{\"ok\":true,\"output\":"
+                        + Json.quote(trimTo(gr.stdout + "\n"
+                            + gr.stderr, 300)) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/push")
+                        && method.equals("POST")) {
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    ProcResult probe = gitRun(gitArgs(
+                        "rev-parse", "--abbrev-ref",
+                        "--symbolic-full-name", "@{u}"));
+                    List<String> pargs = probe.code == 0
+                        ? gitArgs("push")
+                        : gitArgs("push", "-u", "origin", "HEAD");
+                    ProcResult gr = gitNetRun(pargs,
+                        Json.str(gd, "token", "").trim(), 180);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            (gr.stderr == null
+                                || gr.stderr.trim().isEmpty())
+                                ? gr.stdout : gr.stderr, 400));
+                    sendJson(out, "{\"ok\":true,\"output\":"
+                        + Json.quote(trimTo(gr.stdout + "\n"
+                            + gr.stderr, 300)) + "}");
                     return;
                 }
                 sendJson(out, 400, "{\"error\":\"unknown git "
@@ -5074,6 +5227,65 @@ public final class IdeServer {
     private ProcResult gitRun(List<String> args)
             throws IOException {
         return gitRun(args, null);
+    }
+
+    /* GitHub connect (v2.08): network git with token
+       auth that never lands in .git/config. The token
+       travels in an env var; a tiny askpass script in
+       the app-private files dir answers git's prompts
+       from it. */
+    private File askpassFile() {
+        File f = new File(ctx.getFilesDir(), "askpass.sh");
+        if (!f.exists()) {
+            try {
+                java.io.FileOutputStream o =
+                    new java.io.FileOutputStream(f);
+                o.write(("#!/bin/sh\n"
+                    + "case \"$1\" in\n"
+                    + "*Username*) echo \"x-access-token\" ;;\n"
+                    + "*) echo \"$GHOSTIDE_GH_TOKEN\" ;;\n"
+                    + "esac\n").getBytes(
+                        StandardCharsets.UTF_8));
+                o.close();
+                f.setExecutable(true);
+            } catch (Exception ignored) { }
+        }
+        return f;
+    }
+
+    private static String repoNameFromUrl(String url) {
+        String clean = url == null ? "" : url.trim();
+        while (clean.endsWith("/"))
+            clean = clean.substring(0, clean.length() - 1);
+        if (clean.endsWith(".git"))
+            clean = clean.substring(0, clean.length() - 4);
+        String[] parts = clean.split("[/:]");
+        for (int i = parts.length - 1; i >= 0; i--)
+            if (!parts[i].isEmpty()) return parts[i];
+        return "";
+    }
+
+    private ProcResult gitNetRun(List<String> args,
+            String token, int timeoutSec) throws IOException {
+        if (!ensureGitAssets())
+            throw new IOException("git assets could not be "
+                + "unpacked");
+        List<String> cmd = new ArrayList<>();
+        cmd.add(gitBin());
+        cmd.addAll(args);
+        Map<String, String> env = gitEnv();
+        env.put("GIT_TERMINAL_PROMPT", "0");
+        if (token != null && !token.isEmpty()) {
+            env.put("GIT_ASKPASS",
+                askpassFile().getAbsolutePath());
+            env.put("GHOSTIDE_GH_TOKEN", token);
+        }
+        try {
+            return runProcess(cmd, workspace, timeoutSec, env);
+        } catch (IOException ioe) {
+            throw new IOException("bundled git failed to "
+                + "start on this device: " + msg(ioe));
+        }
     }
 
     private static List<String> gitArgs(String... a) {

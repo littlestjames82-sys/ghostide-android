@@ -2547,3 +2547,10 @@ On-device extraction + panel proof is Ryan's.
   byte-matches sources, same signer (8ea8684a...).
   Uploaded at Ryan's direction; device pass is
   Ryan's.
+
+## v2.08.0 (versionCode 113) - Oct 21, 2026 - GitHub connect
+- Ryan picked "GitHub connect inside the app" from the roadmap board. New endpoints in BOTH servers (desktop server.py + phone IdeServer.java), shapes mirrored: GET /api/git/remote, POST /api/git/remote-set, /api/git/clone, /api/git/fetch, /api/git/pull, /api/git/push.
+- Auth: the token travels per request in an env var and git reads it through a tiny askpass script (desktop: system temp dir; phone: app-private files dir, both outside any workspace). The remote URL stays clean; the token is never written to .git/config (proven). Push auto-detects a missing upstream and pushes -u origin HEAD. Clone refuses a non-empty target; remote names and URLs starting with "-" are refused (option injection).
+- Frontend: GitHub / remote section in the git panel (token password field persisted device-locally under ghostide-gh-token, remote URL field prefilled from origin, Save remote / Clone / Fetch / Pull / Push buttons, remote info + output lines). refreshGit refreshes the remote info too. @@GHCONNECT@@ helpers repoNameFromUrl / validRemoteUrl.
+- Proof: gh_connect_e2e.py runs the REAL desktop endpoints against a local bare remote: seed, clone through the endpoint, remote read, stage+commit, push WITH a dummy token (bare remote received the commit, token absent from .git/config, askpass script created outside the workspace), upstream v3, fetch, pull (v3 arrived), remote-set, injection refusal: 19/19 PASS. Two fixture bugs were found and fixed along the way (bare HEAD default branch, a divergent seed push), both in the test, not the app. GHCONNECT harness 19 checks. Live GitHub auth itself is Ryan's device proof (his token, entered on the phone).
+- Built APK: 20,300,394 B, md5 e5a8a627d80ae08b61c88fdd921e6f23. Badging verified: versionCode 113, versionName 2.08.0; staged www/app.js + index.html byte-match source (the Java compile caught one local-name clash, `target`, fixed as `ctarget` before the successful build).

@@ -34779,6 +34779,15 @@
     window.__ghostSpeakLast = { lastAnswerOf };
   } catch (e) {
   }
+  function repoNameFromUrl(url) {
+    const clean = String(url || "").trim().replace(/\/+$/, "").replace(/\.git$/, "");
+    const parts = clean.split(/[/:]/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : "";
+  }
+  function validRemoteUrl(url) {
+    const u = String(url || "").trim();
+    return !!u && !u.startsWith("-");
+  }
   function aboutText(info, entry) {
     if (!entry) return info;
     return info + "\n\nLatest change (v" + entry.version + ", " + entry.goal + "): " + entry.summary;
@@ -35289,6 +35298,7 @@
   };
   $("runClose").onclick = () => $("runPane").classList.add("hidden");
   async function refreshGit() {
+    refreshGhRemote();
     const box = $("gitChanges");
     if (!box) return;
     try {
@@ -35396,6 +35406,111 @@
     $("diffPanel").classList.remove("hidden");
   }
   $("diffClose").onclick = () => $("diffPanel").classList.add("hidden");
+  function ghToken() {
+    const el = $("ghToken");
+    return el ? el.value.trim() : "";
+  }
+  function ghSay(text) {
+    const out = $("ghOut");
+    if (out) out.textContent = text || "";
+  }
+  async function ghPost(path, extra) {
+    ghSay("working...");
+    const r = await postJson(
+      path,
+      Object.assign({ token: ghToken() }, extra || {})
+    );
+    if (r.error) {
+      ghSay("Error: " + r.error);
+      return null;
+    }
+    ghSay(r.output || "Done.");
+    return r;
+  }
+  async function refreshGhRemote() {
+    const info = $("ghRemoteInfo");
+    if (!info) return;
+    try {
+      const r = await fetch("/api/git/remote");
+      const d = await r.json();
+      if (!d.repo || !d.remotes || !d.remotes.length) {
+        info.textContent = "No remote set on this repo yet.";
+        return;
+      }
+      info.textContent = d.remotes.map(function(x) {
+        return x.name + ": " + (x.url || "(no url)");
+      }).join("  ");
+      const origin = d.remotes.filter(function(x) {
+        return x.name === "origin";
+      })[0] || d.remotes[0];
+      const urlEl = $("ghRemoteUrl");
+      if (origin && urlEl && !urlEl.value) urlEl.value = origin.url;
+    } catch (e) {
+    }
+  }
+  (function wireGhConnect() {
+    const tok = $("ghToken");
+    if (!tok) return;
+    try {
+      tok.value = localStorage.getItem("ghostide-gh-token") || "";
+    } catch (e) {
+    }
+    tok.addEventListener("change", function() {
+      try {
+        localStorage.setItem("ghostide-gh-token", tok.value.trim());
+      } catch (e) {
+      }
+    });
+    $("ghSaveRemote").onclick = async () => {
+      const url = $("ghRemoteUrl").value.trim();
+      if (!validRemoteUrl(url)) {
+        ghSay("Paste a remote URL first.");
+        return;
+      }
+      const r = await ghPost(
+        "/api/git/remote-set",
+        { name: "origin", url }
+      );
+      if (r) {
+        ghSay("Remote saved.");
+        refreshGhRemote();
+      }
+    };
+    $("ghClone").onclick = async () => {
+      const url = $("ghRemoteUrl").value.trim();
+      if (!validRemoteUrl(url)) {
+        ghSay("Paste a repo URL to clone first.");
+        return;
+      }
+      const dir = prompt(
+        "Clone into folder:",
+        repoNameFromUrl(url)
+      );
+      if (!dir) return;
+      const r = await ghPost(
+        "/api/git/clone",
+        { url, dir: dir.trim() }
+      );
+      if (r) {
+        loadFiles();
+        refreshGit();
+      }
+    };
+    $("ghFetch").onclick = async () => {
+      await ghPost("/api/git/fetch", {});
+    };
+    $("ghPull").onclick = async () => {
+      const r = await ghPost("/api/git/pull", {});
+      if (r) {
+        loadFiles();
+        refreshGit();
+      }
+    };
+    $("ghPush").onclick = async () => {
+      const r = await ghPost("/api/git/push", {});
+      if (r) refreshGit();
+    };
+  })();
   $("commitBtn").onclick = async () => {
     const msg = $("commitMsg").value.trim();
     if (!msg) {

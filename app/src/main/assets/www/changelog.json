@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.08.0",
+   "date": "Oct 20, 2026",
+   "goal": "GitHub connect: clone, pull and push from the phone",
+   "summary": "The git panel grows a GitHub / remote section: paste a personal access token (kept only on this device), save the origin remote, and Clone, Fetch, Pull or Push without leaving the app. The token is passed to git through a private askpass helper and is never written into .git/config. First push sets the upstream automatically."
+  },
+  {
    "version": "2.07.0",
    "date": "Oct 20, 2026",
    "goal": "About this build, batch 5 wrap",
