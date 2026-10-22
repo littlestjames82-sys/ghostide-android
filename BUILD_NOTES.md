@@ -2618,3 +2618,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.22.0 (versionCode 127) - Oct 21, 2026 - R11 settings search
 - filterSettings toggles a .setHit highlight on visible matches while filtering; Enter in the search box scrollIntoView's the first match. setsearch harness 5/5; DOM-stub clean.
+
+## v2.23.0 (versionCode 128) - Oct 21, 2026 - R12 guest roles (audit item)
+- Audit follow-up (Oct 21 re-review): "guest permissions: full workspace access - add read-only roles." Done: PAIR_TOKENS is now token->role on both servers; host-only (loopback) GET/POST /api/pair/policy flips whether NEW tokens are viewer or editor; viewer tokens pass the gate for reads + heartbeat, every other POST gets 403 "view-only guest" (checked in do_POST via _pair_role_denied / in IdeServer.handle() before routing). Join response carries the role; the frontend stores it, the pair panel labels view-only guests, and the host panel gets the policy switch row. Pair probes 27/27 (role matrix on the real helpers + live policy roundtrip + both join roles + lockout intact). PAIRING.md: roles section added, stale "no retry limit" limit replaced with the R1 limiter.

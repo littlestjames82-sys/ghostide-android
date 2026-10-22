@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.23.0",
+   "date": "Oct 21, 2026",
+   "goal": "Guest roles: look without touching",
+   "summary": "Pairing is no longer all-or-nothing. The host can flip a switch in the pair panel so new guests join as view-only: their token can read and send presence, and every other change is refused with a clear view-only message. Roles are set by the host at join time, shown in the guest's pair panel, and the rate limit from v2.12 still guards the code. PAIRING.md documents the model."
+  },
+  {
    "version": "2.22.0",
    "date": "Oct 21, 2026",
    "goal": "Settings search points at the answer",

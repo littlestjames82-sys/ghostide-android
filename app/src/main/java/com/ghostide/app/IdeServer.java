@@ -648,6 +648,49 @@ public final class IdeServer {
                 s.close();
                 return;
             }
+            if (!loopback
+                    && "viewer".equals(
+                        PairHub.roleOf(pairTokenHdr))
+                    && method.equals("POST")
+                    && !reqPath.equals("/api/pair/heartbeat")
+                    && !reqPath.equals("/api/pair/join")) {
+                sendJson(out, 403, "{\"error\":"
+                    + "\"view-only guest\"}");
+                out.flush();
+                s.close();
+                return;
+            }
+            if (reqPath.equals("/api/pair/policy")) {
+                if (!loopback) {
+                    sendJson(out, 403, "{\"error\":"
+                        + "\"pairing policy is set "
+                        + "on the host\"}");
+                    out.flush();
+                    s.close();
+                    return;
+                }
+                if (method.equals("POST")) {
+                    byte[] pBody = contentLength > 0
+                        ? readN(in, contentLength)
+                        : new byte[0];
+                    try {
+                        Map<String, Object> pD =
+                            Json.obj(Json.parse(
+                                new String(pBody,
+                                    StandardCharsets.UTF_8)));
+                        Object pV = pD.get("viewOnly");
+                        PairHub.setPolicyViewOnly(
+                            Boolean.TRUE.equals(pV)
+                            || "true".equals(
+                                String.valueOf(pV)));
+                    } catch (Exception ignored) { }
+                }
+                sendJson(out, "{\"viewOnly\":"
+                    + PairHub.policyViewOnly() + "}");
+                out.flush();
+                s.close();
+                return;
+            }
             byte[] body = contentLength > 0 ? readN(in, contentLength)
                                             : new byte[0];
             route(s, out, method, target, body);
@@ -668,7 +711,7 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.22.0\""
+                + ",\"version\":\"2.23.0\""
                 + ",\"pairRequired\":true"
                 + ",\"backupFormats\":[1,2]"
                 + ",\"targetSdk\":36"
@@ -678,7 +721,7 @@ public final class IdeServer {
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.22.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.23.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1307,7 +1350,10 @@ public final class IdeServer {
                 PairHub.joinRecord(pairIp, true, pairNow);
                 String pairToken = PairHub.issueToken();
                 sendJson(out, "{\"ok\":true,\"token\":"
-                    + Json.quote(pairToken) + "}");
+                    + Json.quote(pairToken)
+                    + ",\"role\":"
+                    + Json.quote(PairHub.roleOf(pairToken))
+                    + "}");
             } catch (Exception e) {
                 sendJson(out, 400, "{\"error\":"
                     + Json.quote(msg(e)) + "}");

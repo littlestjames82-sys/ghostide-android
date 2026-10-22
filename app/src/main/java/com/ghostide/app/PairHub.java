@@ -30,8 +30,22 @@ final class PairHub {
         Locale.US, "%06d",
         new java.security.SecureRandom().nextInt(1000000));
 
-    private static final Set<String> TOKENS =
-        Collections.synchronizedSet(new HashSet<String>());
+    /* R12: tokens carry a role; the host policy
+       decides the role of NEW tokens. */
+    private static final Map<String, String> TOKENS =
+        Collections.synchronizedMap(
+            new HashMap<String, String>());
+    private static volatile boolean viewOnly = false;
+
+    static boolean policyViewOnly() { return viewOnly; }
+
+    static void setPolicyViewOnly(boolean v) {
+        viewOnly = v;
+    }
+
+    static String roleOf(String token) {
+        return token == null ? null : TOKENS.get(token);
+    }
 
     static final int MAX_FAILS = 5;
     static final long WINDOW_MS = 600_000L;
@@ -72,7 +86,7 @@ final class PairHub {
     }
 
     static boolean validToken(String token) {
-        return token != null && TOKENS.contains(token);
+        return token != null && TOKENS.containsKey(token);
     }
 
     static String issueToken() {
@@ -82,7 +96,7 @@ final class PairHub {
         for (byte b : raw)
             hex.append(String.format("%02x", b));
         String token = hex.toString();
-        TOKENS.add(token);
+        TOKENS.put(token, viewOnly ? "viewer" : "editor");
         return token;
     }
 

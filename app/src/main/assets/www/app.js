@@ -33333,6 +33333,15 @@
     checkQuiet();
   }
   var PAIR_TOKEN_KEY = "ghostide-pair-token:" + location.host;
+  function storedPairRole() {
+    try {
+      return localStorage.getItem(
+        "ghostide-pair-role:" + location.host
+      ) || "";
+    } catch (e) {
+      return "";
+    }
+  }
   function storedPairToken() {
     try {
       return localStorage.getItem(PAIR_TOKEN_KEY) || "";
@@ -33376,6 +33385,10 @@
           if (jd && jd.token) {
             try {
               localStorage.setItem(PAIR_TOKEN_KEY, jd.token);
+              localStorage.setItem(
+                "ghostide-pair-role:" + location.host,
+                jd.role || "editor"
+              );
             } catch (e) {
             }
             headers.set("X-Pair-Token", jd.token);
@@ -43518,7 +43531,7 @@
       box.appendChild(pairStateRow);
       if (storedPairToken()) {
         pairStateRow.className = "findRow";
-        pairStateRow.textContent = "This device is paired with this host. Tap to unpair: the stored token is forgotten on this device.";
+        pairStateRow.textContent = "This device is paired with this host" + (storedPairRole() === "viewer" ? " as a VIEW-ONLY guest (can look, not change)" : "") + ". Tap to unpair: the stored token is forgotten on this device.";
         pairStateRow.onclick = () => {
           try {
             localStorage.removeItem(PAIR_TOKEN_KEY);
@@ -43539,6 +43552,23 @@
         pairInfoRow.textContent = "Host build " + (h.version || "?") + " - pairing required for other devices: " + (h.pairRequired ? "yes" : "no") + " - backups: format v" + (h.backupFormats || [1]).join(" + v");
       }).catch(() => {
         pairInfoRow.textContent = "";
+      });
+      const pairPolicyRow = document.createElement("div");
+      box.appendChild(pairPolicyRow);
+      const renderPolicy = (vo) => {
+        pairPolicyRow.className = "findRow";
+        pairPolicyRow.textContent = "New guests join as: " + (vo ? "VIEW-ONLY" : "editors") + " - tap to switch (host only)";
+        pairPolicyRow.onclick = async () => {
+          const d = await postJson(
+            "/api/pair/policy",
+            { viewOnly: !vo }
+          );
+          if (d && !d.error) renderPolicy(!!d.viewOnly);
+        };
+      };
+      fetch("/api/pair/policy").then((r) => r.ok ? r.json() : null).then((d) => {
+        if (d) renderPolicy(!!d.viewOnly);
+      }).catch(() => {
       });
       await pairHeartbeat();
       if (!pairPeers.length) {
