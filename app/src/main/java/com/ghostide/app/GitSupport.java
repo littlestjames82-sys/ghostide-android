@@ -212,6 +212,12 @@ final class GitSupport {
                     + "esac\n").getBytes(
                         StandardCharsets.UTF_8));
                 o.close();
+                // R2: owner-only, even inside the
+                // app sandbox.
+                f.setReadable(false, false);
+                f.setReadable(true, true);
+                f.setWritable(false, false);
+                f.setWritable(true, true);
                 f.setExecutable(true);
             } catch (Exception ignored) { }
         }

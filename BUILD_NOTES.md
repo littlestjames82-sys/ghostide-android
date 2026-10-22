@@ -2583,3 +2583,7 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.12.0 (versionCode 117) - Oct 21, 2026 - R1 pair join rate limit
 - Both servers: PAIR_MAX_FAILS=5 wrong codes per source inside 10 min locks joins from that source for 10 min (HTTP 429 "too many attempts"); success clears the record. Python decision helpers (pair_join_locked/pair_join_record) unit-probed incl. window/lock boundaries; live loopback lockout proven (5x401 then 429 on the right code). Pair probes 18/18. Java mirrors with the same constants (compile-gated at build).
+
+## v2.13.0 (versionCode 118) - Oct 21, 2026 - R2 askpass hygiene
+- Desktop: _ensure_askpass now uses tempfile.mkstemp (unique per process, 0600 -> 0700) and always writes the script itself; the old predictable $TMPDIR/ghostide-askpass.sh path is gone. Probe: a planted decoy at the old path (mode 777, hostile content) is ignored; the ensured file is unique, owner-only, and ours.
+- Android: GitSupport.askpassFile explicitly resets the file to owner read/write before making it executable (it already lived in the app-private files dir).
