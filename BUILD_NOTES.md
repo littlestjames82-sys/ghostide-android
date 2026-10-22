@@ -2641,3 +2641,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.29.0 (versionCode 134) - Oct 21, 2026 - R18 streaming guard
 - beforeunload listener keyed on chatAbort (non-null only mid-stream): preventDefault + returnValue. Honest scope in the changelog: app swipe-close on Android does not surface beforeunload. streamguard harness 4/4; DOM-stub clean.
+
+## v2.30.0 (versionCode 135) - Oct 21, 2026 - R19 docs catch-up
+- HARDENING_PLAN.md: items 7/8/9/11/12 marked with their real outcomes + deviations (CI compile-vs-assemble, release asset credential scope, clean-root = local second environment), item 10 progress (GitSupport/PairHub/BackupService done; parsing/files/model extractions remain), new Pass 2 section covering the second audit's dispositions incl. TLS still open. BUILDING.md: CI section. Symlink/truncated probes landed earlier in R6, so this round is docs only.

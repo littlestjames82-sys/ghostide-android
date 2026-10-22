@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.30.0",
+   "date": "Oct 22, 2026",
+   "goal": "The paperwork catches up",
+   "summary": "Documentation round: the hardening plan now records what actually shipped for every audit item (including the two honest deviations: CI compiles rather than assembles, and the release APK is hash-pinned in the notes because the automation credential cannot upload assets), PAIRING.md matches the rate limit and guest roles, and BUILDING.md documents what CI proves. No app code changes."
+  },
+  {
    "version": "2.29.0",
    "date": "Oct 22, 2026",
    "goal": "Do not lose the answer to a stray reload",

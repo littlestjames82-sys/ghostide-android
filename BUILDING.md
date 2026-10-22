@@ -63,3 +63,16 @@ contents do not.
   `eco-manifest.json` inside the APK records what went in.
 - The model files are never in the APK; the app downloads them on
   device with size + SHA-256 gates.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` on ghostide-android runs four jobs on
+every push to main: **frontend** (checks out ghost-ide, builds the
+bundle, runs the harness suite and the DOM-stub boot gate),
+**jvm-tests** (tests/jvm/run.sh: BkTest, ZgTest, PcTest),
+**java-compile** (aapt2 + javac against API 36), and **probes**
+(the four live-server suites from ghost-ide/tools/probes). The
+probes job uploads its logs as an artifact when it fails. CI
+compiles but does not assemble the APK: the binary inputs above
+are not in git, so assembly stays the local build.sh path
+described here.
