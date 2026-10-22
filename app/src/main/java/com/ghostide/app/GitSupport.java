@@ -106,8 +106,7 @@ final class GitSupport {
                 byte[] buf = new byte[16384];
                 while ((e = zin.getNextEntry()) != null) {
                     File f = new File(tdir, e.getName());
-                    if (!f.getCanonicalPath().startsWith(
-                            tdir.getCanonicalPath())) continue;
+                    if (!PathCheck.inside(tdir, f)) continue;
                     if (e.isDirectory()) { f.mkdirs(); continue; }
                     if (f.getParentFile() != null)
                         f.getParentFile().mkdirs();

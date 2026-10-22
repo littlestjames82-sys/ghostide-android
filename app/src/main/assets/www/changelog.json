@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.26.0",
+   "date": "Oct 22, 2026",
+   "goal": "Containment is component-aware now",
+   "summary": "The audit flagged string-prefix path checks in the archive extraction code: a sibling folder whose name merely starts with the workspace name would pass. Every containment check in the Android build (workspace safe-path, eco bundle, Python runtime, git templates) now goes through one tested helper that requires a real path boundary, with a JVM truth table in CI including the sibling-prefix case. The share provider and backup service already did it this way; the desktop server uses path components throughout."
+  },
+  {
    "version": "2.25.0",
    "date": "Oct 21, 2026",
    "goal": "Control characters do not belong in paths",

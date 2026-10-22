@@ -711,7 +711,7 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.25.0\""
+                + ",\"version\":\"2.26.0\""
                 + ",\"pairRequired\":true"
                 + ",\"backupFormats\":[1,2]"
                 + ",\"targetSdk\":36"
@@ -721,7 +721,7 @@ public final class IdeServer {
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.25.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.26.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -2529,7 +2529,7 @@ public final class IdeServer {
         if (rel == null || rel.isEmpty()) throw new IOException("no path");
         File f = new File(workspace, rel).getCanonicalFile();
         File root = workspace.getCanonicalFile();
-        if (!f.getPath().startsWith(root.getPath()))
+        if (!PathCheck.inside(root, f))
             throw new IOException("path escapes workspace");
         return f;
     }
@@ -2731,8 +2731,7 @@ public final class IdeServer {
             byte[] buf = new byte[65536];
             while ((e = zin.getNextEntry()) != null) {
                 File f = new File(dir, e.getName());
-                if (!f.getCanonicalPath().startsWith(
-                        dir.getCanonicalPath())) continue;
+                if (!PathCheck.inside(dir, f)) continue;
                 if (e.isDirectory()) { f.mkdirs(); continue; }
                 if (f.getParentFile() != null)
                     f.getParentFile().mkdirs();
@@ -5000,8 +4999,7 @@ public final class IdeServer {
             byte[] buf = new byte[65536];
             while ((e = zin.getNextEntry()) != null) {
                 File f = new File(home, e.getName());
-                if (!f.getCanonicalPath().startsWith(
-                        home.getCanonicalPath())) continue;
+                if (!PathCheck.inside(home, f)) continue;
                 if (e.isDirectory()) { f.mkdirs(); continue; }
                 if (f.getParentFile() != null)
                     f.getParentFile().mkdirs();

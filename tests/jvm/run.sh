@@ -1,7 +1,7 @@
 #!/bin/bash
 # JVM unit suites (no Android runtime needed):
 # BkTest - backup crypto (v1 bounds + v2 AES-GCM),
-# ZgTest - restore ZIP guard. Compiles the real app
+# ZgTest - restore ZIP guard, PcTest - containment. Compiles the real app
 # sources against an android.util.Base64 stub.
 set -e
 cd "$(dirname "$0")"
@@ -10,8 +10,9 @@ OUT=$(mktemp -d)
 javac -d "$OUT" \
   android/util/Base64.java \
   "$APP/Json.java" "$APP/BackupCrypto.java" \
-  "$APP/ZipGuard.java" \
-  BkTest.java ZgTest.java
+  "$APP/ZipGuard.java" "$APP/PathCheck.java" \
+  BkTest.java ZgTest.java PcTest.java
 java -cp "$OUT" com.ghostide.app.BkTest
 java -cp "$OUT" com.ghostide.app.ZgTest
+java -cp "$OUT" com.ghostide.app.PcTest
 echo "JVM SUITES OK"

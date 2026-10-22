@@ -2627,3 +2627,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.25.0 (versionCode 130) - Oct 21, 2026 - R14 path hygiene
 - safe_path (py) and safe() (IdeServer + BackupService) refuse C0 controls (<32) and DEL (127) in path params before resolution. Hardening probes 14/14 live: \x01 GET refused 400, DEL write refused 400, unicode (café.txt) write still 200.
+
+## v2.26.0 (versionCode 131) - Oct 21, 2026 - R15 containment (audit item)
+- Audit follow-up: "Android archive extraction: a string-prefix canonical-path check remains - replace with path-component-aware containment." New PathCheck.inside(root, f) (equals or separator-boundary) now guards: IdeServer.safe(), eco.zip walk, pyhome.zip walk, GitSupport git-templates walk. GhostShareProvider + BackupService.safe were already component-aware (verified, unchanged); server.py safe_path is Path.parents based (verified). PcTest truth table 6/6 (root, nested, sibling-prefix REJECTED, parent rejected, dotdot-sibling rejected, dotdot-inside ok), wired into tests/jvm/run.sh so CI runs it.
