@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.33.0",
+   "date": "Oct 22, 2026",
+   "goal": "Restore survives a mid-apply kill",
+   "summary": "Restores now keep a small write-ahead journal next to the staging area. If the app or server is killed halfway through applying a backup, the next start quietly rolls every touched file back to its pre-restore state before serving anything, instead of leaving a half-applied tree. Apply targets are also containment-checked, so a restored file cannot be carried outside the workspace by a pre-existing symlink folder."
+  },
+  {
    "version": "2.32.0",
    "date": "Oct 22, 2026",
    "goal": "Pair tokens get a lifetime",

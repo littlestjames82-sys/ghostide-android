@@ -86,6 +86,200 @@ final class BackupService {
     }
 
 
+    /* v2.33: write-ahead restore journal. One JSON
+       event per line in .ghostide-restore/
+       journal.jsonl, appended and fsync'd BEFORE
+       the filesystem step it describes. If the
+       process dies mid-apply, reconcile() (server
+       startup + the top of every restore) returns
+       every touched file to its pre-restore state,
+       decided from what is actually on disk, so the
+       pass converges even if it is itself
+       interrupted. */
+    private static void journalAppend(File bkRoot,
+            String line) throws IOException {
+        java.io.FileOutputStream jOut =
+            new java.io.FileOutputStream(
+                new File(bkRoot, "journal.jsonl"),
+                true);
+        jOut.write((line + "\n").getBytes(
+            StandardCharsets.UTF_8));
+        jOut.getFD().sync();
+        jOut.close();
+    }
+
+    private static File joinPath(File base,
+            String rel) {
+        File f = base;
+        for (String part : rel.split("/"))
+            f = new File(f, part);
+        return f;
+    }
+
+    private static java.util.List<String> strList(
+            Object o) {
+        java.util.List<String> out =
+            new ArrayList<>();
+        if (o instanceof java.util.List) {
+            for (Object x
+                    : (java.util.List<?>) o)
+                out.add(String.valueOf(x));
+        }
+        return out;
+    }
+
+    private static void collectFiles(File dir,
+            java.util.List<File> out) {
+        File[] kids = dir.listFiles();
+        if (kids == null) return;
+        for (File k : kids) {
+            if (k.isDirectory()) collectFiles(k, out);
+            else out.add(k);
+        }
+    }
+
+    void reconcile() {
+        File bkRoot = new File(workspace,
+            ".ghostide-restore");
+        File bkJ = new File(bkRoot, "journal.jsonl");
+        if (!bkJ.isFile()) return;
+        File bkRoll = new File(bkRoot, "rollback");
+        try {
+            String bkText = readFile(bkJ);
+            java.util.List<Map<String, Object>>
+                bkEvents = new ArrayList<>();
+            for (String bkLine
+                    : bkText.split("\n")) {
+                if (bkLine.trim().isEmpty()) continue;
+                try {
+                    bkEvents.add(Json.obj(
+                        Json.parse(bkLine)));
+                } catch (Exception ignored) { }
+            }
+            boolean bkTerminal = false;
+            Map<String, Object> bkBegin = null;
+            java.util.Set<String> bkApplied =
+                new java.util.HashSet<>();
+            for (Map<String, Object> bkEv : bkEvents) {
+                String bkOp = Json.str(bkEv, "op", "");
+                if (bkOp.equals("done")
+                        || bkOp.equals("rolled-back"))
+                    bkTerminal = true;
+                else if (bkOp.equals("begin"))
+                    bkBegin = bkEv;
+                else if (bkOp.equals("applied"))
+                    bkApplied.add(Json.str(bkEv,
+                        "path", ""));
+            }
+            if (bkTerminal) return;
+            // A torn begin line can still parse in
+            // the lenient Json reader; only trust a
+            // begin that carries all three lists the
+            // writer always emits. Anything else
+            // falls back to the rollback copies.
+            if (bkBegin != null
+                    && (!(bkBegin.get("manifest")
+                            instanceof java.util.List)
+                        || !(bkBegin.get(
+                                "preexisting")
+                            instanceof java.util.List)
+                        || !(bkBegin.get("dirs")
+                            instanceof java.util.List)))
+                bkBegin = null;
+            if (bkBegin != null) {
+                java.util.List<String> bkManifest =
+                    strList(bkBegin.get("manifest"));
+                java.util.Set<String> bkPre =
+                    new java.util.HashSet<>(strList(
+                        bkBegin.get("preexisting")));
+                for (int i = bkManifest.size() - 1;
+                        i >= 0; i--) {
+                    String bkRel = bkManifest.get(i);
+                    File bkDst = joinPath(workspace,
+                        bkRel);
+                    File bkRb = joinPath(bkRoll,
+                        bkRel);
+                    try {
+                        if (bkRb.isFile()) {
+                            bkDst.delete();
+                            if (bkDst.getParentFile()
+                                    != null)
+                                bkDst.getParentFile()
+                                    .mkdirs();
+                            java.nio.file.Files.move(
+                                bkRb.toPath(),
+                                bkDst.toPath(),
+                                java.nio.file
+                                    .StandardCopyOption
+                                    .REPLACE_EXISTING);
+                        } else if (bkApplied
+                                .contains(bkRel)
+                                && !bkPre
+                                    .contains(bkRel)
+                                && bkDst.isFile()) {
+                            bkDst.delete();
+                        }
+                    } catch (Exception ignored) { }
+                }
+                java.util.List<String> bkDirs =
+                    strList(bkBegin.get("dirs"));
+                java.util.Collections.sort(bkDirs,
+                    new java.util.Comparator<String>() {
+                        @Override public int compare(
+                                String a, String b) {
+                            return Integer.compare(
+                                b.split("/").length,
+                                a.split("/").length);
+                        }
+                    });
+                for (String bkRel : bkDirs) {
+                    File bkDir = joinPath(workspace,
+                        bkRel);
+                    try {
+                        String[] bkKids =
+                            bkDir.list();
+                        if (bkDir.isDirectory()
+                                && bkKids != null
+                                && bkKids.length == 0)
+                            bkDir.delete();
+                    } catch (Exception ignored) { }
+                }
+            } else if (bkRoll.isDirectory()) {
+                // Torn begin line: the rollback
+                // copies are the ground truth. Move
+                // each one home over whatever the
+                // interrupted apply left behind.
+                java.util.List<File> bkOrphans =
+                    new ArrayList<>();
+                collectFiles(bkRoll, bkOrphans);
+                for (File bkRb : bkOrphans) {
+                    String bkRel = bkRoll.toPath()
+                        .relativize(bkRb.toPath())
+                        .toString().replace(
+                            File.separator, "/");
+                    File bkDst = joinPath(workspace,
+                        bkRel);
+                    try {
+                        bkDst.delete();
+                        if (bkDst.getParentFile()
+                                != null)
+                            bkDst.getParentFile()
+                                .mkdirs();
+                        java.nio.file.Files.move(
+                            bkRb.toPath(),
+                            bkDst.toPath(),
+                            java.nio.file
+                                .StandardCopyOption
+                                .REPLACE_EXISTING);
+                    } catch (Exception ignored) { }
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            deleteTree(bkRoot);
+        }
+    }
+
     /* R6: decrypt + validate the manifest WITHOUT
        applying anything, so the UI can show what a
        restore would do before it happens. */
@@ -239,6 +433,9 @@ final class BackupService {
                 ".ghostide-restore");
             File bkStage = new File(bkRoot, "stage");
             File bkRoll = new File(bkRoot, "rollback");
+            // v2.33: finish any interrupted restore
+            // before this one touches the tree.
+            reconcile();
             deleteTree(bkRoot);
             bkStage.mkdirs();
             List<String> bkPaths = new ArrayList<>();
@@ -298,6 +495,62 @@ final class BackupService {
                     bkPaths, bkSizes);
                 if (bkErr != null)
                     throw new IOException(bkErr);
+                // v2.33: journal the apply BEFORE it
+                // starts: the manifest, which of its
+                // files already exist, and which
+                // parent dirs the apply will create.
+                File bkWsCanon =
+                    workspace.getCanonicalFile();
+                java.util.List<String> bkPre =
+                    new ArrayList<>();
+                java.util.Set<String> bkDirSet =
+                    new java.util.LinkedHashSet<>();
+                for (String bkClean : bkPaths) {
+                    File bkDst = joinPath(workspace,
+                        bkClean);
+                    if (bkDst.isFile())
+                        bkPre.add(bkClean);
+                    String[] bkParts =
+                        bkClean.split("/");
+                    StringBuilder bkPrefix =
+                        new StringBuilder();
+                    for (int i = 0;
+                            i < bkParts.length - 1;
+                            i++) {
+                        if (i > 0)
+                            bkPrefix.append("/");
+                        bkPrefix.append(bkParts[i]);
+                        if (!new File(workspace,
+                                bkPrefix.toString())
+                                .isDirectory())
+                            bkDirSet.add(
+                                bkPrefix.toString());
+                    }
+                }
+                StringBuilder bkJ =
+                    new StringBuilder(
+                        "{\"op\":\"begin\","
+                        + "\"manifest\":[");
+                for (int i = 0; i < bkPaths.size();
+                        i++) {
+                    if (i > 0) bkJ.append(",");
+                    bkJ.append(Json.quote(
+                        bkPaths.get(i)));
+                }
+                bkJ.append("],\"preexisting\":[");
+                for (int i = 0; i < bkPre.size(); i++) {
+                    if (i > 0) bkJ.append(",");
+                    bkJ.append(Json.quote(
+                        bkPre.get(i)));
+                }
+                bkJ.append("],\"dirs\":[");
+                int bkDi = 0;
+                for (String bkDir : bkDirSet) {
+                    if (bkDi++ > 0) bkJ.append(",");
+                    bkJ.append(Json.quote(bkDir));
+                }
+                bkJ.append("]}");
+                journalAppend(bkRoot, bkJ.toString());
                 // Apply, keeping rollback copies of
                 // everything overwritten.
                 List<String> bkApplied =
@@ -320,11 +573,30 @@ final class BackupService {
                                 != null)
                             bkDst.getParentFile()
                                 .mkdirs();
+                        // v2.33 (scout F7): the apply
+                        // target itself is containment-
+                        // checked, so a pre-existing
+                        // symlink dir in the workspace
+                        // cannot carry a restored file
+                        // outside it.
+                        if (!PathCheck.inside(
+                                bkWsCanon,
+                                bkDst
+                                    .getCanonicalFile()))
+                            throw new IOException(
+                                "restore target "
+                                + "escapes workspace: "
+                                + bkClean);
                         if (bkDst.isFile()) {
                             if (bkRb.getParentFile()
                                     != null)
                                 bkRb.getParentFile()
                                     .mkdirs();
+                            journalAppend(bkRoot,
+                                "{\"op\":\"moved-out\","
+                                + "\"path\":"
+                                + Json.quote(bkClean)
+                                + "}");
                             java.nio.file.Files.move(
                                 bkDst.toPath(),
                                 bkRb.toPath(),
@@ -332,6 +604,11 @@ final class BackupService {
                                     .StandardCopyOption
                                     .REPLACE_EXISTING);
                         }
+                        journalAppend(bkRoot,
+                            "{\"op\":\"applied\","
+                            + "\"path\":"
+                            + Json.quote(bkClean)
+                            + "}");
                         java.nio.file.Files.move(
                             bkSrc.toPath(),
                             bkDst.toPath(),
@@ -374,10 +651,16 @@ final class BackupService {
                             }
                         } catch (Exception ignored) { }
                     }
+                    try {
+                        journalAppend(bkRoot,
+                            "{\"op\":\"rolled-back\"}");
+                    } catch (Exception ignored) { }
                     throw new IOException(
                         "restore failed and was rolled "
                         + "back: " + msg(applyErr));
                 }
+                journalAppend(bkRoot,
+                    "{\"op\":\"done\"}");
             } finally {
                 deleteTree(bkRoot);
             }
