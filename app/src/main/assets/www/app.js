@@ -33605,7 +33605,7 @@
       out.appendChild(document.createTextNode(
         d.updateAvailable ? "Update available: v" + d.latest + ". " : "You are up to date. "
       ));
-      if (d.updateAvailable && d.url) {
+      if (d.updateAvailable && d.url && /^https?:\/\//i.test(d.url)) {
         const a = document.createElement("a");
         a.href = d.url;
         a.target = "_blank";
@@ -38461,15 +38461,22 @@
         }
       }
     };
-    const inline = (t2) => t2.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, s) => '<img alt="' + alt + '" src="' + (/^(https?:|data:)/.test(s) ? s : "/api/raw?path=" + encodeURIComponent(mdResolve(base2, s))) + '">').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text, href) => {
-      if (/^https?:/.test(href)) {
-        return '<a href="' + href + '" target="_blank" rel="noopener">' + text + "</a>";
+    const escQ = (s) => s.replace(/"/g, "&quot;");
+    const inline = (t2) => t2.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, s) => '<img alt="' + escQ(alt) + '" src="' + (/^(https?:|data:)/i.test(s) ? escQ(s) : "/api/raw?path=" + encodeURIComponent(mdResolve(base2, s))) + '">').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text, href) => {
+      if (/^https?:/i.test(href) || href.startsWith("//")) {
+        return '<a href="' + escQ(href) + '" target="_blank" rel="noopener">' + text + "</a>";
+      }
+      if (/^mailto:/i.test(href)) {
+        return '<a href="' + escQ(href) + '">' + text + "</a>";
+      }
+      if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+        return text;
       }
       const resolved = mdResolve(base2, href);
       if (/\.md$/i.test(resolved)) {
-        return '<a href="#' + resolved + '" data-md="' + resolved + '">' + text + "</a>";
+        return '<a href="#' + escQ(resolved) + '" data-md="' + escQ(resolved) + '">' + text + "</a>";
       }
-      return '<a href="' + href + '">' + text + "</a>";
+      return '<a href="' + escQ(href) + '">' + text + "</a>";
     }).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/~~([^~]+)~~/g, "<del>$1</del>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/(^|\W)_([^_]+)_/g, "$1<em>$2</em>");
     for (const rawLine of lines) {
       const line = rawLine;
@@ -43546,7 +43553,8 @@
       pill.textContent = "\u2B06 v" + d.latest + " available";
       pill.classList.remove("hidden");
       pill.onclick = () => {
-        if (d.url) window.open(d.url, "_blank", "noopener");
+        if (d.url && /^https?:\/\//i.test(d.url))
+          window.open(d.url, "_blank", "noopener");
         localStorage.setItem(
           "ghostide-update-dismissed",
           d.latest

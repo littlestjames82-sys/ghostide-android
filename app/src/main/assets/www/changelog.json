@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.36.0",
+   "date": "Oct 22, 2026",
+   "goal": "Markdown preview injection fixes",
+   "summary": "Previewed markdown can no longer break out of image or link attributes with a quote, javascript:/data:/vbscript: links render as inert text, and the update-check links only accept http(s) URLs - closing a stored-XSS hole on the origin that holds the GitHub and pair tokens."
+  },
+  {
    "version": "2.35.0",
    "date": "Oct 22, 2026",
    "goal": "HTTP parsing hardening",
