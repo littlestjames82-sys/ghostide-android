@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.27.0",
+   "date": "Oct 22, 2026",
+   "goal": "Backups say who made them",
+   "summary": "New backups carry provenance in the envelope: createdBy and the exact app version that wrote them, on both builds. Readers stay tolerant, older backups restore exactly as before, and the restore preview now shows the version that made the backup when it is there. The server also keeps its version in one named constant now, so the health reply, update check, and backup meta can never drift apart."
+  },
+  {
    "version": "2.26.0",
    "date": "Oct 22, 2026",
    "goal": "Containment is component-aware now",

@@ -104,7 +104,8 @@ final class BackupCrypto {
     }
 
     static String encrypt(String pw, byte[] zip, int files,
-            long nbytes, String created) throws Exception {
+            long nbytes, String created, String appVersion)
+            throws Exception {
         java.security.SecureRandom rnd =
             new java.security.SecureRandom();
         byte[] salt = new byte[16];
@@ -120,6 +121,10 @@ final class BackupCrypto {
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
         sb.append(" \"app\": \"ghostide-backup\",\n");
+        sb.append(" \"createdBy\": \"GhostIDE\",\n");
+        sb.append(" \"appVersion\": \"")
+            .append(appVersion == null ? "" : appVersion)
+            .append("\",\n");
         sb.append(" \"v\": 2,\n");
         sb.append(" \"cipher\": \"AES-256-GCM\",\n");
         sb.append(" \"created\": ")

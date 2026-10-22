@@ -27,10 +27,13 @@ final class BackupService {
 
     private final File workspace;
     private final JsonSink sink;
+    private final String appVersion;
 
-    BackupService(File workspace, JsonSink sink) {
+    BackupService(File workspace, JsonSink sink,
+            String appVersion) {
         this.workspace = workspace;
         this.sink = sink;
+        this.appVersion = appVersion;
     }
 
     private static String msg(Exception e) {
@@ -133,7 +136,10 @@ final class BackupService {
             if (bkErr != null)
                 throw new IOException(bkErr);
             sink.send(out, "{\"ok\":true,\"version\":"
-                + bkVer + ",\"files\":" + bkPaths.size()
+                + bkVer + ",\"appVersion\":"
+                + Json.quote(Json.str(bkEnv,
+                    "appVersion", ""))
+                + ",\"files\":" + bkPaths.size()
                 + ",\"bytes\":" + bkTotal
                 + ",\"created\":"
                 + Json.quote(bkCreated) + "}");
@@ -190,7 +196,7 @@ final class BackupService {
                     .format(new java.util.Date());
             String bkEnv = BackupCrypto.encrypt(
                 bkPw, bkBuf.toByteArray(), bkCount,
-                bkTotal, bkCreated);
+                bkTotal, bkCreated, appVersion);
             File bkDir = new File(workspace, "backups");
             bkDir.mkdirs();
             String bkName = "ghostide-backup-"

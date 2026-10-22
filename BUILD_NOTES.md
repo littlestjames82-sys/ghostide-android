@@ -2630,3 +2630,8 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.26.0 (versionCode 131) - Oct 21, 2026 - R15 containment (audit item)
 - Audit follow-up: "Android archive extraction: a string-prefix canonical-path check remains - replace with path-component-aware containment." New PathCheck.inside(root, f) (equals or separator-boundary) now guards: IdeServer.safe(), eco.zip walk, pyhome.zip walk, GitSupport git-templates walk. GhostShareProvider + BackupService.safe were already component-aware (verified, unchanged); server.py safe_path is Path.parents based (verified). PcTest truth table 6/6 (root, nested, sibling-prefix REJECTED, parent rejected, dotdot-sibling rejected, dotdot-inside ok), wired into tests/jvm/run.sh so CI runs it.
+
+## v2.27.0 (versionCode 132) - Oct 21, 2026 - R16 backup provenance
+- BackupCrypto.encrypt + server.py backup_encrypt (v1 and v2 envelopes) now write createdBy: "GhostIDE" and appVersion. Decrypt ignores meta (old envelopes unaffected - BkTest legacy restore still green; BkTest asserts both new fields). Inspect returns appVersion (both), and the R7 preview appends "made by GhostIDE <version>" when present.
+- IdeServer.VERSION constant is now the single source for the health + update-check literals and the BackupService appVersion; release.py bump learned the field.
+- Push discipline note: a late-landing backgrounded push regressed ghostide-android to the v2.25 generation mid-R15; recovered by foreground re-push + content verification (manifest 2.26.0, PathCheck present). Content checks after every push from here.

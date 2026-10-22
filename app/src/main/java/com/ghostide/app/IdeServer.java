@@ -41,6 +41,7 @@ public final class IdeServer {
     private static final int MAX_BODY_BYTES =
         64 * 1024 * 1024;
     static final int PORT = 18763;
+    static final String VERSION = "2.27.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -538,7 +539,7 @@ public final class IdeServer {
                         throws IOException {
                     sendJson(out, status, json);
                 }
-            });
+            }, VERSION);
         this.git = new GitSupport(this.ctx, this.workspace,
             new GitSupport.Runner() {
                 @Override public GitSupport.Result run(
@@ -711,7 +712,7 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.26.0\""
+                + ",\"version\":" + Json.quote(VERSION)
                 + ",\"pairRequired\":true"
                 + ",\"backupFormats\":[1,2]"
                 + ",\"targetSdk\":36"
@@ -721,7 +722,8 @@ public final class IdeServer {
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.26.0\","
+            sendJson(out, "{\"ok\":false,\"current\":"
+                + Json.quote(VERSION) + ","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;

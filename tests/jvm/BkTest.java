@@ -80,10 +80,14 @@ public class BkTest {
         String pw = "correct horse battery staple";
 
         String env = BackupCrypto.encrypt(pw, zip, 3,
-            zip.length, "2026-10-21T00:00:00");
+            zip.length, "2026-10-21T00:00:00", "9.9.9-test");
         check(env.contains("\"v\": 2"), "encrypt writes v2");
         check(env.contains("AES-256-GCM"),
             "envelope names AES-256-GCM");
+        check(env.contains("\"createdBy\": \"GhostIDE\""),
+            "envelope carries createdBy (R16)");
+        check(env.contains("\"appVersion\": \"9.9.9-test\""),
+            "envelope carries appVersion (R16)");
         byte[] back = BackupCrypto.decrypt(pw, env);
         check(java.util.Arrays.equals(zip, back),
             "v2 roundtrip restores bytes");

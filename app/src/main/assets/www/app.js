@@ -43658,7 +43658,7 @@
           return;
         }
         const kb = Math.max(1, Math.round(ins.bytes / 1024));
-        if (!confirm("Restore " + p + "?\nBackup from " + (ins.created || "unknown date") + " - " + ins.files + " files, " + kb + " KB, format v" + ins.version + ". Files with the same names are overwritten.")) return;
+        if (!confirm("Restore " + p + "?\nBackup from " + (ins.created || "unknown date") + (ins.appVersion ? " - made by GhostIDE " + ins.appVersion : "") + " - " + ins.files + " files, " + kb + " KB, format v" + ins.version + ". Files with the same names are overwritten.")) return;
         const d = await postJson(
           "/api/backup/restore",
           { path: p, passphrase: pw }
