@@ -2598,3 +2598,6 @@ On-device extraction + panel proof is Ryan's.
 - Backup create + staged restore route bodies moved verbatim to BackupService.java (JsonSink interface keeps HTTP framing in IdeServer; create/restore declare IOException end-to-end). bkCollect + deleteTree moved with them. BackupService.safe() is component-aware (equals or separator-prefixed), stricter than IdeServer.safe()'s string prefix - restore path only; the general fix is R15.
 - Also in this push: the GH e2e askpass check updated for R2's per-process file (it asserted the old predictable path; CI caught the staleness - hardening 11/11, restore 15/15, pair 18/18 were green there, e2e now 19/19 locally with the fix).
 - CI state: run on the R1 commit went fully green (39714363877); later runs failed only on that stale e2e check.
+
+## v2.17.0 (versionCode 122) - Oct 21, 2026 - R6 backup inspect
+- POST /api/backup/inspect {path, passphrase} -> {ok, version, files, bytes, created}: decrypts and runs the full ZipGuard manifest validation with zero writes (no staging dir left). Desktop probes: inspect correctness (2 files / 7 bytes / created+version), wrong passphrase refused, workspace untouched. Restore probes now 25/25, incl. symlink-entry (restores as a plain file containing the target text, never a live link) and truncated-envelope (refused, earlier restore intact).

@@ -73,6 +73,69 @@ final class BackupService {
         o.close();
     }
 
+
+    /* R6: decrypt + validate the manifest WITHOUT
+       applying anything, so the UI can show what a
+       restore would do before it happens. */
+    void inspect(OutputStream out, byte[] body) {
+        try {
+            Map<String, Object> bkD = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String bkPw = Json.str(bkD, "passphrase", "");
+            File bkFile = safe(
+                Json.str(bkD, "path", ""));
+            if (!bkFile.isFile())
+                throw new IOException(
+                    "backup file not found");
+            String bkEnvText = readFile(bkFile);
+            Map<String, Object> bkEnv = Json.obj(
+                Json.parse(bkEnvText));
+            long bkVer = (long) Json.num(bkEnv, "v", 0);
+            String bkCreated = Json.str(
+                bkEnv, "created", "");
+            byte[] bkRaw = BackupCrypto.decrypt(bkPw,
+                bkEnvText);
+            java.util.zip.ZipInputStream bkZ =
+                new java.util.zip.ZipInputStream(
+                    new java.io.ByteArrayInputStream(bkRaw));
+            java.util.List<String> bkPaths =
+                new java.util.ArrayList<>();
+            java.util.List<Long> bkSizes =
+                new java.util.ArrayList<>();
+            byte[] bkChunk = new byte[8192];
+            java.util.zip.ZipEntry bkE;
+            long bkTotal = 0;
+            while ((bkE = bkZ.getNextEntry()) != null) {
+                String bkClean = ZipGuard.cleanEntry(
+                    bkE.getName());
+                if (bkClean == null || bkE.isDirectory())
+                    continue;
+                long bkN = 0;
+                int bkR;
+                while ((bkR = bkZ.read(bkChunk)) > 0)
+                    bkN += bkR;
+                bkPaths.add(bkClean);
+                bkSizes.add(bkN);
+                bkTotal += bkN;
+            }
+            bkZ.close();
+            String bkErr = ZipGuard.validate(
+                bkPaths, bkSizes);
+            if (bkErr != null)
+                throw new IOException(bkErr);
+            sink.send(out, "{\"ok\":true,\"version\":"
+                + bkVer + ",\"files\":" + bkPaths.size()
+                + ",\"bytes\":" + bkTotal
+                + ",\"created\":"
+                + Json.quote(bkCreated) + "}");
+        } catch (Exception e) {
+            try {
+                sink.send(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            } catch (Exception ignored) { }
+        }
+    }
+
     void create(OutputStream out, byte[] body)
             throws IOException {
         try {
