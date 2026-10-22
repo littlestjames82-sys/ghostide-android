@@ -161,12 +161,36 @@ final class BackupCrypto {
         if (ct.length > DATA_MAX)
             throw new Exception(
                 "damaged backup (payload too large)");
-        byte[][] k = keys(pw, salt, iter);
+        // v2.34: every envelope field is decoded and
+        // length-checked BEFORE key derivation, so a
+        // hostile file cannot make the app pay the
+        // PBKDF2 cost for a backup that was never
+        // valid.
+        byte[] iv = null;
+        byte[] nonce = null;
+        byte[] macWant = null;
         if (v == 2) {
-            byte[] iv = unb64(Json.str(env, "iv", ""));
+            iv = unb64(Json.str(env, "iv", ""));
             if (iv.length < 12 || iv.length > 16)
                 throw new Exception(
                     "damaged backup (iv length out of bounds)");
+        } else if (v == 1) {
+            nonce = unb64(Json.str(env, "nonce", ""));
+            if (nonce.length < 8 || nonce.length > 32)
+                throw new Exception(
+                    "damaged backup (nonce length out of "
+                    + "bounds)");
+            macWant = unb64(Json.str(env, "mac", ""));
+            if (macWant.length != 32)
+                throw new Exception(
+                    "damaged backup (mac length out of "
+                    + "bounds)");
+        } else {
+            throw new Exception(
+                "unsupported backup version: " + v);
+        }
+        byte[][] k = keys(pw, salt, iter);
+        if (v == 2) {
             try {
                 Cipher c = Cipher.getInstance(
                     "AES/GCM/NoPadding");
@@ -180,27 +204,13 @@ final class BackupCrypto {
                     + "(integrity check failed)");
             }
         }
-        if (v == 1) {
-            byte[] nonce = unb64(Json.str(env, "nonce", ""));
-            if (nonce.length < 8 || nonce.length > 32)
-                throw new Exception(
-                    "damaged backup (nonce length out of "
-                    + "bounds)");
-            byte[] macWant = unb64(Json.str(env, "mac", ""));
-            if (macWant.length != 32)
-                throw new Exception(
-                    "damaged backup (mac length out of "
-                    + "bounds)");
-            byte[] mac = hmac(k[1], salt, nonce, ct);
-            if (!java.security.MessageDigest.isEqual(mac,
-                    macWant))
-                throw new Exception(
-                    "wrong passphrase or damaged backup "
-                    + "(integrity check failed)");
-            return crypt(k[0], nonce, ct);
-        }
-        throw new Exception(
-            "unsupported backup version: " + v);
+        byte[] mac = hmac(k[1], salt, nonce, ct);
+        if (!java.security.MessageDigest.isEqual(mac,
+                macWant))
+            throw new Exception(
+                "wrong passphrase or damaged backup "
+                + "(integrity check failed)");
+        return crypt(k[0], nonce, ct);
     }
 
     private BackupCrypto() {}

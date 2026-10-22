@@ -2668,3 +2668,42 @@ On-device extraction + panel proof is Ryan's.
 - Scout F7 rides along: every apply target is containment-checked (PathCheck.inside on the canonical destination; resolved-path parents check in Python), so a pre-existing symlink folder in the workspace cannot carry a restored file outside it.
 - Proof: restore probes 32/32 (7 new: seeded K1/K2 state reconciled at live server startup, torn-begin fallback in-process); new JVM RsTest 11/11 (K1+K2 mix, terminal journal, torn begin, no-journal no-op); BkTest 15/15, ZgTest 14/14, PcTest 6/6, PhTest 14/14; hardening probes 14/14, pair probes 36/36, GH e2e 19/19. Honest scope: the kill proof is seeded-state reconciliation (deterministic), not a timed live kill; the journal defends against process death, not power loss (renames are not fsync'd). Journal cost: two small fsync'd appends per restored file.
 - Built APK: 20,316,779 B, md5 a34b092af8193f79e17355e51b357864, sha256 4dfb49266abc4e2ced3ae78ff6d0745c410b9010044fad6c80e8db609e69c29d, versionCode 138, compileSdk/targetSdk 36, minSdk 24, same signer; staged app.js byte-matches (frontend unchanged this round). Not uploaded (batch-final only). Build note: the reconcile dir sort uses an anonymous Comparator, not a lambda - the manual d8 pipeline rejects lambda metafactory in this tree.
+
+## v2.34.0 (versionCode 139) - Oct 22, 2026 - batch 3 R3: backup bounds
+- The backup scout's bounds findings, parent-verified: directory entries never counted against the 20,000-entry cap on either server; the Python restore preview trusted zip header sizes (a lying header understated the preview); no free-space check existed anywhere (restore could fill the disk staging a restore doomed to fail, and backup create could die mid-write leaving a truncated .ghostbak); Java duplicate detection ran only in the post-extraction validate, after the second copy had already overwritten the staged first; and some envelope fields (v2 IV, v1 nonce/MAC) were length-checked only AFTER the PBKDF2 derivation, so a hostile file burned the KDF cost before being refused.
+- Both restores now open with a counting scan pass over the decrypted archive: real streamed bytes, every non-skipped entry counted (directories included), duplicates refused, per-entry and total caps enforced - all before reconcile, before staging, before a single byte is written. The restore then refuses up front when free space cannot hold the counted total plus an 8 MB slack (Java workspace.getUsableSpace, Python shutil.disk_usage; one comparison helper per side, BackupService.enoughSpace / server._space_ok). Backup create refuses the same way when the disk cannot hold the finished envelope. The extraction loops keep their own live counters as a second line (Java extraction additionally refuses a duplicate at the second entry via a seen-set, and counts directories against the cap; Python's extraction cap now reads the seen-set size, which includes directories).
+- The Python preview (inspect) now streams and counts actual bytes exactly like restore does, so the preview and the restore can no longer disagree; a header that understates a file is either counted truly or refused outright by the reader's CRC check - never reported at the lied size. The Java preview already streamed; it now counts directory entries against the cap too.
+- Envelope validation order fixed on both sides: version, IV/nonce/MAC are decoded and length-checked BEFORE keys are derived (BackupCrypto.decrypt, server.backup_decrypt); an unsupported version is refused before the KDF as well.
+- Proof: restore probes 41/41 (8 new: _space_ok boundaries, 20,001-directory flood refused by restore AND inspect with no staging left behind, header-lie preview never reports the lied size); JVM RsTest 25/25 (11 carried + 4 space boundaries + 10 end-to-end restore() flows through a capturing sink: normal restore, duplicate refused pre-apply with the original kept, dir flood refused with no staging, lying header restores the full 5,000 bytes); BkTest 18/18 (3 new: short v2 IV / v1 nonce / v1 MAC rejected on their bounds errors, pre-KDF); ZgTest 14/14, PcTest 6/6, PhTest 14/14; hardening probes 14/14. Honest scope: the free-space comparison is unit-proven with injected values; a live low-disk refusal is not staged (the sandbox disk cannot be shrunk) - the wiring is one call per site and the normal-flow probes prove it does not misfire.
+- Built APK: 20,316,778 B, md5 e1cbf07ebdaf26a4447241f98c6bdd2d, sha256 0dfa210f0058a23c1c93e12bab22348516d9dd198b66c01129139d70b3add17d, versionCode 139, compileSdk/targetSdk 36, minSdk 24, same signer; staged app.js byte-matches (frontend unchanged this round). Not uploaded (batch-final only).
+
+## v2.34.0 (versionCode 139) - Oct 22, 2026 - Beat Cline C1-C3
+Agent v2 + Plan/Act + Checkpoints, pure offline (Ryan's pick:
+no cloud BYOK). Frontend-only feature set on endpoints both
+servers already had (/api/search, /api/terminal, /api/file/delete,
+/api/check-content, /api/diff-text), so desktop/Android parity is
+the shared bundle; Java side changed only the VERSION constant.
+- C1 Agent v2: 50 steps (was 12); actions READ/SEARCH/LIST/WRITE/
+  EDIT (patch, two-block or SEARCH/REPLACE markers, exact-single-
+  match or refused)/RUN (terminal, per-command approval UI, or
+  auto-approve for the task)/DELETE (staged)/TODO/STEP_DONE/
+  CHECK/DONE/ASK. Auto syntax check feeds back after WRITE/EDIT.
+  Persistent plan list + resumable active task in localStorage;
+  context compaction past ~56k chars with a state summary.
+- C2 Plan/Act: Plan mode toggle runs a read-only loop (mutating
+  actions refused back to the model) ending in a written plan +
+  steps; "Act on this plan" starts Agent v2 with the plan and
+  todos loaded. Plans persist in localStorage.
+- C3 Checkpoints: staged-state snapshot after every WRITE/EDIT/
+  DELETE, restore from the review panel; before an approved apply,
+  originals are saved to .ghostide/checkpoints/ckpt-<ts>.json and
+  indexed, restorable from Chat options > Checkpoints (restore
+  also resurrects deleted files and removes created ones).
+Gates: agent2 harness 35/35, all 64 UI harnesses pass (ghconnect
+run with its argv form, 19 checks), GH-connect e2e 19/19,
+hardening probes 14/14, DOM-stub past EditorView construction
+(terminal stub artifact document.defaultView, the accepted
+clean state), live desktop smoke of every agent endpoint incl.
+checkpoint write/read/delete. APK 20,324,970 B, md5
+bca185ff1f17cf82533a8fe7070329f2, same signer, staged bundle
+byte-matches the source build. Device pass is Ryan's.

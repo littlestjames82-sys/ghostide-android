@@ -50,6 +50,144 @@ public class RsTest {
             f.toPath()), StandardCharsets.UTF_8);
     }
 
+    // v2.34: end-to-end restore() drivers.
+    static BackupService.JsonSink capSink(
+            StringBuilder cap) {
+        return new BackupService.JsonSink() {
+            public void send(OutputStream out,
+                    String json) { cap.append(json); }
+            public void send(OutputStream out,
+                    int status, String json) {
+                cap.append(json);
+            }
+        };
+    }
+
+    static void writeBackup(File ws, String name,
+            byte[] zip) throws Exception {
+        String env = BackupCrypto.encrypt(
+            "pw-123456", zip, 1, zip.length,
+            "2026-10-22T00:00:00", "test");
+        put(new File(ws, "backups/" + name), env);
+    }
+
+    static String callRestore(File ws, String name)
+            throws Exception {
+        StringBuilder cap = new StringBuilder();
+        BackupService svc = new BackupService(
+            ws, capSink(cap), "test");
+        String body = "{\"passphrase\": \"pw-123456\","
+            + " \"path\": \"backups/" + name + "\"}";
+        svc.restore(
+            new java.io.ByteArrayOutputStream(),
+            body.getBytes(StandardCharsets.UTF_8));
+        return cap.toString();
+    }
+
+    /* Hand-rolled STORED zip: the JDK writers
+       refuse duplicate entry names, so the
+       duplicate-entry case has to be built at
+       the byte level. */
+    static byte[] rawZip(String[][] entries)
+            throws IOException {
+        java.io.ByteArrayOutputStream out =
+            new java.io.ByteArrayOutputStream();
+        java.util.List<byte[]> central =
+            new java.util.ArrayList<>();
+        for (String[] e : entries) {
+            byte[] name = e[0].getBytes(
+                StandardCharsets.UTF_8);
+            byte[] data = e[1] == null
+                ? new byte[0]
+                : e[1].getBytes(
+                    StandardCharsets.UTF_8);
+            java.util.zip.CRC32 crc =
+                new java.util.zip.CRC32();
+            crc.update(data);
+            int offset = out.size();
+            java.io.ByteArrayOutputStream loc =
+                new java.io.ByteArrayOutputStream();
+            writeLeInt(loc, 0x04034b50);
+            writeLeShort(loc, 20);
+            writeLeShort(loc, 0);
+            writeLeShort(loc, 0);
+            writeLeShort(loc, 0);
+            writeLeShort(loc, 0);
+            writeLeInt(loc, (int) crc.getValue());
+            writeLeInt(loc, data.length);
+            writeLeInt(loc, data.length);
+            writeLeShort(loc, name.length);
+            writeLeShort(loc, 0);
+            loc.write(name);
+            loc.write(data);
+            out.write(loc.toByteArray());
+            java.io.ByteArrayOutputStream cen =
+                new java.io.ByteArrayOutputStream();
+            writeLeInt(cen, 0x02014b50);
+            writeLeShort(cen, 20);
+            writeLeShort(cen, 20);
+            writeLeShort(cen, 0);
+            writeLeShort(cen, 0);
+            writeLeShort(cen, 0);
+            writeLeShort(cen, 0);
+            writeLeInt(cen, (int) crc.getValue());
+            writeLeInt(cen, data.length);
+            writeLeInt(cen, data.length);
+            writeLeShort(cen, name.length);
+            writeLeShort(cen, 0);
+            writeLeShort(cen, 0);
+            writeLeShort(cen, 0);
+            writeLeShort(cen, 0);
+            writeLeInt(cen, 0);
+            writeLeInt(cen, offset);
+            cen.write(name);
+            central.add(cen.toByteArray());
+        }
+        int cdStart = out.size();
+        for (byte[] c : central) out.write(c);
+        writeLeInt(out, 0x06054b50);
+        writeLeShort(out, 0);
+        writeLeShort(out, 0);
+        writeLeShort(out, entries.length);
+        writeLeShort(out, entries.length);
+        writeLeInt(out, out.size() - cdStart);
+        writeLeInt(out, cdStart);
+        writeLeShort(out, 0);
+        return out.toByteArray();
+    }
+
+    static void writeLeShort(
+            java.io.ByteArrayOutputStream out, int v) {
+        out.write(v & 0xff);
+        out.write((v >> 8) & 0xff);
+    }
+
+    static void writeLeInt(
+            java.io.ByteArrayOutputStream out, int v) {
+        out.write(v & 0xff);
+        out.write((v >> 8) & 0xff);
+        out.write((v >> 16) & 0xff);
+        out.write((v >> 24) & 0xff);
+    }
+
+    static byte[] zipOf(String[][] entries)
+            throws IOException {
+        java.io.ByteArrayOutputStream buf =
+            new java.io.ByteArrayOutputStream();
+        java.util.zip.ZipOutputStream z =
+            new java.util.zip.ZipOutputStream(buf);
+        for (String[] e : entries) {
+            z.putNextEntry(
+                new java.util.zip.ZipEntry(e[0]));
+            if (e.length > 1 && e[1] != null)
+                z.write(e[1].getBytes(
+                    StandardCharsets.UTF_8));
+            z.closeEntry();
+        }
+        z.close();
+        return buf.toByteArray();
+    }
+
     public static void main(String[] args)
             throws Exception {
         // Case 1: killed mid-apply (K1 + K2 mix).
@@ -127,6 +265,114 @@ public class RsTest {
         check(!new File(ws4, ".ghostide-restore")
                   .exists(),
               "no journal: no staging created");
+
+        // Case 5 (v2.34): the free-space precheck
+        // comparison, boundaries included. (The
+        // live wiring reads the real disk via
+        // getUsableSpace; the comparison itself
+        // is what can be unit-proven.)
+        long slack = BackupService.SPACE_SLACK;
+        check(BackupService.enoughSpace(
+                  1000 + slack, 1000),
+              "space: free == need + slack is enough");
+        check(!BackupService.enoughSpace(
+                  999 + slack, 1000),
+              "space: one byte under the slack "
+              + "refuses");
+        check(!BackupService.enoughSpace(0, 0),
+              "space: empty disk refuses even a "
+              + "zero-byte restore");
+        check(BackupService.enoughSpace(
+                  Long.MAX_VALUE / 2, 1000),
+              "space: ample disk accepts");
+
+        // Case 6 (v2.34): full restore() flows.
+        // 6a: a normal backup restores end to end.
+        File ws6 = tempWs("rstest6");
+        put(new File(ws6, "a.txt"), "OLD");
+        writeBackup(ws6, "n.ghostbak", zipOf(
+            new String[][] {{"a.txt", "NEW"},
+                            {"sub/b.txt", "B"}}));
+        String r6 = callRestore(ws6, "n.ghostbak");
+        check(r6.contains("\"ok\":true"),
+              "restore flow: normal backup ok");
+        check(get(new File(ws6, "a.txt"))
+                  .equals("NEW"),
+              "restore flow: file overwritten");
+        check(get(new File(ws6, "sub/b.txt"))
+                  .equals("B"),
+              "restore flow: nested file landed");
+
+        // 6b: duplicate entries are refused in
+        // the scan pass, before anything applies.
+        // (The JDK zip writers refuse to WRITE
+        // duplicates, so this zip is hand-rolled.)
+        File ws7 = tempWs("rstest7");
+        put(new File(ws7, "a.txt"), "KEEP");
+        writeBackup(ws7, "d.ghostbak", rawZip(
+            new String[][] {{"a.txt", "1"},
+                            {"a.txt", "2"}}));
+        String r7 = callRestore(ws7, "d.ghostbak");
+        check(r7.contains("duplicate entry"),
+              "restore flow: duplicate refused");
+        check(get(new File(ws7, "a.txt"))
+                  .equals("KEEP"),
+              "restore flow: original kept after "
+              + "duplicate refusal");
+
+        // 6c: a directory flood counts against
+        // the entry cap and is refused before
+        // any staging exists.
+        File ws8 = tempWs("rstest8");
+        java.io.ByteArrayOutputStream fbuf =
+            new java.io.ByteArrayOutputStream();
+        java.util.zip.ZipOutputStream fz =
+            new java.util.zip.ZipOutputStream(fbuf);
+        for (int i = 0; i < 20001; i++) {
+            fz.putNextEntry(
+                new java.util.zip.ZipEntry(
+                    String.format("d%05d/", i)));
+            fz.closeEntry();
+        }
+        fz.close();
+        writeBackup(ws8, "f.ghostbak",
+            fbuf.toByteArray());
+        String r8 = callRestore(ws8, "f.ghostbak");
+        check(r8.contains("too many entries"),
+              "restore flow: dir flood refused");
+        check(!new File(ws8, "d00000").exists(),
+              "restore flow: no flood dir created");
+        check(!new File(ws8, ".ghostide-restore")
+                  .exists(),
+              "restore flow: flood left no staging");
+
+        // 6d: a header that understates a file's
+        // size does not shrink the restore - the
+        // counters read the actual stream.
+        File ws9 = tempWs("rstest9");
+        StringBuilder big = new StringBuilder();
+        for (int i = 0; i < 5000; i++) big.append('A');
+        byte[] lz = zipOf(new String[][] {
+            {"big.txt", big.toString()}});
+        lz[22] = 10; lz[23] = 0; lz[24] = 0;
+        lz[25] = 0;
+        for (int i = 0; i + 4 < lz.length; i++) {
+            if (lz[i] == 'P' && lz[i + 1] == 'K'
+                    && lz[i + 2] == 1
+                    && lz[i + 3] == 2) {
+                lz[i + 24] = 10; lz[i + 25] = 0;
+                lz[i + 26] = 0; lz[i + 27] = 0;
+                break;
+            }
+        }
+        writeBackup(ws9, "l.ghostbak", lz);
+        String r9 = callRestore(ws9, "l.ghostbak");
+        check(r9.contains("\"ok\":true"),
+              "restore flow: lying header restores");
+        check(new File(ws9, "big.txt").length()
+                  == 5000,
+              "restore flow: full 5000 bytes landed, "
+              + "not the lied 10");
 
         System.out.println("RSTEST: " + ok
             + " passed, " + fail + " failed");

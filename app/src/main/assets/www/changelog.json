@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.34.0",
+   "date": "Oct 22, 2026",
+   "goal": "Beat Cline C1-C3: Agent v2, Plan/Act, Checkpoints",
+   "summary": "The agent grows up, still fully offline. Act mode now runs up to 50 steps with SEARCH, LIST, patch EDITs (not just whole-file rewrites), approval-gated terminal RUNs, and staged DELETEs, with syntax checks fed back automatically and a live plan list that survives a restart. Plan mode researches read-only and hands you a written plan; nothing is edited until you tap Act on this plan. Checkpoints snapshot the staged work after every change so review can roll back to any step, and an undo point is saved to .ghostide/checkpoints before every approved apply."
+  },
+  {
+   "version": "2.34.0",
+   "date": "Oct 22, 2026",
+   "goal": "Backup bounds",
+   "summary": "Restore counts the whole archive before touching disk (directories included) and refuses when free space cannot hold it; backup create refuses a write the disk cannot finish; the restore preview counts streamed bytes instead of trusting zip headers; duplicate entries are refused during the scan; envelope fields are validated before the password KDF runs."
+  },
+  {
    "version": "2.33.0",
    "date": "Oct 22, 2026",
    "goal": "Restore survives a mid-apply kill",

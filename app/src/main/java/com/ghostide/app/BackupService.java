@@ -29,6 +29,16 @@ final class BackupService {
     private final JsonSink sink;
     private final String appVersion;
 
+    // v2.34: free-space prechecks keep 8 MB of
+    // slack so a backup write or restore never
+    // takes the disk to absolute zero mid-operation.
+    static final long SPACE_SLACK = 8L << 20;
+
+    static boolean enoughSpace(long freeBytes,
+            long neededBytes) {
+        return freeBytes >= neededBytes + SPACE_SLACK;
+    }
+
     BackupService(File workspace, JsonSink sink,
             String appVersion) {
         this.workspace = workspace;
@@ -311,10 +321,20 @@ final class BackupService {
             byte[] bkChunk = new byte[8192];
             java.util.zip.ZipEntry bkE;
             long bkTotal = 0;
+            int bkEntries = 0;
             while ((bkE = bkZ.getNextEntry()) != null) {
                 String bkClean = ZipGuard.cleanEntry(
                     bkE.getName());
-                if (bkClean == null || bkE.isDirectory())
+                if (bkClean == null)
+                    continue;
+                // v2.34: directory entries count
+                // against the entry cap too, so the
+                // preview agrees with restore.
+                bkEntries++;
+                if (bkEntries > ZipGuard.MAX_ENTRIES)
+                    throw new IOException(
+                        "backup has too many entries");
+                if (bkE.isDirectory())
                     continue;
                 long bkN = 0;
                 int bkR;
@@ -391,6 +411,15 @@ final class BackupService {
             String bkEnv = BackupCrypto.encrypt(
                 bkPw, bkBuf.toByteArray(), bkCount,
                 bkTotal, bkCreated, appVersion);
+            // v2.34: refuse up front when the disk
+            // cannot hold the envelope, instead of
+            // dying mid-write with a truncated
+            // .ghostbak left behind.
+            if (!enoughSpace(workspace.getUsableSpace(),
+                    bkEnv.length()))
+                throw new IOException(
+                    "not enough free space to write "
+                    + "the backup file");
             File bkDir = new File(workspace, "backups");
             bkDir.mkdirs();
             String bkName = "ghostide-backup-"
@@ -423,6 +452,64 @@ final class BackupService {
                     "backup file not found");
             byte[] bkRaw = BackupCrypto.decrypt(bkPw,
                 readFile(bkFile));
+            // v2.34: count the archive first (real
+            // streamed bytes, directory entries
+            // included) and refuse before a single
+            // staging byte is written when the disk
+            // cannot hold the restore.
+            long bkScanTotal = 0;
+            {
+                java.util.zip.ZipInputStream bkS =
+                    new java.util.zip.ZipInputStream(
+                        new java.io.ByteArrayInputStream(
+                            bkRaw));
+                java.util.zip.ZipEntry bkSE;
+                byte[] bkSChunk = new byte[8192];
+                java.util.Set<String> bkSSeen =
+                    new java.util.HashSet<>();
+                while ((bkSE = bkS.getNextEntry())
+                        != null) {
+                    String bkSClean =
+                        ZipGuard.cleanEntry(
+                            bkSE.getName());
+                    if (bkSClean == null) continue;
+                    if (!bkSSeen.add(bkSClean))
+                        throw new IOException(
+                            "backup has a duplicate "
+                            + "entry: " + bkSClean);
+                    if (bkSSeen.size()
+                            > ZipGuard.MAX_ENTRIES)
+                        throw new IOException(
+                            "backup has too many "
+                            + "entries");
+                    if (bkSE.isDirectory()) continue;
+                    long bkSN = 0;
+                    int bkSR;
+                    while ((bkSR = bkS.read(bkSChunk))
+                            > 0) {
+                        bkSN += bkSR;
+                        if (bkSN
+                                > ZipGuard
+                                    .MAX_ENTRY_BYTES)
+                            throw new IOException(
+                                "backup entry too "
+                                + "large: " + bkSClean);
+                    }
+                    bkScanTotal += bkSN;
+                    if (bkScanTotal
+                            > ZipGuard.MAX_TOTAL_BYTES)
+                        throw new IOException(
+                            "backup expands past the "
+                            + "512 MB restore cap");
+                }
+                bkS.close();
+            }
+            if (!enoughSpace(
+                    workspace.getUsableSpace(),
+                    bkScanTotal))
+                throw new IOException(
+                    "not enough free space to restore "
+                    + "this backup");
             // Item 11: staged restore. Extract to a
             // staging dir under ZipGuard rules with
             // live counters, validate the manifest,
@@ -441,6 +528,9 @@ final class BackupService {
             List<String> bkPaths = new ArrayList<>();
             List<Long> bkSizes = new ArrayList<>();
             long bkTotal = 0;
+            int bkEntries = 0;
+            java.util.Set<String> bkSeen =
+                new java.util.HashSet<>();
             try {
                 java.util.zip.ZipInputStream bkZ =
                     new java.util.zip.ZipInputStream(
@@ -452,8 +542,20 @@ final class BackupService {
                     String bkClean = ZipGuard.cleanEntry(
                         bkE.getName());
                     if (bkClean == null) continue;
-                    if (bkPaths.size()
-                            >= ZipGuard.MAX_ENTRIES)
+                    // v2.34: duplicates are refused
+                    // HERE, at the second entry,
+                    // before it can overwrite the
+                    // staged first copy (validate()
+                    // only saw them after the fact);
+                    // directory entries count
+                    // against the entry cap too.
+                    if (!bkSeen.add(bkClean))
+                        throw new IOException(
+                            "backup has a duplicate "
+                            + "entry: " + bkClean);
+                    bkEntries++;
+                    if (bkEntries
+                            > ZipGuard.MAX_ENTRIES)
                         throw new IOException(
                             "backup has too many entries");
                     File bkOutF = bkStage;

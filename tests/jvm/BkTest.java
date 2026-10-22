@@ -138,6 +138,29 @@ public class BkTest {
             pw, lowIter), "out of bounds"),
             "v1 too-low iter rejected on bounds");
 
+        // v2.34: envelope field lengths are checked
+        // BEFORE key derivation - a malformed field
+        // produces its bounds error, never an
+        // integrity error after a wasted KDF.
+        String badIv = env.replaceFirst(
+            "\"iv\": \"[^\"]*\"", "\"iv\": \"AAAAAA==\"");
+        check(!badIv.equals(env)
+            && throwsWith(() -> BackupCrypto.decrypt(
+                pw, badIv), "iv length"),
+            "v2 short iv rejected on bounds (pre-KDF)");
+        String badMac = v1.replaceFirst(
+            "\"mac\": \"[^\"]*\"", "\"mac\": \"AAAA\"");
+        check(!badMac.equals(v1)
+            && throwsWith(() -> BackupCrypto.decrypt(
+                pw, badMac), "mac length"),
+            "v1 short mac rejected on bounds (pre-KDF)");
+        String badNonce = v1.replaceFirst(
+            "\"nonce\": \"[^\"]*\"", "\"nonce\": \"AAAA\"");
+        check(!badNonce.equals(v1)
+            && throwsWith(() -> BackupCrypto.decrypt(
+                pw, badNonce), "nonce length"),
+            "v1 short nonce rejected on bounds (pre-KDF)");
+
         System.out.println("BKTEST: " + ok + " passed, "
             + fail + " failed");
         System.exit(fail == 0 ? 0 : 1);

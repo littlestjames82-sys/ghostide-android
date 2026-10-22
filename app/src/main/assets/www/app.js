@@ -35105,6 +35105,11 @@
       addMsg("SYSTEM", "Model is down - hit Start model first.");
       return;
     }
+    if ($("planToggle") && $("planToggle").checked) {
+      ta.value = "";
+      runPlan(text);
+      return;
+    }
     if ($("agentToggle") && $("agentToggle").checked) {
       ta.value = "";
       runAgent(text);
@@ -36205,6 +36210,21 @@
   $("menuSplit").onclick = () => {
     $("fileMenu").classList.add("hidden");
     if (menuTarget) openSplit(menuTarget.path);
+  };
+  $("ckptBtn").onclick = () => openCheckpointsPanel();
+  $("agentResumeBtn").onclick = () => {
+    const active = agentActiveLoad();
+    if (!active || !active.task) {
+      addMsg("SYSTEM", "No saved agent task to resume.");
+      return;
+    }
+    addMsg("SYSTEM", "Resuming the saved agent task: " + active.task);
+    runAgent(active.task, {
+      plan: active.plan || "",
+      todos: active.todos || [],
+      staged: active.staged || {},
+      deletions: active.deletions || []
+    });
   };
   $("clearChatBtn").onclick = () => {
     if (!confirm("Clear this project's chat history?")) return;
@@ -40333,21 +40353,46 @@
       to
     });
   };
-  var AGENT_MAX_STEPS = 12;
+  var AGENT_MAX_STEPS = 50;
+  var AGENT_PLAN_MAX_STEPS = 20;
   var agentRunning = false;
   var agentStop = false;
   var AGENT_RULES = [
     "You are Ghost in AGENT MODE. Complete the task by",
     "replying with exactly ONE action per message:",
     "READ <path> - ask for a file's current content",
+    "SEARCH <query> - search the whole workspace for text",
+    "LIST [path] - list workspace files (optionally under a path)",
     "WRITE <path> - on the next line a fenced code block with",
     "  the file's complete new content (whole file, no fragments)",
-    "CHECK - syntax-check everything you have written",
+    "EDIT <path> - on the following lines TWO fenced blocks:",
+    "  the first holds the exact existing text to replace, the",
+    "  second the replacement text. Prefer EDIT for small changes.",
+    "RUN <command> - run a terminal command in the workspace",
+    "  (the user approves each command; output comes back to you)",
+    "DELETE <path> - stage a file for deletion",
+    "TODO <text> - add an item to the task plan list",
+    "STEP_DONE <text or number> - mark a plan item done",
+    "CHECK - syntax-check everything you have staged",
     "DONE <one-line summary> - the task is complete",
     "ASK <question> - you need the user to decide something",
     "Rules: never invent file contents - READ a file before",
-    "rewriting it. Keep every WRITE syntactically valid. Do",
-    "not explain outside the action line. You have at most " + AGENT_MAX_STEPS + " actions."
+    "rewriting it. Keep every WRITE and EDIT syntactically valid.",
+    "Do not explain outside the action line. You have at most " + AGENT_MAX_STEPS + " actions."
+  ].join("\n");
+  var AGENT_PLAN_RULES = [
+    "You are Ghost in PLAN MODE. Research the task and write a",
+    "plan. You may NOT edit anything. Reply with exactly ONE",
+    "action per message:",
+    "READ <path> - ask for a file's current content",
+    "SEARCH <query> - search the whole workspace for text",
+    "LIST [path] - list workspace files",
+    "TODO <text> - add one step of the plan",
+    "DONE <one-line summary> - on the following lines, a fenced",
+    "  block with the full written plan in markdown",
+    "ASK <question> - you need the user to decide something",
+    "Add each plan step as a TODO as you work it out, then finish",
+    "with DONE and the written plan. You have at most " + AGENT_PLAN_MAX_STEPS + " actions."
   ].join("\n");
   function parseAgentAction(reply) {
     const text = reply || "";
@@ -40367,7 +40412,272 @@
     return { type: "unknown", raw: text.slice(0, 200) };
   }
   window.__ghostParseAgent = parseAgentAction;
-  async function runAgent(task) {
+  function parseAgent2Action(reply) {
+    const text = reply || "";
+    let m = text.match(/^\s*EDIT\s+(\S+)\s*\n```[a-zA-Z0-9]*\n([\s\S]*?)```\s*\n```[a-zA-Z0-9]*\n([\s\S]*?)```/m);
+    if (m) return { type: "edit", path: m[1], oldText: m[2], newText: m[3] };
+    m = text.match(/^\s*EDIT\s+(\S+)\s*\n```[a-zA-Z0-9]*\n([\s\S]*?)```/m);
+    if (m) {
+      const parts = splitEditMarkers(m[2]);
+      if (parts) return {
+        type: "edit",
+        path: m[1],
+        oldText: parts[0],
+        newText: parts[1]
+      };
+      return { type: "editbad", path: m[1] };
+    }
+    m = text.match(/^\s*SEARCH\s+(.+)$/m);
+    if (m) return { type: "search", query: m[1].trim() };
+    m = text.match(/^\s*LIST(?:\s+(\S+))?\s*$/m);
+    if (m) return { type: "list", path: m[1] || "" };
+    m = text.match(/^\s*RUN\s+(.+)$/m);
+    if (m) return { type: "run", command: m[1].trim() };
+    m = text.match(/^\s*DELETE\s+(\S+)\s*$/m);
+    if (m) return { type: "delete", path: m[1] };
+    m = text.match(/^\s*TODO\s+(.+)$/m);
+    if (m) return { type: "todo", text: m[1].trim() };
+    m = text.match(/^\s*STEP_DONE\s+(.+)$/m);
+    if (m) return { type: "stepdone", text: m[1].trim() };
+    m = text.match(/^\s*DONE\s*(.*)$/m);
+    if (m) {
+      const fm = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)```/);
+      return {
+        type: "done",
+        summary: (m[1] || "").trim(),
+        plan: fm ? fm[1] : ""
+      };
+    }
+    m = text.match(/^\s*READ\s+(\S+)\s*$/m);
+    if (m) return { type: "read", path: m[1] };
+    m = text.match(/^\s*WRITE\s+(\S+)\s*\n```[a-zA-Z0-9]*\n([\s\S]*?)```/m);
+    if (m) {
+      let content2 = m[2];
+      if (!content2.endsWith("\n")) content2 += "\n";
+      return { type: "write", path: m[1], content: content2 };
+    }
+    if (/^\s*CHECK\s*$/m.test(text)) return { type: "check" };
+    m = text.match(/^\s*ASK\s+(.+)$/m);
+    if (m) return { type: "ask", question: m[1].trim() };
+    return { type: "unknown", raw: text.slice(0, 200) };
+  }
+  function splitEditMarkers(block) {
+    const s = /^\s*<<<<<<< SEARCH\n/.exec(block || "");
+    if (!s) return null;
+    const rest = block.slice(s[0].length);
+    const mid = rest.indexOf("\n=======\n");
+    if (mid < 0) return null;
+    const tail = rest.slice(mid + "\n=======\n".length);
+    const end = tail.indexOf("\n>>>>>>> REPLACE");
+    if (end < 0) return null;
+    return [rest.slice(0, mid + 1), tail.slice(0, end + 1)];
+  }
+  function applyEditPatch(content2, oldText, newText) {
+    if (content2 == null) return {
+      ok: false,
+      error: "file does not exist yet - create it with WRITE"
+    };
+    if (!oldText) return {
+      ok: false,
+      error: "the old-text block is empty"
+    };
+    const first = content2.indexOf(oldText);
+    if (first < 0) return {
+      ok: false,
+      error: "old text not found in the file - READ it again and copy the exact text, including whitespace"
+    };
+    if (content2.indexOf(oldText, first + 1) >= 0) return {
+      ok: false,
+      error: "old text appears more than once - include more surrounding lines so it matches exactly one place"
+    };
+    return { ok: true, content: content2.slice(0, first) + newText + content2.slice(first + oldText.length) };
+  }
+  function normalizeAgentTodos(list) {
+    const out = [];
+    if (!Array.isArray(list)) return out;
+    for (const t2 of list) {
+      if (!t2 || typeof t2.text !== "string") continue;
+      const text = t2.text.trim().slice(0, 200);
+      if (text) out.push({ text, done: !!t2.done });
+    }
+    return out.slice(0, 60);
+  }
+  function addAgentTodo(todos, text) {
+    const list = normalizeAgentTodos(todos);
+    const clean = String(text || "").trim().slice(0, 200);
+    if (clean && !list.some((t2) => t2.text === clean))
+      list.push({ text: clean, done: false });
+    return list;
+  }
+  function completeAgentTodo(todos, ref) {
+    const list = normalizeAgentTodos(todos);
+    const key = String(ref || "").trim();
+    let idx = -1;
+    if (/^\d+$/.test(key)) idx = parseInt(key, 10) - 1;
+    if (idx < 0 || idx >= list.length)
+      idx = list.findIndex((t2) => !t2.done && t2.text.toLowerCase().includes(key.toLowerCase()));
+    if (idx >= 0 && idx < list.length) list[idx].done = true;
+    return list;
+  }
+  function makeAgentCheckpoint(n, label, step, staged, deletions, todos) {
+    const s = {};
+    for (const k of Object.keys(staged || {})) s[k] = staged[k];
+    return {
+      n,
+      label: String(label || ""),
+      step,
+      staged: s,
+      deletions: (deletions || []).slice(),
+      todos: normalizeAgentTodos(todos)
+    };
+  }
+  function agentStateSummary(staged, deletions, todos) {
+    const files = Object.keys(staged || {});
+    const open = normalizeAgentTodos(todos).filter((t2) => !t2.done).map((t2) => t2.text);
+    return "State so far: " + files.length + " file(s) staged" + (files.length ? " (" + files.join(", ") + ")" : "") + ((deletions || []).length ? "; deletions staged: " + deletions.join(", ") : "") + (open.length ? "; open plan items: " + open.join(" | ") : "") + ".";
+  }
+  function compactAgentMessages(messages, summary, limit) {
+    const cap = limit || 56e3;
+    let total = 0;
+    for (const msg of messages) total += (msg.content || "").length;
+    if (total <= cap || messages.length <= 8) return messages;
+    const head = messages.slice(0, 1);
+    const tail = messages.slice(-6);
+    return head.concat([{
+      role: "user",
+      content: "Earlier steps were compacted to save context. " + summary + " Continue with exactly one action."
+    }], tail);
+  }
+  function buildDiskCheckpoint(task, originals, deletedOriginals) {
+    return {
+      kind: "ghostide-checkpoint",
+      version: 1,
+      created: (/* @__PURE__ */ new Date()).toISOString(),
+      task: String(task || "").slice(0, 300),
+      files: originals || {},
+      deleted: deletedOriginals || {}
+    };
+  }
+  function checkpointFileName(date) {
+    const d = date || /* @__PURE__ */ new Date();
+    const p = (x) => String(x).padStart(2, "0");
+    return ".ghostide/checkpoints/ckpt-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + ".json";
+  }
+  window.__ghostParseAgent2 = parseAgent2Action;
+  window.__ghostApplyEdit = applyEditPatch;
+  function agentTodosSave(todos) {
+    try {
+      localStorage.setItem(
+        "ghostide-agent2-todos",
+        JSON.stringify(normalizeAgentTodos(todos))
+      );
+    } catch (e) {
+    }
+  }
+  function agentActiveSave(state) {
+    try {
+      const s = JSON.stringify(state);
+      if (s.length <= 15e5)
+        localStorage.setItem("ghostide-agent2-active", s);
+    } catch (e) {
+    }
+  }
+  function agentActiveLoad() {
+    try {
+      return JSON.parse(
+        localStorage.getItem("ghostide-agent2-active") || "null"
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+  function agentActiveClear() {
+    try {
+      localStorage.removeItem("ghostide-agent2-active");
+    } catch (e) {
+    }
+  }
+  function ckptIndexLoad() {
+    try {
+      const v = JSON.parse(
+        localStorage.getItem("ghostide-agent2-ckpts") || "[]"
+      );
+      return Array.isArray(v) ? v : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function ckptIndexSave(list) {
+    try {
+      localStorage.setItem(
+        "ghostide-agent2-ckpts",
+        JSON.stringify(list.slice(0, 40))
+      );
+    } catch (e) {
+    }
+  }
+  function renderAgentTodos(todos, checkpoints) {
+    $("todoTitle").textContent = "\u{1F916} Agent plan";
+    const box = $("todoResults");
+    box.innerHTML = "";
+    if (!todos.length && !(checkpoints || []).length) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "No plan items yet.";
+      box.appendChild(el);
+    }
+    todos.forEach((t2, i2) => {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = (t2.done ? "\u2611 " : "\u2610 ") + (i2 + 1) + ". " + t2.text;
+      box.appendChild(row);
+    });
+    if ((checkpoints || []).length) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "\u26C9 " + checkpoints.length + " checkpoint(s) - restore points are in the review panel at the end of the task, and under Checkpoints after applying.";
+      box.appendChild(el);
+    }
+    $("todoPanel").classList.remove("hidden");
+  }
+  function agentApproveRunUi(command2) {
+    return new Promise((resolve) => {
+      const body = addMsg(
+        "SYSTEM",
+        "\u{1F916} Agent wants to run:\n" + command2 + "\nApprove this command?"
+      );
+      const row = document.createElement("div");
+      row.className = "optRow";
+      const mk = (label, val) => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.onclick = () => {
+          row.remove();
+          resolve(val);
+        };
+        row.appendChild(b);
+      };
+      mk("\u2713 Run it", "once");
+      mk("\u2713 Run, and auto-approve runs this task", "all");
+      mk("\u2716 Deny", "deny");
+      body.appendChild(row);
+    });
+  }
+  async function agentCheckOne(path, content2) {
+    try {
+      const d = await postJson(
+        "/api/check-content",
+        { path, content: content2 }
+      );
+      if (d.ok === true) return path + ": OK";
+      if (d.ok === false) return path + ": PROBLEM " + (d.message || "") + (d.line ? " (line " + d.line + ")" : "");
+      return path + ": check skipped (" + (d.note || "n/a") + ")";
+    } catch (e) {
+      return path + ": check failed (" + e + ")";
+    }
+  }
+  async function runAgent(task, opts) {
+    opts = opts || {};
     if (agentRunning) {
       addMsg("SYSTEM", "An agent task is already running.");
       return;
@@ -40379,17 +40689,22 @@
     agentRunning = true;
     agentStop = false;
     const agentT0 = Date.now();
-    addMsg("YOU", "\u{1F916} " + task);
+    const staged = new Map(Object.entries(opts.staged || {}));
+    const deletions = new Set(opts.deletions || []);
+    let todos = normalizeAgentTodos(opts.todos || []);
+    let checkpoints = [];
+    let runAllowAll = false;
+    addMsg("YOU", "\u{1F916} " + task + (opts.plan ? "\n(following the approved plan)" : ""));
     const sendBtn = $("chatSend");
     const oldSend = sendBtn.onclick;
     sendBtn.textContent = "\u25A0 Stop agent";
     sendBtn.onclick = () => {
       agentStop = true;
     };
-    const staged = /* @__PURE__ */ new Map();
     const readCache = /* @__PURE__ */ new Map();
     async function readForAgent(path) {
       if (staged.has(path)) return staged.get(path);
+      if (deletions.has(path)) return null;
       if (readCache.has(path)) return readCache.get(path);
       const r = await fetch("/api/file?path=" + encodeURIComponent(path));
       const d = await r.json();
@@ -40397,15 +40712,45 @@
       readCache.set(path, d.content);
       return d.content;
     }
+    function snapshot(label, step) {
+      const cp = makeAgentCheckpoint(
+        checkpoints.length + 1,
+        label,
+        step,
+        Object.fromEntries(staged),
+        [...deletions],
+        todos
+      );
+      checkpoints.push(cp);
+      persist();
+      return cp;
+    }
+    function persist() {
+      agentTodosSave(todos);
+      agentActiveSave({
+        task,
+        plan: opts.plan || "",
+        todos,
+        staged: Object.fromEntries(staged),
+        deletions: [...deletions],
+        checkpoints: checkpoints.map((c) => ({
+          n: c.n,
+          label: c.label,
+          step: c.step
+        })),
+        savedAt: Date.now()
+      });
+    }
     let mapText = "";
     try {
       mapText = await getRepoMap();
     } catch (e) {
     }
     const messages = [
-      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") },
-      { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") }
+      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") + (opts.plan ? "\n\nApproved plan:\n" + opts.plan : "") },
+      { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") + (todos.length ? "\nPlan items: " + todos.map((t2, i2) => i2 + 1 + ". " + t2.text).join(" | ") : "") }
     ];
+    snapshot("task start", 0);
     let outcome = "cap";
     let summary = "";
     let nudges = 0;
@@ -40421,35 +40766,106 @@
       addMsg("SYSTEM", "\u{1F916} step " + step + "/" + AGENT_MAX_STEPS);
       let reply = "";
       try {
-        reply = await collectChat(messages, 2048);
+        const compacted = compactAgentMessages(
+          messages,
+          agentStateSummary(
+            Object.fromEntries(staged),
+            [...deletions],
+            todos
+          )
+        );
+        reply = await collectChat(compacted, 2048);
       } catch (e) {
         addMsg("SYSTEM", "Agent: model call failed: " + e);
         outcome = "failed";
         break;
       }
       messages.push({ role: "assistant", content: reply });
-      const act = parseAgentAction(reply);
+      const act = parseAgent2Action(reply);
       if (act.type === "read") {
         const content2 = await readForAgent(act.path);
         addMsg("SYSTEM", "\u{1F4D6} READ " + act.path);
         messages.push({ role: "user", content: content2 == null ? "READ failed: " + act.path + " does not exist yet. You may create it with WRITE." : "Content of " + act.path + ":\n```\n" + content2.slice(0, 12e3) + "\n```" });
+      } else if (act.type === "search") {
+        const d = await postJson("/api/search", { query: act.query });
+        const ms = (d.matches || []).slice(0, 20);
+        addMsg("SYSTEM", "\u{1F50E} SEARCH " + act.query + " - " + ms.length + " match(es)");
+        messages.push({ role: "user", content: "Search results for " + act.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)") });
+      } else if (act.type === "list") {
+        const fr = await fetch("/api/files");
+        const fd = await fr.json();
+        let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
+        if (act.path) names = names.filter((p) => p === act.path || p.startsWith(act.path + "/"));
+        addMsg("SYSTEM", "\u{1F5C2} LIST " + (act.path || "(all)") + " - " + names.length + " file(s)");
+        messages.push({ role: "user", content: "Files" + (act.path ? " under " + act.path : "") + ":\n" + names.slice(0, 120).join("\n") });
       } else if (act.type === "write") {
         staged.set(act.path, act.content);
-        addMsg("SYSTEM", "\u270F\uFE0F WRITE " + act.path + " (staged - not saved)");
-        messages.push({ role: "user", content: "Staged " + act.path + ". " + staged.size + " file(s) staged. Continue." });
+        deletions.delete(act.path);
+        const note = await agentCheckOne(act.path, act.content);
+        snapshot("WRITE " + act.path, step);
+        addMsg("SYSTEM", "\u270F\uFE0F WRITE " + act.path + " (staged - not saved)\n" + note);
+        messages.push({ role: "user", content: "Staged " + act.path + ". " + staged.size + " file(s) staged. Automatic check: " + note + " Continue." });
+      } else if (act.type === "edit") {
+        const base2 = await readForAgent(act.path);
+        const r = applyEditPatch(base2, act.oldText, act.newText);
+        if (!r.ok) {
+          addMsg("SYSTEM", "\u270F\uFE0F EDIT " + act.path + " failed: " + r.error);
+          messages.push({ role: "user", content: "EDIT failed for " + act.path + ": " + r.error });
+        } else {
+          staged.set(act.path, r.content);
+          deletions.delete(act.path);
+          const note = await agentCheckOne(act.path, r.content);
+          snapshot("EDIT " + act.path, step);
+          addMsg("SYSTEM", "\u270F\uFE0F EDIT " + act.path + " (staged - not saved)\n" + note);
+          messages.push({ role: "user", content: "Edit staged for " + act.path + ". Automatic check: " + note + " Continue." });
+        }
+      } else if (act.type === "editbad") {
+        messages.push({ role: "user", content: "That EDIT for " + act.path + " had no usable patch. Send EDIT with two fenced blocks (exact old text, then replacement), or one block using <<<<<<< SEARCH / ======= / >>>>>>> REPLACE markers." });
+      } else if (act.type === "run") {
+        let verdict = runAllowAll ? "all" : await agentApproveRunUi(act.command);
+        if (verdict === "all") runAllowAll = true;
+        if (agentStop) {
+          outcome = "stopped";
+          break;
+        }
+        if (verdict === "deny") {
+          addMsg("SYSTEM", "\u26D4 RUN denied by you: " + act.command);
+          messages.push({ role: "user", content: "The user denied that command. Do not retry it; find another way or finish with DONE." });
+        } else {
+          const d = await postJson(
+            "/api/terminal",
+            { command: act.command }
+          );
+          const out = ((d.stdout || "") + (d.stderr || "")).slice(-6e3);
+          addMsg("SYSTEM", "\u25B6 RUN " + act.command + " - exit " + (d.code != null ? d.code : "?") + "\n" + out.slice(-1200));
+          messages.push({ role: "user", content: "Command ran: " + act.command + "\nExit code: " + d.code + "\nOutput (tail):\n" + (out || "(no output)") });
+        }
+      } else if (act.type === "delete") {
+        staged.delete(act.path);
+        deletions.add(act.path);
+        snapshot("DELETE " + act.path, step);
+        addMsg("SYSTEM", "\u{1F5D1} DELETE " + act.path + " (staged - not deleted yet)");
+        messages.push({ role: "user", content: "Deletion of " + act.path + " staged. It happens only if the user approves it in review. Continue." });
+      } else if (act.type === "todo") {
+        todos = addAgentTodo(todos, act.text);
+        persist();
+        renderAgentTodos(todos, checkpoints);
+        messages.push({ role: "user", content: "Plan item added. Items now: " + todos.map((t2, i2) => i2 + 1 + ". " + t2.text).join(" | ") });
+      } else if (act.type === "stepdone") {
+        todos = completeAgentTodo(todos, act.text);
+        persist();
+        renderAgentTodos(todos, checkpoints);
+        messages.push({
+          role: "user",
+          content: "Plan item marked done. Continue."
+        });
       } else if (act.type === "check") {
         const notes = [];
-        for (const [p, c] of staged) {
-          const d = await postJson(
-            "/api/check-content",
-            { path: p, content: c }
-          );
-          if (d.ok === true) notes.push(p + ": OK");
-          else if (d.ok === false) notes.push(p + ": PROBLEM " + (d.message || "") + (d.line ? " (line " + d.line + ")" : ""));
-          else notes.push(p + ": check skipped (" + (d.note || "not available") + ")");
-        }
+        for (const [p, c] of staged)
+          notes.push(await agentCheckOne(p, c));
+        if (!notes.length) notes.push("nothing staged to check");
         addMsg("SYSTEM", "\u{1F50D} CHECK\n" + notes.join("\n"));
-        messages.push({ role: "user", content: "Check results:\n" + notes.join("\n") + "\nFix any problems with another WRITE, or finish with DONE." });
+        messages.push({ role: "user", content: "Check results:\n" + notes.join("\n") + "\nFix any problems with another WRITE or EDIT, or finish with DONE." });
       } else if (act.type === "done") {
         outcome = "done";
         summary = act.summary;
@@ -40465,21 +40881,30 @@
           outcome = "failed";
           break;
         }
-        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, WRITE, CHECK, DONE, or ASK." });
+        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, DONE, or ASK." });
       }
     }
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
     agentRunning = false;
     if (outcome === "stopped") {
-      addMsg("SYSTEM", "Agent stopped by you. Nothing was written - the staged changes were discarded.");
+      addMsg("SYSTEM", "Agent stopped by you. Nothing was written - the staged changes stay saved as a resumable task (Chat options: Resume agent task).");
+      persist();
     } else if (outcome === "cap") {
       addMsg("SYSTEM", "Agent hit the " + AGENT_MAX_STEPS + "-step cap.");
     }
-    if ((outcome === "done" || outcome === "cap") && staged.size) {
-      addMsg("GHOST", "\u{1F916} " + (summary || "Task run complete") + " - review the " + staged.size + " file(s) below. Nothing is saved until you approve.");
-      openAgentReview(staged);
+    if ((outcome === "done" || outcome === "cap") && (staged.size || deletions.size)) {
+      agentActiveClear();
+      addMsg("GHOST", "\u{1F916} " + (summary || "Task run complete") + " - review the " + staged.size + " file change(s)" + (deletions.size ? " and " + deletions.size + " deletion(s)" : "") + " below. Nothing is saved until you approve.");
+      openAgentReview({
+        staged,
+        deletions,
+        checkpoints,
+        todos,
+        task
+      });
     } else if (outcome === "done") {
+      agentActiveClear();
       addMsg("GHOST", "\u{1F916} Done: " + summary);
     }
     notifyDone(
@@ -40488,7 +40913,148 @@
       agentT0
     );
   }
-  async function openAgentReview(staged) {
+  async function runPlan(task) {
+    if (agentRunning) {
+      addMsg("SYSTEM", "An agent task is already running.");
+      return;
+    }
+    agentRunning = true;
+    agentStop = false;
+    const planT0 = Date.now();
+    let todos = [];
+    addMsg("YOU", "\u{1F4DD} Plan: " + task);
+    const sendBtn = $("chatSend");
+    const oldSend = sendBtn.onclick;
+    sendBtn.textContent = "\u25A0 Stop planning";
+    sendBtn.onclick = () => {
+      agentStop = true;
+    };
+    let mapText = "";
+    try {
+      mapText = await getRepoMap();
+    } catch (e) {
+    }
+    const messages = [
+      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_PLAN_RULES + (mapText ? "\n\n" + mapText : "") },
+      { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") }
+    ];
+    const readCache = /* @__PURE__ */ new Map();
+    let planText = "";
+    let summary = "";
+    let outcome = "cap";
+    let nudges = 0;
+    for (let step = 1; step <= AGENT_PLAN_MAX_STEPS; step++) {
+      if (agentStop) {
+        outcome = "stopped";
+        break;
+      }
+      addMsg("SYSTEM", "\u{1F4DD} planning step " + step + "/" + AGENT_PLAN_MAX_STEPS);
+      let reply = "";
+      try {
+        reply = await collectChat(messages, 2048);
+      } catch (e) {
+        addMsg("SYSTEM", "Plan: model call failed: " + e);
+        outcome = "failed";
+        break;
+      }
+      messages.push({ role: "assistant", content: reply });
+      const act = parseAgent2Action(reply);
+      if (act.type === "read") {
+        let content2 = readCache.get(act.path);
+        if (content2 === void 0) {
+          const r = await fetch("/api/file?path=" + encodeURIComponent(act.path));
+          const d = await r.json();
+          content2 = d.error ? null : d.content;
+          readCache.set(act.path, content2);
+        }
+        addMsg("SYSTEM", "\u{1F4D6} READ " + act.path);
+        messages.push({ role: "user", content: content2 == null ? "READ failed: " + act.path + " does not exist." : "Content of " + act.path + ":\n```\n" + content2.slice(0, 12e3) + "\n```" });
+      } else if (act.type === "search") {
+        const d = await postJson("/api/search", { query: act.query });
+        const ms = (d.matches || []).slice(0, 20);
+        messages.push({ role: "user", content: "Search results for " + act.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)") });
+      } else if (act.type === "list") {
+        const fr = await fetch("/api/files");
+        const fd = await fr.json();
+        let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
+        if (act.path) names = names.filter((p) => p === act.path || p.startsWith(act.path + "/"));
+        messages.push({ role: "user", content: "Files:\n" + names.slice(0, 120).join("\n") });
+      } else if (act.type === "todo") {
+        todos = addAgentTodo(todos, act.text);
+        agentTodosSave(todos);
+        renderAgentTodos(todos, []);
+        messages.push({
+          role: "user",
+          content: "Plan step recorded. Continue."
+        });
+      } else if (act.type === "done") {
+        planText = act.plan || act.summary || "";
+        summary = act.summary;
+        outcome = "done";
+        break;
+      } else if (act.type === "ask") {
+        addMsg("GHOST", "\u2753 " + act.question);
+        outcome = "asked";
+        break;
+      } else if (["write", "edit", "run", "delete"].includes(act.type)) {
+        messages.push({ role: "user", content: "Plan mode is read-only: " + act.type.toUpperCase() + " is not allowed here. Record it as a TODO step instead, and finish with DONE plus the written plan." });
+      } else {
+        nudges++;
+        if (nudges > 1) {
+          outcome = "failed";
+          break;
+        }
+        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, TODO, DONE, or ASK." });
+      }
+    }
+    sendBtn.textContent = "Send";
+    sendBtn.onclick = oldSend;
+    agentRunning = false;
+    if (outcome === "done") {
+      try {
+        localStorage.setItem(
+          "ghostide-agent2-plan",
+          JSON.stringify({
+            task,
+            plan: planText,
+            todos,
+            ts: Date.now()
+          })
+        );
+      } catch (e) {
+      }
+      const body = addMsg("GHOST", "\u{1F4DD} Plan ready: " + (summary || task) + "\n\n" + planText + "\n\nSteps:\n" + (todos.length ? todos.map((t2, i2) => i2 + 1 + ". " + t2.text).join("\n") : "(no steps recorded)"));
+      const row = document.createElement("div");
+      row.className = "optRow";
+      const actBtn = document.createElement("button");
+      actBtn.textContent = "\u{1F916} Act on this plan";
+      actBtn.onclick = () => {
+        row.remove();
+        runAgent(task, { plan: planText, todos });
+      };
+      const disBtn = document.createElement("button");
+      disBtn.textContent = "Discard plan";
+      disBtn.onclick = () => {
+        row.remove();
+        addMsg("SYSTEM", "Plan discarded. Nothing was changed.");
+      };
+      row.appendChild(actBtn);
+      row.appendChild(disBtn);
+      body.appendChild(row);
+    } else if (outcome === "stopped") {
+      addMsg("SYSTEM", "Planning stopped. Nothing was changed.");
+    }
+    notifyDone(
+      "Plan finished",
+      "The planning run ended (" + outcome + ").",
+      planT0
+    );
+  }
+  async function openAgentReview(review) {
+    const staged = review.staged;
+    const deletions = review.deletions || /* @__PURE__ */ new Set();
+    const checkpoints = review.checkpoints || [];
+    const todos = review.todos || [];
     $("todoTitle").textContent = "\u{1F916} Agent changes - approve per file";
     const box = $("todoResults");
     box.innerHTML = '<div class="dim">Preparing diffs\u2026</div>';
@@ -40501,7 +41067,12 @@
     } catch (e) {
     }
     const approved = new Set(staged.keys());
+    const approvedDel = new Set(deletions);
     box.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = "Before anything is applied, the original files are saved as a checkpoint you can restore later (Chat options: Checkpoints).";
+    box.appendChild(head);
     const applyRow = document.createElement("div");
     applyRow.className = "findRow";
     const rejectRow = document.createElement("div");
@@ -40512,10 +41083,47 @@
       addMsg("SYSTEM", "Agent changes rejected - nothing was written.");
     };
     function refreshApply() {
-      applyRow.textContent = "\u2713 Apply approved (" + approved.size + " of " + staged.size + ")";
+      applyRow.textContent = "\u2713 Apply approved (" + approved.size + " of " + staged.size + " file(s)" + (deletions.size ? ", " + approvedDel.size + " of " + deletions.size + " deletion(s)" : "") + ")";
     }
     applyRow.onclick = async () => {
       $("todoPanel").classList.add("hidden");
+      const originals = {};
+      const deletedOriginals = {};
+      async function originalOf(p) {
+        try {
+          const r = await fetch("/api/file?path=" + encodeURIComponent(p));
+          const d = await r.json();
+          return d.error ? null : d.content;
+        } catch (e) {
+          return null;
+        }
+      }
+      for (const p of approved) originals[p] = await originalOf(p);
+      for (const p of approvedDel)
+        deletedOriginals[p] = await originalOf(p);
+      let ckptPath = "";
+      if (approved.size || approvedDel.size) {
+        ckptPath = checkpointFileName(/* @__PURE__ */ new Date());
+        const payload = buildDiskCheckpoint(
+          review.task || "",
+          originals,
+          deletedOriginals
+        );
+        const cd = await postJson(
+          "/api/file",
+          { path: ckptPath, content: JSON.stringify(payload) }
+        );
+        if (!cd.error) {
+          const idx = ckptIndexLoad();
+          idx.unshift({
+            path: ckptPath,
+            created: payload.created,
+            task: payload.task,
+            files: Object.keys(originals).concat(Object.keys(deletedOriginals))
+          });
+          ckptIndexSave(idx);
+        } else ckptPath = "";
+      }
       let n = 0;
       for (const [p, c] of staged) {
         if (!approved.has(p)) continue;
@@ -40529,12 +41137,47 @@
           else if (tabStates.has(p)) tabStates.delete(p);
         }
       }
+      let nd = 0;
+      for (const p of approvedDel) {
+        const d = await postJson("/api/file/delete", { path: p });
+        if (d && !d.error) nd++;
+      }
       loadFiles();
-      addMsg("SYSTEM", "Agent changes applied: " + n + " file(s) saved.");
+      addMsg("SYSTEM", "Agent changes applied: " + n + " file(s) saved" + (nd ? ", " + nd + " deleted" : "") + (ckptPath ? ". Undo point saved: " + ckptPath + " (Chat options: Checkpoints)." : "."));
     };
     refreshApply();
     box.appendChild(applyRow);
     box.appendChild(rejectRow);
+    if (checkpoints.length) {
+      const cpHead = document.createElement("div");
+      cpHead.className = "dim";
+      cpHead.textContent = "\u26C9 Checkpoints from this task - restore rolls the STAGED changes back to that step (nothing on disk changes until you apply):";
+      box.appendChild(cpHead);
+      for (const cp of checkpoints) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "\u26C9 #" + cp.n + " step " + cp.step + ": " + cp.label + " - tap to restore staged state";
+        row.onclick = () => {
+          const restored = makeAgentCheckpoint(
+            cp.n,
+            cp.label,
+            cp.step,
+            cp.staged,
+            cp.deletions,
+            cp.todos
+          );
+          openAgentReview({
+            staged: new Map(Object.entries(restored.staged)),
+            deletions: new Set(restored.deletions),
+            checkpoints,
+            todos: restored.todos,
+            task: review.task
+          });
+          addMsg("SYSTEM", "Staged state restored to checkpoint #" + cp.n + " (" + cp.label + ").");
+        };
+        box.appendChild(row);
+      }
+    }
     for (const [p, c] of staged) {
       let label = function() {
         row.textContent = (approved.has(p) ? "\u2611 " : "\u2610 ") + p + (existing.has(p) ? "" : " (new file)");
@@ -40566,6 +41209,92 @@
       };
       box.appendChild(diffRow);
     }
+    for (const p of deletions) {
+      let dlabel = function() {
+        row.textContent = (approvedDel.has(p) ? "\u2611 " : "\u2610 ") + "\u{1F5D1} delete " + p;
+      };
+      const row = document.createElement("div");
+      row.className = "findRow";
+      dlabel();
+      row.onclick = () => {
+        if (approvedDel.has(p)) approvedDel.delete(p);
+        else approvedDel.add(p);
+        dlabel();
+        refreshApply();
+      };
+      box.appendChild(row);
+    }
+  }
+  async function restoreDiskCheckpoint(entry) {
+    const r = await fetch("/api/file?path=" + encodeURIComponent(entry.path));
+    const d = await r.json();
+    if (d.error || !d.content) {
+      addMsg("SYSTEM", "Checkpoint file is missing: " + entry.path);
+      return;
+    }
+    let payload = null;
+    try {
+      payload = JSON.parse(d.content);
+    } catch (e) {
+    }
+    if (!payload || payload.kind !== "ghostide-checkpoint") {
+      addMsg("SYSTEM", "That file is not a GhostIDE checkpoint.");
+      return;
+    }
+    let n = 0;
+    for (const [p, content2] of Object.entries(payload.files || {})) {
+      if (content2 == null) {
+        const dd = await postJson("/api/file/delete", { path: p });
+        if (dd && !dd.error) n++;
+      } else {
+        const wd = await postJson("/api/file", { path: p, content: content2 });
+        if (!wd.error) n++;
+      }
+    }
+    for (const [p, content2] of Object.entries(payload.deleted || {})) {
+      if (content2 != null) {
+        const wd = await postJson("/api/file", { path: p, content: content2 });
+        if (!wd.error) n++;
+      }
+    }
+    loadFiles();
+    if (currentFile) await reloadCurrentFromDisk();
+    addMsg("SYSTEM", "Checkpoint restored: " + n + " file(s) returned to their pre-apply state (" + (payload.task || "agent task") + ").");
+  }
+  function openCheckpointsPanel() {
+    $("todoTitle").textContent = "\u{1F5C2} Agent checkpoints";
+    const box = $("todoResults");
+    box.innerHTML = "";
+    const idx = ckptIndexLoad();
+    if (!idx.length) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "No checkpoints yet. One is saved automatically before each approved agent apply.";
+      box.appendChild(el);
+    }
+    for (const entry of idx) {
+      const row = document.createElement("div");
+      row.className = "findRow";
+      row.textContent = "\u26C9 " + (entry.created || "") + " - " + (entry.task || "agent task") + " (" + (entry.files || []).length + " file(s))";
+      box.appendChild(row);
+      const rrow = document.createElement("div");
+      rrow.className = "findRow";
+      rrow.textContent = "   \u21A9 Restore this checkpoint";
+      rrow.onclick = async () => {
+        $("todoPanel").classList.add("hidden");
+        await restoreDiskCheckpoint(entry);
+      };
+      box.appendChild(rrow);
+      const drow = document.createElement("div");
+      drow.className = "findRow";
+      drow.textContent = "   \u2716 Forget this checkpoint";
+      drow.onclick = () => {
+        ckptIndexSave(ckptIndexLoad().filter((x) => x.path !== entry.path));
+        openCheckpointsPanel();
+      };
+      box.appendChild(drow);
+    }
+    $("todoPanel").classList.remove("hidden");
   }
   var testDefLines = {};
   async function openTests() {
