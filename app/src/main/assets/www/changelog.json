@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.35.0",
+   "date": "Oct 22, 2026",
+   "goal": "HTTP parsing hardening",
+   "summary": "Both servers refuse ambiguous HTTP framing: duplicate or non-numeric Content-Length and any Transfer-Encoding are hard errors, truncated bodies are refused instead of routed, header blocks may end in CRLF or a bare LF, request reads time out at 30 seconds instead of 15 minutes, and the phone server caps concurrent connections at 32."
+  },
+  {
    "version": "2.34.0",
    "date": "Oct 22, 2026",
    "goal": "Beat Cline C1-C3: Agent v2, Plan/Act, Checkpoints",

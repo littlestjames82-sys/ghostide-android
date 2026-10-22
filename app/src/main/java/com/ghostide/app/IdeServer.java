@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 
 /**
  * In-app HTTP server for the standalone GhostIDE phone app.
@@ -40,8 +41,18 @@ import java.util.Set;
 public final class IdeServer {
     private static final int MAX_BODY_BYTES =
         64 * 1024 * 1024;
+    // v2.35: the read phase (headers + body) gets
+    // 30 s per blocking read, not 15 min - a
+    // socket that trickles or stalls cannot hold
+    // a handler thread hostage. Writes are not
+    // bounded by this (long streaming responses
+    // stay legal); the cap below bounds how many
+    // connections can be in flight at once.
+    private static final int READ_TIMEOUT_MS = 30000;
+    private static final Semaphore CONN_SLOTS =
+        new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.34.0";
+    static final String VERSION = "2.35.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -575,6 +586,15 @@ public final class IdeServer {
         while (running) {
             try {
                 final Socket s = socket.accept();
+                if (!CONN_SLOTS.tryAcquire()) {
+                    // v2.35: connection cap - a flood
+                    // of half-open sockets is refused
+                    // at the door instead of spawning
+                    // unbounded handler threads.
+                    try { s.close(); }
+                    catch (IOException ignored) { }
+                    continue;
+                }
                 Thread t = new Thread(new Runnable() {
                     @Override public void run() { handle(s); }
                 }, "ghostide-conn");
@@ -592,27 +612,81 @@ public final class IdeServer {
 
     private void handle(Socket s) {
         try {
-            s.setSoTimeout(900000);
+            s.setSoTimeout(READ_TIMEOUT_MS);
             InputStream in = new BufferedInputStream(s.getInputStream());
             OutputStream out = s.getOutputStream();
             String headerBlock = readUntil(in, "\r\n\r\n");
             if (headerBlock == null) { s.close(); return; }
-            String[] lines = headerBlock.split("\r\n");
+            // v2.35: LF-only header blocks parse too
+            // (readUntil accepts both terminators);
+            // normalize before splitting lines.
+            String[] lines = headerBlock
+                .replace("\r\n", "\n").split("\n");
             String[] first = lines[0].split(" ");
+            if (first.length < 2
+                    || !first[0].matches("[A-Z]+")) {
+                sendJson(out, 400, "{\"error\":"
+                    + "\"bad request line\"}");
+                out.flush();
+                s.close();
+                return;
+            }
             String method = first[0];
-            String target = first.length > 1 ? first[1] : "/";
+            String target = first[1];
             int contentLength = 0;
             String pairTokenHdr = "";
+            String hdrError = null;
+            int hdrStatus = 400;
+            boolean clSeen = false;
             for (String ln : lines) {
                 int c = ln.indexOf(':');
-                if (c > 0 && ln.substring(0, c).trim()
-                        .equalsIgnoreCase("Content-Length")) {
-                    contentLength = Integer.parseInt(ln.substring(c + 1).trim());
+                if (c <= 0) continue;
+                String hn = ln.substring(0, c).trim();
+                String hv = ln.substring(c + 1).trim();
+                if (hn.equalsIgnoreCase(
+                        "Content-Length")) {
+                    // v2.35: a second Content-Length
+                    // (or a non-numeric one) is a
+                    // hard refusal, never a silent
+                    // last-wins / first-wins guess.
+                    if (clSeen) {
+                        if (hdrError == null)
+                            hdrError =
+                                "duplicate Content-Length";
+                    } else {
+                        clSeen = true;
+                        try {
+                            contentLength =
+                                Integer.parseInt(hv);
+                        } catch (
+                            NumberFormatException nfe) {
+                            if (hdrError == null)
+                                hdrError =
+                                    "bad Content-Length";
+                        }
+                    }
                 }
-                if (c > 0 && ln.substring(0, c).trim()
-                        .equalsIgnoreCase("X-Pair-Token")) {
-                    pairTokenHdr = ln.substring(c + 1).trim();
+                if (hn.equalsIgnoreCase(
+                        "Transfer-Encoding")
+                        && hdrError == null) {
+                    // v2.35: bodies are length-framed
+                    // only; chunked framing would be
+                    // misread as body bytes.
+                    hdrError =
+                        "chunked transfer not supported";
+                    hdrStatus = 501;
                 }
+                if (hn.equalsIgnoreCase(
+                        "X-Pair-Token")) {
+                    pairTokenHdr = hv;
+                }
+            }
+            if (hdrError != null) {
+                sendJson(out, hdrStatus, "{\"error\":"
+                    + Json.quote(hdrError) + "}");
+                out.flush();
+                s.close();
+                return;
             }
             if (contentLength < 0
                     || contentLength > MAX_BODY_BYTES) {
@@ -715,13 +789,28 @@ public final class IdeServer {
                 s.close();
                 return;
             }
-            byte[] body = contentLength > 0 ? readN(in, contentLength)
-                                            : new byte[0];
+            byte[] body;
+            try {
+                body = contentLength > 0
+                    ? readN(in, contentLength)
+                    : new byte[0];
+            } catch (IOException ioe) {
+                // v2.35: a truncated body is a 400,
+                // never a zero-padded buffer routed
+                // as if it were whole.
+                sendJson(out, 400, "{\"error\":"
+                    + "\"request body truncated\"}");
+                out.flush();
+                s.close();
+                return;
+            }
             route(s, out, method, target, body);
             out.flush();
             s.close();
         } catch (Exception e) {
             try { s.close(); } catch (Exception ignored) {}
+        } finally {
+            CONN_SLOTS.release();
         }
     }
 
@@ -5323,19 +5412,22 @@ public final class IdeServer {
 
     private static String readUntil(InputStream in, String marker)
             throws IOException {
+        // v2.35: the header block may end with
+        // CRLFCRLF or with LFLF (bare-LF clients
+        // used to hang until the read timeout);
+        // both terminate the block. The 64 KiB
+        // header cap is unchanged.
         ByteArrayOutputStream b = new ByteArrayOutputStream();
-        byte[] m = marker.getBytes(StandardCharsets.US_ASCII);
-        int matched = 0;
+        int p3 = -1, p2 = -1, p1 = -1;
         int c;
         while ((c = in.read()) >= 0) {
             b.write(c);
-            if (c == m[matched]) {
-                matched++;
-                if (matched == m.length)
-                    return new String(b.toByteArray(), StandardCharsets.UTF_8);
-            } else {
-                matched = c == m[0] ? 1 : 0;
-            }
+            if ((p3 == '\r' && p2 == '\n'
+                    && p1 == '\r' && c == '\n')
+                    || (p1 == '\n' && c == '\n'))
+                return new String(b.toByteArray(),
+                    StandardCharsets.UTF_8);
+            p3 = p2; p2 = p1; p1 = c;
             if (b.size() > 65536) return null;
         }
         return b.size() == 0 ? null
@@ -5343,13 +5435,24 @@ public final class IdeServer {
     }
 
     private static byte[] readN(InputStream in, int n) throws IOException {
-        byte[] buf = new byte[n];
-        int off = 0;
-        while (off < n) {
-            int r = in.read(buf, off, n - off);
-            if (r < 0) break;
-            off += r;
+        // v2.35: accumulate in chunks (never
+        // preallocate the declared size before a
+        // byte has arrived) and fail on a short
+        // body instead of returning a zero-padded
+        // buffer the router would trust.
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        int left = n;
+        while (left > 0) {
+            int r = in.read(chunk, 0,
+                Math.min(chunk.length, left));
+            if (r < 0)
+                throw new IOException(
+                    "request body truncated: got "
+                    + (n - left) + " of " + n);
+            b.write(chunk, 0, r);
+            left -= r;
         }
-        return buf;
+        return b.toByteArray();
     }
 }
