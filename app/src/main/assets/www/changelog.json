@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.31.0",
+   "date": "Oct 22, 2026",
+   "goal": "Twenty rounds of hardening, done",
+   "summary": "The second hardening marathon closes: pairing rate limits and guest roles, component-aware path containment, backup inspect and provenance, askpass and path hygiene, three more server splits, honest release tooling, and CI that keeps its own evidence - every round gated, both repos in step, and the second external audit's named items closed or plainly documented as open (LAN traffic is still unencrypted; see PAIRING.md). What remains is the device pass, which is yours: DEVICE_PASS_V231 lists the taps."
+  },
+  {
    "version": "2.30.0",
    "date": "Oct 22, 2026",
    "goal": "The paperwork catches up",

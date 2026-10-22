@@ -2644,3 +2644,7 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.30.0 (versionCode 135) - Oct 21, 2026 - R19 docs catch-up
 - HARDENING_PLAN.md: items 7/8/9/11/12 marked with their real outcomes + deviations (CI compile-vs-assemble, release asset credential scope, clean-root = local second environment), item 10 progress (GitSupport/PairHub/BackupService done; parsing/files/model extractions remain), new Pass 2 section covering the second audit's dispositions incl. TLS still open. BUILDING.md: CI section. Symlink/truncated probes landed earlier in R6, so this round is docs only.
+
+## v2.31.0 (versionCode 136) - Oct 21, 2026 - R20 final sweep
+- Marathon-2 capstone: no new code; the full gate suite re-run in the foreground on the final tree and recorded below at build time.
+- Final gates (foreground, on the v2.31.0 tree): 63/63 frontend harness files pass (argv-style harnesses invoked with paths); DOM-stub clean; JVM BkTest 15/15, ZgTest 14/14, PcTest 6/6; probes hardening 14/14, restore 25/25, pair 27/27, GH e2e 19/19; eco UI 17/26/15 + python eco E1 ALL PASS; staged app.js byte-matches the built bundle. APK: 20,312,683 B, md5 b71084fe1e85662fc377892864e8154e, sha256 18ce8204afed4a3ccd0af2a68f065a99a218448f0fc87e1b324288dc15d8774c, versionCode 136, compileSdk/targetSdk 36, minSdk 24, same signer.

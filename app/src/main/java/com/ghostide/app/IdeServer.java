@@ -41,7 +41,7 @@ public final class IdeServer {
     private static final int MAX_BODY_BYTES =
         64 * 1024 * 1024;
     static final int PORT = 18763;
-    static final String VERSION = "2.30.0";
+    static final String VERSION = "2.31.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
