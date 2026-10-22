@@ -13,8 +13,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * R4): presence (G16 heartbeat peers with 25 s
  * expiry), the per-boot pairing code, issued guest
  * tokens, and the join rate limiter. All state is
- * process-wide and dies with the server, which is
- * the documented revocation model (PAIRING.md).
+ * process-wide and dies with the server. Since
+ * v2.32 tokens also expire 12 h after issue and
+ * the host can revoke all guests at once
+ * (PAIRING.md).
  */
 final class PairHub {
     static final class Peer {
@@ -43,15 +45,38 @@ final class PairHub {
         viewOnly = v;
     }
 
+    /* v2.32: tokens expire 12 h after issue; the
+       host can also revoke every guest at once. */
+    static final long TOKEN_TTL_MS = 12L * 3600 * 1000;
+    private static final Map<String, Long> ISSUED =
+        new ConcurrentHashMap<>();
+
+    static boolean tokenExpired(String token, long now) {
+        Long t = ISSUED.get(token);
+        return t == null || now - t > TOKEN_TTL_MS;
+    }
+
     static String roleOf(String token) {
-        return token == null ? null : TOKENS.get(token);
+        if (token == null) return null;
+        if (tokenExpired(token,
+                System.currentTimeMillis())) {
+            TOKENS.remove(token);
+            ISSUED.remove(token);
+            return null;
+        }
+        return TOKENS.get(token);
+    }
+
+    static void revokeAll() {
+        TOKENS.clear();
+        ISSUED.clear();
     }
 
     static final int MAX_FAILS = 5;
     static final long WINDOW_MS = 600_000L;
     static final long LOCK_MS = 600_000L;
     private static final Map<String, long[]> FAILS =
-        new HashMap<>();
+        new ConcurrentHashMap<>();
 
     static void beat(String id, String name, String file,
             boolean dirty) {
@@ -86,7 +111,16 @@ final class PairHub {
     }
 
     static boolean validToken(String token) {
-        return token != null && TOKENS.containsKey(token);
+        if (token == null
+                || !TOKENS.containsKey(token))
+            return false;
+        if (tokenExpired(token,
+                System.currentTimeMillis())) {
+            TOKENS.remove(token);
+            ISSUED.remove(token);
+            return false;
+        }
+        return true;
     }
 
     static String issueToken() {
@@ -97,23 +131,33 @@ final class PairHub {
             hex.append(String.format("%02x", b));
         String token = hex.toString();
         TOKENS.put(token, viewOnly ? "viewer" : "editor");
+        ISSUED.put(token, System.currentTimeMillis());
         return token;
     }
 
+    /* v2.32: the limiter map was a plain HashMap
+       mutated from every connection thread; the
+       counter updates are now atomic under one
+       lock so parallel wrong codes cannot lose
+       increments against the lockout. */
     static boolean joinLocked(String ip, long now) {
-        long[] rec = FAILS.get(ip);
-        return rec != null && rec[2] > now;
+        synchronized (FAILS) {
+            long[] rec = FAILS.get(ip);
+            return rec != null && rec[2] > now;
+        }
     }
 
     static void joinRecord(String ip, boolean ok, long now) {
-        if (ok) { FAILS.remove(ip); return; }
-        long[] rec = FAILS.get(ip);
-        if (rec == null || now - rec[1] > WINDOW_MS)
-            rec = new long[]{0, now, 0};
-        rec[0] += 1;
-        if (rec[0] >= MAX_FAILS)
-            rec[2] = now + LOCK_MS;
-        FAILS.put(ip, rec);
+        synchronized (FAILS) {
+            if (ok) { FAILS.remove(ip); return; }
+            long[] rec = FAILS.get(ip);
+            if (rec == null || now - rec[1] > WINDOW_MS)
+                rec = new long[]{0, now, 0};
+            rec[0] += 1;
+            if (rec[0] >= MAX_FAILS)
+                rec[2] = now + LOCK_MS;
+            FAILS.put(ip, rec);
+        }
     }
 
     private PairHub() {}

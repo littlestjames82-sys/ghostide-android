@@ -41,7 +41,7 @@ public final class IdeServer {
     private static final int MAX_BODY_BYTES =
         64 * 1024 * 1024;
     static final int PORT = 18763;
-    static final String VERSION = "2.31.0";
+    static final String VERSION = "2.32.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -688,6 +688,26 @@ public final class IdeServer {
                 }
                 sendJson(out, "{\"viewOnly\":"
                     + PairHub.policyViewOnly() + "}");
+                out.flush();
+                s.close();
+                return;
+            }
+            if (reqPath.equals("/api/pair/revoke")) {
+                // v2.32: the host ejects every guest
+                // at once; ejected guests re-join
+                // through the normal code prompt.
+                if (!loopback) {
+                    sendJson(out, 403, "{\"error\":"
+                        + "\"guests are revoked "
+                        + "on the host\"}");
+                    out.flush();
+                    s.close();
+                    return;
+                }
+                if (method.equals("POST")) {
+                    PairHub.revokeAll();
+                }
+                sendJson(out, "{\"ok\":true}");
                 out.flush();
                 s.close();
                 return;

@@ -43560,6 +43560,9 @@
         pairStateRow.onclick = () => {
           try {
             localStorage.removeItem(PAIR_TOKEN_KEY);
+            localStorage.removeItem(
+              "ghostide-pair-role:" + location.host
+            );
           } catch (e) {
           }
           pairStateRow.className = "dim";
@@ -43595,6 +43598,14 @@
         if (d) renderPolicy(!!d.viewOnly);
       }).catch(() => {
       });
+      const pairRevokeRow = document.createElement("div");
+      pairRevokeRow.className = "findRow";
+      pairRevokeRow.textContent = "Revoke all guests: every paired device must enter the code again (host only; tokens also expire on their own after 12 hours)";
+      pairRevokeRow.onclick = async () => {
+        const d = await postJson("/api/pair/revoke", {});
+        pairRevokeRow.textContent = d && d.ok ? "All guests revoked. They will be asked for the code on their next request." : "Revoke failed: only the host can do this.";
+      };
+      box.appendChild(pairRevokeRow);
       await pairHeartbeat();
       if (!pairPeers.length) {
         const none5 = document.createElement("div");

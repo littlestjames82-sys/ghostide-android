@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.32.0",
+   "date": "Oct 22, 2026",
+   "goal": "Pair tokens get a lifetime",
+   "summary": "Guest tokens now expire 12 hours after issue, and the host can revoke every guest at once from the pair panel (Revoke all guests). Expired or revoked guests are simply asked for the code again. This also closes a race in the join limiter, where parallel wrong codes could lose count against the lockout."
+  },
+  {
    "version": "2.31.0",
    "date": "Oct 22, 2026",
    "goal": "Twenty rounds of hardening, done",

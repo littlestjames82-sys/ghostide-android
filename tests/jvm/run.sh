@@ -11,8 +11,10 @@ javac -d "$OUT" \
   android/util/Base64.java \
   "$APP/Json.java" "$APP/BackupCrypto.java" \
   "$APP/ZipGuard.java" "$APP/PathCheck.java" \
-  BkTest.java ZgTest.java PcTest.java
+  "$APP/PairHub.java" \
+  BkTest.java ZgTest.java PcTest.java PhTest.java
 java -cp "$OUT" com.ghostide.app.BkTest
 java -cp "$OUT" com.ghostide.app.ZgTest
 java -cp "$OUT" com.ghostide.app.PcTest
+java -cp "$OUT" com.ghostide.app.PhTest
 echo "JVM SUITES OK"
