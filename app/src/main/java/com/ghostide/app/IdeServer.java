@@ -61,6 +61,30 @@ public final class IdeServer {
     static final java.util.Set<String> PAIR_TOKENS =
         java.util.Collections.synchronizedSet(
             new java.util.HashSet<String>());
+    /* Join rate limit (round 2 R1): ip -> [count,
+       windowStartMillis, lockedUntilMillis]. */
+    static final int PAIR_MAX_FAILS = 5;
+    static final long PAIR_WINDOW_MS = 600_000L;
+    static final long PAIR_LOCK_MS = 600_000L;
+    static final java.util.Map<String, long[]> PAIR_FAILS =
+        new java.util.HashMap<>();
+
+    static boolean pairJoinLocked(String ip, long now) {
+        long[] rec = PAIR_FAILS.get(ip);
+        return rec != null && rec[2] > now;
+    }
+
+    static void pairJoinRecord(String ip, boolean ok,
+            long now) {
+        if (ok) { PAIR_FAILS.remove(ip); return; }
+        long[] rec = PAIR_FAILS.get(ip);
+        if (rec == null || now - rec[1] > PAIR_WINDOW_MS)
+            rec = new long[]{0, now, 0};
+        rec[0] += 1;
+        if (rec[0] >= PAIR_MAX_FAILS)
+            rec[2] = now + PAIR_LOCK_MS;
+        PAIR_FAILS.put(ip, rec);
+    }
 
     private static String pairPeersJson() {
         long now = System.currentTimeMillis();
@@ -696,14 +720,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.11.0\""
+                + ",\"version\":\"2.12.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.11.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.12.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1536,12 +1560,24 @@ public final class IdeServer {
             try {
                 Map<String, Object> pairD = Json.obj(Json.parse(
                     new String(body, StandardCharsets.UTF_8)));
+                String pairIp = s.getInetAddress() != null
+                    ? s.getInetAddress().getHostAddress()
+                    : "?";
+                long pairNow = System.currentTimeMillis();
+                if (pairJoinLocked(pairIp, pairNow)) {
+                    sendJson(out, 429, "{\"error\":"
+                        + "\"too many attempts, try "
+                        + "again later\"}");
+                    return;
+                }
                 if (!PAIR_CODE.equals(
                         Json.str(pairD, "code", "").trim())) {
+                    pairJoinRecord(pairIp, false, pairNow);
                     sendJson(out, 401, "{\"error\":"
                         + "\"wrong pairing code\"}");
                     return;
                 }
+                pairJoinRecord(pairIp, true, pairNow);
                 byte[] pairRaw = new byte[16];
                 new java.security.SecureRandom()
                     .nextBytes(pairRaw);

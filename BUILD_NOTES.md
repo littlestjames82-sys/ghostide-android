@@ -2580,3 +2580,6 @@ On-device extraction + panel proof is Ryan's.
 - Found while gating (not an app regression): the E1 eco parity harness compared IDE stats against a CLI run whose PYTHONPATH lacked GhostSlice, so the CLI used the v1 fallback estimator while the IDE used calibrated v2. The harness env was fixed (ghostslice/src added) and E1 re-ran ALL PASS. Note for the ECO line: harness drift, no app change.
 - Suites now live in the repos (item 8 prep): ghost-ide tools/harness (57 files) + tools/probes (hardening/restore/pair/gh-e2e, repo-relative paths), ghostide-android tests/jvm (BkTest + ZgTest + Base64 stub + run.sh), CI workflow at ghostide-android/.github/workflows/ci.yml.
 - Built APK: 20,304,487 B, md5 03f95ed5aab3975e75f1605f0f262755, SHA-256 recorded with the GitHub Release.
+
+## v2.12.0 (versionCode 117) - Oct 21, 2026 - R1 pair join rate limit
+- Both servers: PAIR_MAX_FAILS=5 wrong codes per source inside 10 min locks joins from that source for 10 min (HTTP 429 "too many attempts"); success clears the record. Python decision helpers (pair_join_locked/pair_join_record) unit-probed incl. window/lock boundaries; live loopback lockout proven (5x401 then 429 on the right code). Pair probes 18/18. Java mirrors with the same constants (compile-gated at build).
