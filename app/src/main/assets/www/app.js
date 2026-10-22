@@ -43519,6 +43519,15 @@
         pairStateRow.className = "dim";
         pairStateRow.textContent = "This device holds no pair token for this host. The host's own screen never needs one.";
       }
+      const pairInfoRow = document.createElement("div");
+      pairInfoRow.className = "dim";
+      box.appendChild(pairInfoRow);
+      fetch("/api/health").then((r) => r.ok ? r.json() : null).then((h) => {
+        if (!h) return;
+        pairInfoRow.textContent = "Host build " + (h.version || "?") + " - pairing required for other devices: " + (h.pairRequired ? "yes" : "no") + " - backups: format v" + (h.backupFormats || [1]).join(" + v");
+      }).catch(() => {
+        pairInfoRow.textContent = "";
+      });
       await pairHeartbeat();
       if (!pairPeers.length) {
         const none5 = document.createElement("div");

@@ -2604,3 +2604,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.18.0 (versionCode 123) - Oct 21, 2026 - R7 restore preview dialog
 - Frontend: the restore row now prompts for the passphrase, calls /api/backup/inspect, and only then confirms with "Backup from <created> - N files, K KB, format vV". Inspect errors (wrong passphrase, hostile manifest) surface before any overwrite. backupui harness 6/6; DOM-stub clean.
+
+## v2.19.0 (versionCode 124) - Oct 21, 2026 - R8 health build info
+- /api/health (both): pairRequired: true, backupFormats: [1, 2]; Android also targetSdk: 36. Pair panel renders a host-build line from it (version / pairing required / backup formats).
