@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.15.0",
+   "date": "Oct 20, 2026",
+   "goal": "PairHub: pair state leaves the server class",
+   "summary": "Internal split, no behavior change: pair presence, the pairing code, guest tokens, and the join rate limiter moved from IdeServer into a dedicated PairHub class, the second step of the server split after GitSupport. The heartbeat, peers, join, and gate call sites are unchanged in shape, and the pair probe suite passes unchanged."
+  },
+  {
    "version": "2.14.0",
    "date": "Oct 20, 2026",
    "goal": "Pair panel: status and unpair",

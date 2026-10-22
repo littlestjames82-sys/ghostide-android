@@ -43,70 +43,6 @@ public final class IdeServer {
     static final int PORT = 18763;
     private volatile String modelName;
 
-    // Pair mode presence (Roadmap G16), mirrors server.py.
-    static final class PairPeer {
-        String id, name, file;
-        boolean dirty;
-        long seen;
-    }
-    private static final java.util.Map<String, PairPeer> PAIR =
-        new java.util.concurrent.ConcurrentHashMap<>();
-
-    /* Pair trust (item 12): a per-boot 6-digit code
-       gates every /api route for non-loopback
-       callers; loopback is trusted. PAIRING.md. */
-    static final String PAIR_CODE = String.format(
-        java.util.Locale.US, "%06d",
-        new java.security.SecureRandom().nextInt(1000000));
-    static final java.util.Set<String> PAIR_TOKENS =
-        java.util.Collections.synchronizedSet(
-            new java.util.HashSet<String>());
-    /* Join rate limit (round 2 R1): ip -> [count,
-       windowStartMillis, lockedUntilMillis]. */
-    static final int PAIR_MAX_FAILS = 5;
-    static final long PAIR_WINDOW_MS = 600_000L;
-    static final long PAIR_LOCK_MS = 600_000L;
-    static final java.util.Map<String, long[]> PAIR_FAILS =
-        new java.util.HashMap<>();
-
-    static boolean pairJoinLocked(String ip, long now) {
-        long[] rec = PAIR_FAILS.get(ip);
-        return rec != null && rec[2] > now;
-    }
-
-    static void pairJoinRecord(String ip, boolean ok,
-            long now) {
-        if (ok) { PAIR_FAILS.remove(ip); return; }
-        long[] rec = PAIR_FAILS.get(ip);
-        if (rec == null || now - rec[1] > PAIR_WINDOW_MS)
-            rec = new long[]{0, now, 0};
-        rec[0] += 1;
-        if (rec[0] >= PAIR_MAX_FAILS)
-            rec[2] = now + PAIR_LOCK_MS;
-        PAIR_FAILS.put(ip, rec);
-    }
-
-    private static String pairPeersJson() {
-        long now = System.currentTimeMillis();
-        StringBuilder sb = new StringBuilder("{\"peers\":[");
-        boolean first = true;
-        for (PairPeer p : PAIR.values()) {
-            if (now - p.seen > 25000) {
-                PAIR.remove(p.id);
-                continue;
-            }
-            if (!first) sb.append(",");
-            first = false;
-            sb.append("{\"id\":").append(Json.quote(p.id))
-                .append(",\"name\":").append(Json.quote(p.name))
-                .append(",\"file\":").append(Json.quote(p.file))
-                .append(",\"dirty\":").append(p.dirty)
-                .append(",\"seen\":").append(p.seen)
-                .append("}");
-        }
-        return sb.append("]}").toString();
-    }
-
     void setModelName(String n) { modelName = n; }
 
     private static final String[] CUT_MARKERS = {
@@ -684,7 +620,7 @@ public final class IdeServer {
                         + "\"pairing code is only shown "
                         + "on the host\"}");
                 } else {
-                    sendJson(out, "{\"code\":\"" + PAIR_CODE
+                    sendJson(out, "{\"code\":\"" + PairHub.CODE
                         + "\"}");
                 }
                 out.flush();
@@ -693,7 +629,7 @@ public final class IdeServer {
             }
             if (!loopback && reqPath.startsWith("/api/")
                     && !reqPath.equals("/api/pair/join")
-                    && !PAIR_TOKENS.contains(pairTokenHdr)) {
+                    && !PairHub.validToken(pairTokenHdr)) {
                 sendJson(out, 401, "{\"error\":"
                     + "\"pairing required\"}");
                 out.flush();
@@ -720,14 +656,14 @@ public final class IdeServer {
         if (path.equals("/api/health")) {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
-                + ",\"version\":\"2.14.0\""
+                + ",\"version\":\"2.15.0\""
                 + ",\"workspace\":\"on-device\"}");
             return;
         }
         if (path.equals("/api/update/check")) {
             // Roadmap G18: on the phone, updates arrive as
             // new APK builds; the check reports, never acts.
-            sendJson(out, "{\"ok\":false,\"current\":\"2.14.0\","
+            sendJson(out, "{\"ok\":false,\"current\":\"2.15.0\","
                 + "\"note\":\"On the phone, updates arrive as "
                 + "new APK builds.\"}");
             return;
@@ -1564,29 +1500,21 @@ public final class IdeServer {
                     ? s.getInetAddress().getHostAddress()
                     : "?";
                 long pairNow = System.currentTimeMillis();
-                if (pairJoinLocked(pairIp, pairNow)) {
+                if (PairHub.joinLocked(pairIp, pairNow)) {
                     sendJson(out, 429, "{\"error\":"
                         + "\"too many attempts, try "
                         + "again later\"}");
                     return;
                 }
-                if (!PAIR_CODE.equals(
+                if (!PairHub.CODE.equals(
                         Json.str(pairD, "code", "").trim())) {
-                    pairJoinRecord(pairIp, false, pairNow);
+                    PairHub.joinRecord(pairIp, false, pairNow);
                     sendJson(out, 401, "{\"error\":"
                         + "\"wrong pairing code\"}");
                     return;
                 }
-                pairJoinRecord(pairIp, true, pairNow);
-                byte[] pairRaw = new byte[16];
-                new java.security.SecureRandom()
-                    .nextBytes(pairRaw);
-                StringBuilder pairHex = new StringBuilder();
-                for (byte pairB : pairRaw)
-                    pairHex.append(String.format(
-                        "%02x", pairB));
-                String pairToken = pairHex.toString();
-                PAIR_TOKENS.add(pairToken);
+                PairHub.joinRecord(pairIp, true, pairNow);
+                String pairToken = PairHub.issueToken();
                 sendJson(out, "{\"ok\":true,\"token\":"
                     + Json.quote(pairToken) + "}");
             } catch (Exception e) {
@@ -1602,17 +1530,14 @@ public final class IdeServer {
                     new String(body, StandardCharsets.UTF_8)));
                 String pairId = Json.str(pairD, "id", "");
                 if (!pairId.isEmpty()) {
-                    PairPeer pairP = new PairPeer();
-                    pairP.id = pairId;
-                    pairP.name = Json.str(pairD, "name", "device");
-                    pairP.file = Json.str(pairD, "file", "");
                     Object pairDirty = pairD.get("dirty");
-                    pairP.dirty = pairDirty != null
-                        && "true".equals(String.valueOf(pairDirty));
-                    pairP.seen = System.currentTimeMillis();
-                    PAIR.put(pairId, pairP);
+                    PairHub.beat(pairId,
+                        Json.str(pairD, "name", "device"),
+                        Json.str(pairD, "file", ""),
+                        pairDirty != null
+                        && "true".equals(String.valueOf(pairDirty)));
                 }
-                sendJson(out, pairPeersJson());
+                sendJson(out, PairHub.peersJson());
             } catch (Exception e) {
                 sendJson(out, 400, "{\"error\":"
                     + Json.quote(msg(e)) + "}");
@@ -2415,7 +2340,7 @@ public final class IdeServer {
             return;
         }
         if (path.equals("/api/pair/peers")) {
-            sendJson(out, pairPeersJson());
+            sendJson(out, PairHub.peersJson());
             return;
         }
         if (path.equals("/api/todos")) {

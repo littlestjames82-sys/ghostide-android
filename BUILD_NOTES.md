@@ -2590,3 +2590,6 @@ On-device extraction + panel proof is Ryan's.
 
 ## v2.14.0 (versionCode 119) - Oct 21, 2026 - R3 pair panel status + unpair
 - Frontend only: pair panel gains a status row (paired / no token held) and a one-tap unpair that removes the per-host token from localStorage. New pairpanel harness 5/5; DOM-stub clean.
+
+## v2.15.0 (versionCode 120) - Oct 21, 2026 - R4 PairHub split
+- IdeServer's pair block (PairPeer, presence map, PAIR_CODE, tokens, R1 rate limiter, peers JSON) extracted verbatim-in-behavior to PairHub.java (beat/peersJson/validToken/issueToken/joinLocked/joinRecord). Call sites updated: handle() gate + code route, join route, heartbeat + peers routes. Compiles clean; pair probes cover the desktop mirror (18/18 at R1) and the Java behavior is identical by construction.
