@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.38.0",
+   "date": "Oct 22, 2026",
+   "goal": "LAN pairing is encrypted (TLS phase 1)",
+   "summary": "Desktop hosts now serve LAN guests over HTTPS with a persistent self-signed certificate: loopback stays plain HTTP, the pair panel and console show the cert fingerprint guests verify before typing the code, and a loud plain-HTTP fallback covers desktops that cannot generate a cert."
+  },
+  {
    "version": "2.37.0",
    "date": "Oct 22, 2026",
    "goal": "Autosave untangle",

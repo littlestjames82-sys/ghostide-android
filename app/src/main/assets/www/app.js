@@ -44262,6 +44262,18 @@
       }).catch(() => {
         codeRow.textContent = "";
       });
+      const fpRow = document.createElement("div");
+      fpRow.className = "dim";
+      box.appendChild(fpRow);
+      fetch("/api/pair/certfp").then((r) => r.ok ? r.json() : null).then((d) => {
+        if (!d) {
+          fpRow.textContent = "";
+          return;
+        }
+        fpRow.textContent = d.tls && d.fingerprint ? "LAN encryption is ON for this host. Certificate fingerprint: " + d.fingerprint + " - a guest checks this matches the fingerprint in their browser before entering the code." : "LAN encryption is OFF for this host right now: if LAN mode is on, guests pair over plain HTTP. Pair only on networks you trust.";
+      }).catch(() => {
+        fpRow.textContent = "";
+      });
       const pairStateRow = document.createElement("div");
       box.appendChild(pairStateRow);
       if (storedPairToken()) {
