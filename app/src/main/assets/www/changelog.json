@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.14.0",
+   "date": "Oct 20, 2026",
+   "goal": "Pair panel: status and unpair",
+   "summary": "The pair panel now says plainly whether this device holds a pair token for the host, and a paired guest can unpair with one tap, which forgets the stored token on this device. The host code line stays as before. Unpairing is per device; restarting the host still revokes every guest at once."
+  },
+  {
    "version": "2.13.0",
    "date": "Oct 20, 2026",
    "goal": "Askpass script hygiene",

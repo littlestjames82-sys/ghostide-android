@@ -43502,6 +43502,23 @@
       }).catch(() => {
         codeRow.textContent = "";
       });
+      const pairStateRow = document.createElement("div");
+      box.appendChild(pairStateRow);
+      if (storedPairToken()) {
+        pairStateRow.className = "findRow";
+        pairStateRow.textContent = "This device is paired with this host. Tap to unpair: the stored token is forgotten on this device.";
+        pairStateRow.onclick = () => {
+          try {
+            localStorage.removeItem(PAIR_TOKEN_KEY);
+          } catch (e) {
+          }
+          pairStateRow.className = "dim";
+          pairStateRow.textContent = "Unpaired. Reload and enter the code again to re-pair.";
+        };
+      } else {
+        pairStateRow.className = "dim";
+        pairStateRow.textContent = "This device holds no pair token for this host. The host's own screen never needs one.";
+      }
       await pairHeartbeat();
       if (!pairPeers.length) {
         const none5 = document.createElement("div");

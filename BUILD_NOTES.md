@@ -2587,3 +2587,6 @@ On-device extraction + panel proof is Ryan's.
 ## v2.13.0 (versionCode 118) - Oct 21, 2026 - R2 askpass hygiene
 - Desktop: _ensure_askpass now uses tempfile.mkstemp (unique per process, 0600 -> 0700) and always writes the script itself; the old predictable $TMPDIR/ghostide-askpass.sh path is gone. Probe: a planted decoy at the old path (mode 777, hostile content) is ignored; the ensured file is unique, owner-only, and ours.
 - Android: GitSupport.askpassFile explicitly resets the file to owner read/write before making it executable (it already lived in the app-private files dir).
+
+## v2.14.0 (versionCode 119) - Oct 21, 2026 - R3 pair panel status + unpair
+- Frontend only: pair panel gains a status row (paired / no token held) and a one-tap unpair that removes the per-host token from localStorage. New pairpanel harness 5/5; DOM-stub clean.
