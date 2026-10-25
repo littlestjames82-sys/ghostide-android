@@ -4885,18 +4885,19 @@ public final class IdeServer {
 
     private static String readFile(File f) throws IOException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
-        FileInputStream in = new FileInputStream(f);
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = in.read(buf)) >= 0) b.write(buf, 0, n);
-        in.close();
+        try (FileInputStream in = new FileInputStream(f)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) >= 0)
+                b.write(buf, 0, n);
+        }
         return new String(b.toByteArray(), StandardCharsets.UTF_8);
     }
 
     private static void writeFile(File f, String content) throws IOException {
-        FileOutputStream o = new FileOutputStream(f);
-        o.write(content.getBytes(StandardCharsets.UTF_8));
-        o.close();
+        try (FileOutputStream o = new FileOutputStream(f)) {
+            o.write(content.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     private void collectAllFiles(File dir, List<File> out) {
@@ -4910,13 +4911,15 @@ public final class IdeServer {
     }
 
     private static byte[] readBytes(File f) throws IOException {
-        java.io.FileInputStream in = new java.io.FileInputStream(f);
         java.io.ByteArrayOutputStream b =
             new java.io.ByteArrayOutputStream();
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = in.read(buf)) >= 0) b.write(buf, 0, n);
-        in.close();
+        try (java.io.FileInputStream in =
+                new java.io.FileInputStream(f)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) >= 0)
+                b.write(buf, 0, n);
+        }
         return b.toByteArray();
     }
 
