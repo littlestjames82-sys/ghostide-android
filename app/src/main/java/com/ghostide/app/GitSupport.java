@@ -110,17 +110,19 @@ final class GitSupport {
                     if (e.isDirectory()) { f.mkdirs(); continue; }
                     if (f.getParentFile() != null)
                         f.getParentFile().mkdirs();
-                    FileOutputStream fo = new FileOutputStream(f);
-                    int n;
-                    while ((n = zin.read(buf)) > 0)
-                        fo.write(buf, 0, n);
-                    fo.close();
+                    try (FileOutputStream fo =
+                            new FileOutputStream(f)) {
+                        int n;
+                        while ((n = zin.read(buf)) > 0)
+                            fo.write(buf, 0, n);
+                    }
                 }
                 zin.close();
                 zin = null;
-                FileOutputStream so = new FileOutputStream(stamp);
-                so.write(1);
-                so.close();
+                try (FileOutputStream so =
+                        new FileOutputStream(stamp)) {
+                    so.write(1);
+                }
             } catch (Exception ex) {
                 if (zin != null) {
                     try { zin.close(); } catch (Exception z) {}
@@ -202,15 +204,15 @@ final class GitSupport {
         File f = new File(ctx.getFilesDir(), "askpass.sh");
         if (!f.exists()) {
             try {
-                java.io.FileOutputStream o =
-                    new java.io.FileOutputStream(f);
-                o.write(("#!/bin/sh\n"
-                    + "case \"$1\" in\n"
-                    + "*Username*) echo \"x-access-token\" ;;\n"
-                    + "*) echo \"$GHOSTIDE_GH_TOKEN\" ;;\n"
-                    + "esac\n").getBytes(
-                        StandardCharsets.UTF_8));
-                o.close();
+                try (java.io.FileOutputStream o =
+                        new java.io.FileOutputStream(f)) {
+                    o.write(("#!/bin/sh\n"
+                        + "case \"$1\" in\n"
+                        + "*Username*) echo \"x-access-token\" ;;\n"
+                        + "*) echo \"$GHOSTIDE_GH_TOKEN\" ;;\n"
+                        + "esac\n").getBytes(
+                            StandardCharsets.UTF_8));
+                }
                 // R2: owner-only, even inside the
                 // app sandbox.
                 f.setReadable(false, false);
