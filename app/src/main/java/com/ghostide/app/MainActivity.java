@@ -1219,8 +1219,9 @@ public class MainActivity extends Activity {
     }
 
     private void doSyncPull(String base) {
+        java.net.HttpURLConnection conn = null;
         try {
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
+            conn = (java.net.HttpURLConnection)
                 new java.net.URL(base + "/api/sync/bundle")
                     .openConnection();
             conn.setConnectTimeout(10000);
@@ -1253,10 +1254,13 @@ public class MainActivity extends Activity {
             toastOnUi("Sync failed: " + e.getMessage()
                 + " - is the desktop IDE running in LAN mode on "
                 + "the same WiFi?");
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 
     private void doSyncPush(String base) {
+        java.net.HttpURLConnection conn = null;
         try {
             List<File> files = new ArrayList<>();
             collectFiles(server.workspaceDir(), files);
@@ -1276,7 +1280,7 @@ public class MainActivity extends Activity {
             payload.put("files", arr);
             byte[] bytes = payload.toString().getBytes(
                 java.nio.charset.StandardCharsets.UTF_8);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
+            conn = (java.net.HttpURLConnection)
                 new java.net.URL(base + "/api/sync/apply")
                     .openConnection();
             conn.setRequestMethod("POST");
@@ -1299,6 +1303,8 @@ public class MainActivity extends Activity {
             toastOnUi("Sync failed: " + e.getMessage()
                 + " - is the desktop IDE running in LAN mode on "
                 + "the same WiFi?");
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 
