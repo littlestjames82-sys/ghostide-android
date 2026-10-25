@@ -75,24 +75,24 @@ final class BackupService {
             throws IOException {
         ByteArrayOutputStream b =
             new ByteArrayOutputStream();
-        java.io.FileInputStream in =
-            new java.io.FileInputStream(f);
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = in.read(buf)) >= 0)
-            b.write(buf, 0, n);
-        in.close();
+        try (java.io.FileInputStream in =
+                new java.io.FileInputStream(f)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) >= 0)
+                b.write(buf, 0, n);
+        }
         return new String(b.toByteArray(),
             StandardCharsets.UTF_8);
     }
 
     private static void writeFile(File f,
             String content) throws IOException {
-        java.io.FileOutputStream o =
-            new java.io.FileOutputStream(f);
-        o.write(content.getBytes(
-            StandardCharsets.UTF_8));
-        o.close();
+        try (java.io.FileOutputStream o =
+                new java.io.FileOutputStream(f)) {
+            o.write(content.getBytes(
+                StandardCharsets.UTF_8));
+        }
     }
 
 
@@ -108,14 +108,14 @@ final class BackupService {
        interrupted. */
     private static void journalAppend(File bkRoot,
             String line) throws IOException {
-        java.io.FileOutputStream jOut =
-            new java.io.FileOutputStream(
-                new File(bkRoot, "journal.jsonl"),
-                true);
-        jOut.write((line + "\n").getBytes(
-            StandardCharsets.UTF_8));
-        jOut.getFD().sync();
-        jOut.close();
+        try (java.io.FileOutputStream jOut =
+                new java.io.FileOutputStream(
+                    new File(bkRoot, "journal.jsonl"),
+                    true)) {
+            jOut.write((line + "\n").getBytes(
+                StandardCharsets.UTF_8));
+            jOut.getFD().sync();
+        }
     }
 
     private static File joinPath(File base,
@@ -311,9 +311,6 @@ final class BackupService {
                 bkEnv, "created", "");
             byte[] bkRaw = BackupCrypto.decrypt(bkPw,
                 bkEnvText);
-            java.util.zip.ZipInputStream bkZ =
-                new java.util.zip.ZipInputStream(
-                    new java.io.ByteArrayInputStream(bkRaw));
             java.util.List<String> bkPaths =
                 new java.util.ArrayList<>();
             java.util.List<Long> bkSizes =
@@ -322,29 +319,33 @@ final class BackupService {
             java.util.zip.ZipEntry bkE;
             long bkTotal = 0;
             int bkEntries = 0;
-            while ((bkE = bkZ.getNextEntry()) != null) {
-                String bkClean = ZipGuard.cleanEntry(
-                    bkE.getName());
-                if (bkClean == null)
-                    continue;
-                // v2.34: directory entries count
-                // against the entry cap too, so the
-                // preview agrees with restore.
-                bkEntries++;
-                if (bkEntries > ZipGuard.MAX_ENTRIES)
-                    throw new IOException(
-                        "backup has too many entries");
-                if (bkE.isDirectory())
-                    continue;
-                long bkN = 0;
-                int bkR;
-                while ((bkR = bkZ.read(bkChunk)) > 0)
-                    bkN += bkR;
-                bkPaths.add(bkClean);
-                bkSizes.add(bkN);
-                bkTotal += bkN;
+            try (java.util.zip.ZipInputStream bkZ =
+                    new java.util.zip.ZipInputStream(
+                        new java.io.ByteArrayInputStream(
+                            bkRaw))) {
+                while ((bkE = bkZ.getNextEntry()) != null) {
+                    String bkClean = ZipGuard.cleanEntry(
+                        bkE.getName());
+                    if (bkClean == null)
+                        continue;
+                    // v2.34: directory entries count
+                    // against the entry cap too, so the
+                    // preview agrees with restore.
+                    bkEntries++;
+                    if (bkEntries > ZipGuard.MAX_ENTRIES)
+                        throw new IOException(
+                            "backup has too many entries");
+                    if (bkE.isDirectory())
+                        continue;
+                    long bkN = 0;
+                    int bkR;
+                    while ((bkR = bkZ.read(bkChunk)) > 0)
+                        bkN += bkR;
+                    bkPaths.add(bkClean);
+                    bkSizes.add(bkN);
+                    bkTotal += bkN;
+                }
             }
-            bkZ.close();
             String bkErr = ZipGuard.validate(
                 bkPaths, bkSizes);
             if (bkErr != null)
@@ -376,33 +377,33 @@ final class BackupService {
                     "passphrase needs at least 8 characters");
             java.io.ByteArrayOutputStream bkBuf =
                 new java.io.ByteArrayOutputStream();
-            java.util.zip.ZipOutputStream bkZ =
-                new java.util.zip.ZipOutputStream(bkBuf);
             List<File> bkFiles = new ArrayList<>();
             bkCollect(workspace, bkFiles);
             long bkTotal = 0;
             int bkCount = 0;
-            for (File bf : bkFiles) {
-                String bkRel = workspace.toURI()
-                    .relativize(bf.toURI()).getPath();
-                bkTotal += bf.length();
-                bkCount++;
-                if (bkTotal > 50L * 1024 * 1024)
-                    throw new IOException(
-                        "workspace is over the 50 MB "
-                        + "backup cap");
-                bkZ.putNextEntry(
-                    new java.util.zip.ZipEntry(bkRel));
-                java.io.FileInputStream bkIn =
-                    new java.io.FileInputStream(bf);
-                byte[] bkChunk = new byte[8192];
-                int bkN;
-                while ((bkN = bkIn.read(bkChunk)) > 0)
-                    bkZ.write(bkChunk, 0, bkN);
-                bkIn.close();
-                bkZ.closeEntry();
+            try (java.util.zip.ZipOutputStream bkZ =
+                    new java.util.zip.ZipOutputStream(bkBuf)) {
+                for (File bf : bkFiles) {
+                    String bkRel = workspace.toURI()
+                        .relativize(bf.toURI()).getPath();
+                    bkTotal += bf.length();
+                    bkCount++;
+                    if (bkTotal > 50L * 1024 * 1024)
+                        throw new IOException(
+                            "workspace is over the 50 MB "
+                            + "backup cap");
+                    bkZ.putNextEntry(
+                        new java.util.zip.ZipEntry(bkRel));
+                    try (java.io.FileInputStream bkIn =
+                            new java.io.FileInputStream(bf)) {
+                        byte[] bkChunk = new byte[8192];
+                        int bkN;
+                        while ((bkN = bkIn.read(bkChunk)) > 0)
+                            bkZ.write(bkChunk, 0, bkN);
+                    }
+                    bkZ.closeEntry();
+                }
             }
-            bkZ.close();
             String bkCreated =
                 new java.text.SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss",
@@ -459,50 +460,50 @@ final class BackupService {
             // cannot hold the restore.
             long bkScanTotal = 0;
             {
-                java.util.zip.ZipInputStream bkS =
-                    new java.util.zip.ZipInputStream(
-                        new java.io.ByteArrayInputStream(
-                            bkRaw));
-                java.util.zip.ZipEntry bkSE;
-                byte[] bkSChunk = new byte[8192];
-                java.util.Set<String> bkSSeen =
-                    new java.util.HashSet<>();
-                while ((bkSE = bkS.getNextEntry())
-                        != null) {
-                    String bkSClean =
-                        ZipGuard.cleanEntry(
-                            bkSE.getName());
-                    if (bkSClean == null) continue;
-                    if (!bkSSeen.add(bkSClean))
-                        throw new IOException(
-                            "backup has a duplicate "
-                            + "entry: " + bkSClean);
-                    if (bkSSeen.size()
-                            > ZipGuard.MAX_ENTRIES)
-                        throw new IOException(
-                            "backup has too many "
-                            + "entries");
-                    if (bkSE.isDirectory()) continue;
-                    long bkSN = 0;
-                    int bkSR;
-                    while ((bkSR = bkS.read(bkSChunk))
-                            > 0) {
-                        bkSN += bkSR;
-                        if (bkSN
-                                > ZipGuard
-                                    .MAX_ENTRY_BYTES)
+                try (java.util.zip.ZipInputStream bkS =
+                        new java.util.zip.ZipInputStream(
+                            new java.io.ByteArrayInputStream(
+                                bkRaw))) {
+                    java.util.zip.ZipEntry bkSE;
+                    byte[] bkSChunk = new byte[8192];
+                    java.util.Set<String> bkSSeen =
+                        new java.util.HashSet<>();
+                    while ((bkSE = bkS.getNextEntry())
+                            != null) {
+                        String bkSClean =
+                            ZipGuard.cleanEntry(
+                                bkSE.getName());
+                        if (bkSClean == null) continue;
+                        if (!bkSSeen.add(bkSClean))
                             throw new IOException(
-                                "backup entry too "
-                                + "large: " + bkSClean);
+                                "backup has a duplicate "
+                                + "entry: " + bkSClean);
+                        if (bkSSeen.size()
+                                > ZipGuard.MAX_ENTRIES)
+                            throw new IOException(
+                                "backup has too many "
+                                + "entries");
+                        if (bkSE.isDirectory()) continue;
+                        long bkSN = 0;
+                        int bkSR;
+                        while ((bkSR = bkS.read(bkSChunk))
+                                > 0) {
+                            bkSN += bkSR;
+                            if (bkSN
+                                    > ZipGuard
+                                        .MAX_ENTRY_BYTES)
+                                throw new IOException(
+                                    "backup entry too "
+                                    + "large: " + bkSClean);
+                        }
+                        bkScanTotal += bkSN;
+                        if (bkScanTotal
+                                > ZipGuard.MAX_TOTAL_BYTES)
+                            throw new IOException(
+                                "backup expands past the "
+                                + "512 MB restore cap");
                     }
-                    bkScanTotal += bkSN;
-                    if (bkScanTotal
-                            > ZipGuard.MAX_TOTAL_BYTES)
-                        throw new IOException(
-                            "backup expands past the "
-                            + "512 MB restore cap");
                 }
-                bkS.close();
             }
             if (!enoughSpace(
                     workspace.getUsableSpace(),
@@ -531,11 +532,10 @@ final class BackupService {
             int bkEntries = 0;
             java.util.Set<String> bkSeen =
                 new java.util.HashSet<>();
-            try {
-                java.util.zip.ZipInputStream bkZ =
+            try (java.util.zip.ZipInputStream bkZ =
                     new java.util.zip.ZipInputStream(
                         new java.io.ByteArrayInputStream(
-                            bkRaw));
+                            bkRaw))) {
                 java.util.zip.ZipEntry bkE;
                 byte[] bkChunk = new byte[8192];
                 while ((bkE = bkZ.getNextEntry()) != null) {
@@ -568,21 +568,21 @@ final class BackupService {
                     }
                     if (bkOutF.getParentFile() != null)
                         bkOutF.getParentFile().mkdirs();
-                    java.io.FileOutputStream bkOut =
-                        new java.io.FileOutputStream(
-                            bkOutF);
                     long bkEntryBytes = 0;
-                    int bkN;
-                    while ((bkN = bkZ.read(bkChunk)) > 0) {
-                        bkOut.write(bkChunk, 0, bkN);
-                        bkEntryBytes += bkN;
-                        if (bkEntryBytes
-                                > ZipGuard.MAX_ENTRY_BYTES)
-                            throw new IOException(
-                                "backup entry too "
-                                + "large: " + bkClean);
+                    try (java.io.FileOutputStream bkOut =
+                            new java.io.FileOutputStream(
+                                bkOutF)) {
+                        int bkN;
+                        while ((bkN = bkZ.read(bkChunk)) > 0) {
+                            bkOut.write(bkChunk, 0, bkN);
+                            bkEntryBytes += bkN;
+                            if (bkEntryBytes
+                                    > ZipGuard.MAX_ENTRY_BYTES)
+                                throw new IOException(
+                                    "backup entry too "
+                                    + "large: " + bkClean);
+                        }
                     }
-                    bkOut.close();
                     bkPaths.add(bkClean);
                     bkSizes.add(bkEntryBytes);
                     bkTotal += bkEntryBytes;
@@ -592,7 +592,6 @@ final class BackupService {
                             "backup expands past the "
                             + "512 MB restore cap");
                 }
-                bkZ.close();
                 String bkErr = ZipGuard.validate(
                     bkPaths, bkSizes);
                 if (bkErr != null)
