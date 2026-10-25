@@ -4962,13 +4962,14 @@ public final class IdeServer {
         }
         File parent = dst.getParentFile();
         if (parent != null) parent.mkdirs();
-        java.io.InputStream in = new java.io.FileInputStream(src);
-        FileOutputStream out = new FileOutputStream(dst);
-        byte[] buf = new byte[65536];
-        int n;
-        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-        out.close();
-        in.close();
+        try (java.io.InputStream in =
+                new java.io.FileInputStream(src);
+             FileOutputStream out = new FileOutputStream(dst)) {
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = in.read(buf)) > 0)
+                out.write(buf, 0, n);
+        }
     }
 
     private static void gatherEcoFiles(File dir, File base,
