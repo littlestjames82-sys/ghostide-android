@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.52.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign audit batch 2 (A6-A10): parity, secrets, XSS, bundle integrity, versions",
+   "summary": "The second audit round swept five more areas. Server parity held on every new route, with one bug caught in this campaign's own work: the agent's worktree briefing read a field the API never sends and would have primed it with 'undefined' names - it now derives names the same way the Git panel does. Secret-leakage probes with a canary key found MCP server listings expose environment variable names only, never values, even in errors. The XSS census found every dynamic HTML path running through the hardened markdown renderer (escape-first, inert bad link schemes) with panels using textContent. The bundle cross-check against the shipped APK is exact (gate, zip, manifest and the Java lists all agree on 29 tools), and a counting mismatch between the desktop and phone bundle readouts was aligned. The version gate passes on the current tree."
+  },
+  {
    "version": "2.51.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign audit batch 1 (A1-A5): pairing, paths, toolrunner, agent rails, queue integrity",

@@ -42162,7 +42162,7 @@
       const wd = await (await fetch("/api/git/worktrees")).json();
       const wts = wd && wd.worktrees || [];
       if (wts.length > 1)
-        memText += "\n\nGit worktrees in this workspace: " + wts.map((w) => w.name + " (" + (w.branch || "detached") + ")").join(", ") + ".";
+        memText += "\n\nGit worktrees in this workspace: " + wts.map((w) => (w.path || "").split("/").pop() + " (" + (w.branch || "detached") + ")").join(", ") + ".";
     } catch (e) {
     }
     if (memText)
