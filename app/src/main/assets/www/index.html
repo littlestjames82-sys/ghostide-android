@@ -79,6 +79,8 @@ setTimeout(function () {
         <input id="commitMsg" placeholder="Commit message">
         <button id="commitBtn">Commit staged</button>
         <button id="gitReview" title="Pre-commit review: secrets, bug risks, dead code">🔍 Review</button>
+        <button id="gitGhostReview" title="GhostReview: plain-English verdict over the working-tree diff, secret-shaped lines flagged, values never shown">🧾 Verdict</button>
+        <button id="gitGhostScope" title="GhostScope: what this change touches - changed files, neighbours, covering tests, riskiest-first">🎯 Scope</button>
         <button id="gitAiMsg" disabled title="Let Ghost write the commit message from the diff (desktop git)">✨ AI</button>
       </div>
       <div id="gitLog" class="dim"></div>
@@ -420,6 +422,7 @@ setTimeout(function () {
     <button id="toolTour">Take the tour</button>
     <button id="toolChangelog">What's new</button>
     <button id="toolEco">Ecosystem tools</button>
+    <button id="toolMcp">MCP servers</button>
   </div>
 </div>
 

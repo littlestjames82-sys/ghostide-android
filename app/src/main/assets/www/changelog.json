@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.44.0",
+   "date": "Nov 1, 2026",
+   "goal": "MCP client + Git proof + evidence contract",
+   "summary": "GhostIDE speaks MCP now. A new bundled tool, GhostMCP (stdlib only), reads the workspace .mcp.json in the standard format and talks to MCP servers over stdio or HTTP: Tools, then MCP servers lists them, shows each server's tools, and calls a tool with JSON arguments - and every agent run is briefed with the exact servers and tools your workspace configures, callable with the new MCP action (Act mode only, never batched, since tools can have side effects). Env values in the config are never printed anywhere, only their names. Git proof: the Git panel gains a Verdict button (GhostReview over the working-tree diff: plain-English verdict, secret-shaped lines flagged with values never shown) and a Scope button (GhostScope: what the change touches, riskiest first). And the verify report adopts the GhostVerify evidence contract: Executed, Claimed-not-executed, and Gaps are separate sections, so an unchecked file type, the 100-file cap, missing tests, or the phone build's desktop-only test stage reads as a gap, never as a pass."
+  },
+  {
    "version": "2.43.0",
    "date": "Nov 1, 2026",
    "goal": "Agent toolbelt + tools wiring: the all-in expansion",

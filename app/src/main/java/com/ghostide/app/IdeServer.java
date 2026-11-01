@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.43.0";
+    static final String VERSION = "2.44.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -1660,6 +1660,21 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.startsWith("/api/mcp/")
+                || path.equals("/api/git/review")
+                || path.equals("/api/git/scope")) {
+            // GhostMCP client + Git proof (v2.44): MCP runs
+            // through the bundled GhostMCP tool; the review
+            // and scope routes run GhostReview / GhostScope
+            // over the working tree diff (E8/E9).
+            try {
+                handleMcpGit(path, method, body, out);
+            } catch (Exception e) {
+                sendJson(out, "{\"error\":" + Json.quote(
+                    String.valueOf(e.getMessage())) + "}");
+            }
+            return;
+        }
         if (path.startsWith("/api/eco/")) {
             // Roadmap ECO E1: the ecosystem runner. The E1
             // proof pair (GhostIndex, GhostDeps) ships in the
@@ -2759,6 +2774,37 @@ public final class IdeServer {
             .append(". Bytes: ").append(vfBytes)
             .append(". Estimated tokens if Ghost read "
             + "everything: ").append(vfTokens).append(".\n");
+        // E7: the GhostVerify evidence contract (phone
+        // edition - gaps name this build's real limits).
+        List<String> ctExecuted = new ArrayList<>();
+        ctExecuted.add("Syntax checks executed on " + vfChecked
+            + " file(s) on-device (python ast, json parse).");
+        List<String> ctClaimed = new ArrayList<>();
+        ctClaimed.add("Slice report figures (" + vfCount
+            + " text files, " + vfBytes + " bytes, ~" + vfTokens
+            + " tokens) are measurements of the workspace, "
+            + "not checks of those files' correctness.");
+        ctClaimed.add("Evidence level " + vfLevel
+            + " is derived only from the executed items above.");
+        List<String> ctGaps = new ArrayList<>();
+        ctGaps.add("Tests are not executed on this build: "
+            + "the test-runner stage is desktop-only, so no "
+            + "behavior was executed and the level caps at L1.");
+        int vfUnchecked = vfFiles.size() - vfChecked;
+        if (vfUnchecked > 0)
+            ctGaps.add(vfUnchecked + " text file(s) were "
+                + "counted, not verified (only .py and .json "
+                + "have on-device syntax checkers; 100-file "
+                + "cap).");
+        ctGaps.add("Checks are syntax-only: imports, types "
+            + "and runtime behavior are not verified.");
+        r.append("\n## Evidence contract (GhostVerify)\n");
+        r.append("Executed:\n");
+        for (String s : ctExecuted) r.append("- ").append(s).append('\n');
+        r.append("Claimed, not executed:\n");
+        for (String s : ctClaimed) r.append("- ").append(s).append('\n');
+        r.append("Gaps:\n");
+        for (String s : ctGaps) r.append("- ").append(s).append('\n');
         String vfReport = r.toString();
         writeFile(new File(workspace, "VERIFY_REPORT.md"),
             vfReport);
@@ -2772,6 +2818,12 @@ public final class IdeServer {
             + ",\"totalBytes\":" + vfBytes + ",\"top\":[]}"
             + ",\"evidence\":{\"level\":\"" + vfLevel
             + "\",\"label\":" + Json.quote(vfLabel) + "}"
+            + ",\"contract\":{\"executed\":"
+            + jsonWrite(new ArrayList<Object>(ctExecuted))
+            + ",\"claimed\":"
+            + jsonWrite(new ArrayList<Object>(ctClaimed))
+            + ",\"gaps\":"
+            + jsonWrite(new ArrayList<Object>(ctGaps)) + "}"
             + ",\"reportPath\":\"VERIFY_REPORT.md\""
             + ",\"report\":" + Json.quote(vfReport) + "}";
     }
@@ -2805,6 +2857,7 @@ public final class IdeServer {
         {"ghostconsole", "GhostConsole", "E17", "Read-only ecosystem board"},
         {"ghostledger", "GhostLedger", "E17", "Session token ledger"},
         {"ghostmcpdoctor", "GhostMCP Doctor", "E17", "Read-only MCP diagnostics"},
+        {"ghostmcp", "GhostMCP", "MCP", "MCP client - servers, tools, calls (MCP panel)"},
         {"ghostrecipes", "GhostRecipes", "E18", "Data-only project recipes"},
         {"ghostleads", "GhostLeads", "E19", "Offline lead drafts, drafts only"},
         {"quoteshot", "QuoteShot", "E19", "Offline quotes from a price book"},
@@ -2836,7 +2889,8 @@ public final class IdeServer {
             "ghostrecipes", "ghostenv", "ghostmcpdoctor",
             "ghostleads", "quoteshot", "ghostreplay",
             "ghostconsole", "ghosthandoff", "ghostrecall",
-            "ghostatlas", "ghostre"));
+            "ghostatlas", "ghostre", "ghostreview",
+            "ghostscope", "ghostmcp"));
 
     private File ecoDir() {
         return new File(ctx.getFilesDir(), "eco");
@@ -2851,7 +2905,9 @@ public final class IdeServer {
         // v2.42.0 (generation e6) adds GhostRE to the bundle.
         // v2.43.0 (generation e7) updates GhostRE to 0.2.0
         // (DEX + .NET inspectors) in the same zip.
-        File stamp = new File(dir, ".ready-e7");
+        // v2.44.0 (generation e8) adds GhostReview,
+        // GhostScope and GhostMCP to the bundle.
+        File stamp = new File(dir, ".ready-e8");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -2975,6 +3031,228 @@ public final class IdeServer {
             return;
         }
         sendJson(out, 404, "{\"error\":\"unknown REA route\"}");
+    }
+
+    // ---- GhostMCP client + Git proof routes (v2.44) ----
+    // Mirrors server.py: every run shells to the bundled
+    // eco tool under the bundled interpreter; MCP config is
+    // the workspace .mcp.json / mcp.json (standard format).
+    private ProcResult runEcoCli(String tool, List<String> args,
+            int timeoutSec) throws Exception {
+        if (!ensurePythonHome() || !ensureEco())
+            throw new IOException("the bundled Python tools "
+                + "could not be prepared");
+        Map<String, String> env = pythonEnv();
+        env.put("PYTHONPATH",
+            ctx.getApplicationInfo().nativeLibraryDir + ":"
+            + ecoDir().getAbsolutePath());
+        List<String> cmd = new ArrayList<>();
+        cmd.add(pythonBin());
+        cmd.add("-m");
+        cmd.add(tool);
+        cmd.addAll(args);
+        return runProcess(cmd, workspace, timeoutSec, env);
+    }
+
+    private static String jsonWrite(Object o) {
+        if (o == null) return "null";
+        if (o instanceof String) return Json.quote((String) o);
+        if (o instanceof Number || o instanceof Boolean)
+            return String.valueOf(o);
+        if (o instanceof Map) {
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<?, ?> e
+                    : ((Map<?, ?>) o).entrySet()) {
+                if (!first) sb.append(',');
+                first = false;
+                sb.append(Json.quote(String.valueOf(
+                    e.getKey()))).append(':')
+                    .append(jsonWrite(e.getValue()));
+            }
+            return sb.append('}').toString();
+        }
+        if (o instanceof List) {
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Object v : (List<?>) o) {
+                if (!first) sb.append(',');
+                first = false;
+                sb.append(jsonWrite(v));
+            }
+            return sb.append(']').toString();
+        }
+        return Json.quote(String.valueOf(o));
+    }
+
+    private File mcpConfigFile() {
+        File a = new File(workspace, ".mcp.json");
+        if (a.isFile()) return a;
+        File b = new File(workspace, "mcp.json");
+        if (b.isFile()) return b;
+        return null;
+    }
+
+    private void sendMcpResult(java.io.OutputStream out,
+            ProcResult r) throws Exception {
+        String stdout = r.stdout == null ? "" : r.stdout.trim();
+        Map<String, Object> obj = null;
+        for (String ln : stdout.split("\n")) {
+            String t = ln.trim();
+            if (t.startsWith("{")) {
+                try {
+                    obj = Json.obj(Json.parse(t));
+                } catch (Exception ignored) {}
+            }
+        }
+        if (obj != null && obj.get("error") != null) {
+            sendJson(out, 400, "{\"error\":"
+                + Json.quote(String.valueOf(obj.get("error")))
+                + "}");
+            return;
+        }
+        if (obj == null || r.code == 2) {
+            String err = r.stderr == null ? "" : r.stderr.trim();
+            sendJson(out, 400, "{\"error\":"
+                + Json.quote("GhostMCP could not run: "
+                    + err.substring(0, Math.min(300,
+                        err.length()))) + "}");
+            return;
+        }
+        sendJson(out, stdout);
+    }
+
+    private void handleMcpGit(String path, String method,
+            byte[] body, java.io.OutputStream out)
+            throws Exception {
+        if (path.equals("/api/git/review")
+                && method.equals("POST")) {
+            File outDir = new File(new File(workspace,
+                ".ghostide"), "review");
+            outDir.mkdirs();
+            ProcResult r = runEcoCli("ghostreview",
+                Arrays.asList("review",
+                    workspace.getAbsolutePath(), "-o",
+                    outDir.getAbsolutePath(), "--json"), 120);
+            String text = (r.stdout == null ? "" : r.stdout)
+                + (r.stderr == null ? "" : r.stderr);
+            if (r.code != 0 && r.code != 1) {
+                String t = text.trim();
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostReview could not run: "
+                        + t.substring(0, Math.min(300,
+                            t.length()))) + "}");
+                return;
+            }
+            String bodyOut = "";
+            File md = new File(outDir, "REVIEW.md");
+            if (md.isFile()) bodyOut = readFile(md);
+            if (bodyOut.isEmpty()) bodyOut = text.trim();
+            if (bodyOut.length() > 60000)
+                bodyOut = bodyOut.substring(0, 60000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(bodyOut) + "}");
+            return;
+        }
+        if (path.equals("/api/git/scope")
+                && method.equals("POST")) {
+            ProcResult gd = gitRun(gitArgs("diff", "HEAD"));
+            if (gd.code != 0) {
+                sendJson(out, 400, "{\"error\":\"git diff "
+                    + "failed in this workspace\"}");
+                return;
+            }
+            if (gd.stdout == null || gd.stdout.trim().isEmpty()) {
+                sendJson(out, 400, "{\"error\":\"no changes "
+                    + "against HEAD to scope - edit something "
+                    + "first\"}");
+                return;
+            }
+            File giDir = new File(workspace, ".ghostide");
+            giDir.mkdirs();
+            File diffFile = new File(giDir, "scope-diff.patch");
+            writeFile(diffFile, gd.stdout);
+            File outDir = new File(giDir, "scope-pack");
+            ProcResult r = runEcoCli("ghostscope",
+                Arrays.asList("pack",
+                    workspace.getAbsolutePath(), "-o",
+                    outDir.getAbsolutePath(), "--diff",
+                    diffFile.getAbsolutePath(), "--json"), 120);
+            String text = (r.stdout == null ? "" : r.stdout)
+                + (r.stderr == null ? "" : r.stderr);
+            if (r.code != 0 && r.code != 1) {
+                String t = text.trim();
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostScope could not run: "
+                        + t.substring(0, Math.min(300,
+                            t.length()))) + "}");
+                return;
+            }
+            String bodyOut = "";
+            File md = new File(outDir, "REVIEW.md");
+            if (md.isFile()) bodyOut = readFile(md);
+            if (bodyOut.isEmpty()) bodyOut = text.trim();
+            if (bodyOut.length() > 60000)
+                bodyOut = bodyOut.substring(0, 60000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(bodyOut) + "}");
+            return;
+        }
+        if (path.equals("/api/mcp/servers")
+                && method.equals("GET")) {
+            File cfg = mcpConfigFile();
+            if (cfg == null) {
+                sendJson(out, "{\"config\":null,\"servers\":[]}");
+                return;
+            }
+            ProcResult r = runEcoCli("ghostmcp",
+                Arrays.asList("servers", "--config",
+                    cfg.getAbsolutePath()), 50);
+            sendMcpResult(out, r);
+            return;
+        }
+        if (path.equals("/api/mcp/tools")
+                && method.equals("POST")) {
+            File cfg = mcpConfigFile();
+            if (cfg == null) {
+                sendJson(out, 400, "{\"error\":\"no MCP config "
+                    + "found - add a .mcp.json to the "
+                    + "workspace\"}");
+                return;
+            }
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            ProcResult r = runEcoCli("ghostmcp",
+                Arrays.asList("tools", "--config",
+                    cfg.getAbsolutePath(), "--server",
+                    Json.str(d, "server", "")), 50);
+            sendMcpResult(out, r);
+            return;
+        }
+        if (path.equals("/api/mcp/call")
+                && method.equals("POST")) {
+            File cfg = mcpConfigFile();
+            if (cfg == null) {
+                sendJson(out, 400, "{\"error\":\"no MCP config "
+                    + "found - add a .mcp.json to the "
+                    + "workspace\"}");
+                return;
+            }
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            Object argsObj = d.get("arguments");
+            String argsJson = argsObj instanceof Map
+                ? jsonWrite(argsObj) : "{}";
+            ProcResult r = runEcoCli("ghostmcp",
+                Arrays.asList("call", "--config",
+                    cfg.getAbsolutePath(), "--server",
+                    Json.str(d, "server", ""), "--tool",
+                    Json.str(d, "tool", ""), "--args",
+                    argsJson), 50);
+            sendMcpResult(out, r);
+            return;
+        }
+        sendJson(out, 404, "{\"error\":\"unknown MCP route\"}");
     }
 
     private void handleEco(String path, String method, byte[] body,
