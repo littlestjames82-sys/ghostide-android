@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.41.0",
+   "date": "Nov 1, 2026",
+   "goal": "Phone fit, clean + getJson startup fix",
+   "summary": "The phone layout now uses the full screen width edge to edge: saved desktop pane widths no longer squeeze the editor and chat into a partial-width column, the header row wraps inside the screen (copy-path, copy-file and duplicate move to the file menu and Tools on phones), the status bar truncates its autocomplete hint instead of wrapping into a block, and the Android WebView fits the page to the device width. Also fixes the red startup banner: getJson was called by the tour, registry, classroom and state-import paths but never defined, so any of them died with ReferenceError: getJson is not defined."
+  },
+  {
    "version": "2.40.0",
    "date": "Oct 22, 2026",
    "goal": "Visual refresh, take two: Ghost editor theme",

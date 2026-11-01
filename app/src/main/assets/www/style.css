@@ -882,3 +882,66 @@ input:focus, select:focus, textarea:focus {
 #editor .cm-activeLineGutter, #editor2 .cm-activeLineGutter {
   background: rgba(255,255,255,.045); color: var(--ink-soft);
 }
+
+/* ---------- v2.41: phone fit, clean ----------
+   The whole app must use the full phone width, edge to
+   edge, with nothing painting or sizing outside it.
+   Rules here are appended last so they win ties: no
+   saved desktop pane width, no overflowing header row,
+   and no wide status hint may squeeze the editor and
+   chat into a partial-width column again. */
+@media (max-width: 900px) {
+  html, body {
+    width: 100%; max-width: 100vw; overflow-x: hidden;
+  }
+  #errBanner { width: 100%; }
+  header {
+    width: 100%; max-width: 100vw; gap: 6px;
+    padding: 8px 10px;
+  }
+  .header-right {
+    flex: 1 1 auto; min-width: 0; flex-wrap: wrap;
+    gap: 6px; justify-content: flex-end;
+  }
+  header button { padding: 6px 9px; }
+  /* Copy-path / copy-file / duplicate live in the file
+     menu and Tools on the phone; keeping them in the
+     header overflowed the row past the screen edge. */
+  #copyPathBtn, #copyFileBtn, #dupFileBtn, #saveState {
+    display: none;
+  }
+  #modelPill { max-width: 118px; }
+  main {
+    width: 100%; max-width: 100vw; min-width: 0;
+    overflow-x: hidden;
+  }
+  #files { width: min(320px, 84vw) !important; }
+  #editorWrap {
+    width: 100%; max-width: 100%; min-width: 0;
+  }
+  #chat {
+    width: auto !important; max-width: 100%;
+    min-width: 0;
+  }
+  #editor, #editorRow { max-width: 100%; min-width: 0; }
+  #editor .cm-editor, #editor2 .cm-editor {
+    max-width: 100%;
+  }
+  #tabBar, #tabActions, #crumbs { max-width: 100%; }
+  #tabActions { display: flex; gap: 6px; flex-wrap: wrap; }
+  /* One clean row: position + line actions on the left,
+     the autocomplete hint truncated, never a wrapped
+     text block squeezing everything else. */
+  #statusBar {
+    flex-wrap: wrap; row-gap: 2px; justify-content: flex-start;
+  }
+  #cursorPos { white-space: nowrap; }
+  #autocompleteState {
+    flex: 1 1 120px; min-width: 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    text-align: right;
+  }
+  #primeBtn, #handoffBtn, #recallBtn {
+    width: 100%; margin-top: 6px; padding: 10px;
+  }
+}

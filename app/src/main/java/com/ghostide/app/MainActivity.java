@@ -442,6 +442,13 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        /* Fit the page to the phone screen exactly: the wide
+           viewport follows the device-width meta tag, and
+           overview mode fits that layout to the screen
+           instead of leaving the app in a partial-width
+           column with dead space beside it. */
+        ws.setUseWideViewPort(true);
+        ws.setLoadWithOverviewMode(true);
         webView.addJavascriptInterface(new VoiceBridge(),
             "GhostVoice");
         webView.addJavascriptInterface(new NativeBridge(),
