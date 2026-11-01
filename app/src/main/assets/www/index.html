@@ -85,6 +85,7 @@ setTimeout(function () {
         <button id="gitAiMsg" disabled title="Let Ghost write the commit message from the diff (desktop git)">✨ AI</button>
       </div>
       <div id="gitLog" class="dim"></div>
+      <div id="gitScopeLine" class="dim"></div>
       <div class="git-remote">
         <div class="dim">Worktrees</div>
         <div id="wtList" class="dim"></div>
@@ -135,7 +136,8 @@ setTimeout(function () {
     </div>
     <div id="dataPane" class="hidden">
       <div class="run-head"><span id="dataTitle">Data view</span>
-        <span><button id="dataAsk" title="Put this report in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
+        <span><button id="dataPack" title="GhostData: build the full pack (manifest, prompt summary, bounded sample) into .ghostide">📦 Pack</button>
+        <button id="dataAsk" title="Put this report in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
         <button id="dataClose">✕</button></span></div>
       <pre id="dataOut"></pre>
     </div>

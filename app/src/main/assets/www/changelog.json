@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.49.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign batch 3: replay re-run, scope headline in Git, eco board chips, data packs, agent CONTEXT",
+   "summary": "Session replay sessions gain a Re-run button that puts the recorded task back in the chat box with Agent mode on, ready for your Send tap. The Git panel now shows the last Scope verdict as a headline line, read from the scope pack both servers already write. Ecosystem panel rows carry their Ecosystem board state (verified, no report, attention) right on the tool chip, so you can see which tools have fresh proof without opening two panels. The Data pane gains a Pack button: GhostData builds the full pack (manifest, prompt summary, bounded redacted sample) into .ghostide and shows the pack's own summary. And the agent learns a CONTEXT action - mid-task it can pull the GhostAtlas repo map to re-orient, batchable with its other read-only lookups."
+  },
+  {
    "version": "2.48.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign batch 2: board actions, watch auto-reload, queue badge + bulk, terminal slicing",

@@ -35502,6 +35502,9 @@
         return;
       }
       $("gitBranch").textContent = d.branch || "";
+      const scopeEl = $("gitScopeLine");
+      if (scopeEl)
+        scopeEl.textContent = d.scope_line ? "Last Scope: " + d.scope_line : "";
       renderWorktrees();
       $("gitAiMsg").disabled = false;
       if (d.branch) {
@@ -37324,9 +37327,11 @@
       hideTools();
       openBoardPanel();
     };
+  var dataPanePath = "";
   async function maybeDataView(path, content2) {
     const pane = $("dataPane");
     if (!pane) return;
+    dataPanePath = path;
     const lower = (path || "").toLowerCase();
     let tool = null;
     if (/\.(csv|tsv)$/.test(lower)) tool = "ghostdata";
@@ -37372,6 +37377,23 @@
       "Explain this data report and anything unusual in it:",
       $("dataOut").textContent
     );
+  var dataPackBtn = $("dataPack");
+  if (dataPackBtn)
+    dataPackBtn.onclick = async () => {
+      if (!dataPanePath) return;
+      dataPackBtn.disabled = true;
+      try {
+        const d = await postJson(
+          "/api/eco/datapack",
+          { path: dataPanePath }
+        );
+        $("dataTitle").textContent = "\u{1F4E6} GhostData pack - " + dataPanePath;
+        $("dataOut").textContent = d.error || d.output || "(no output)";
+      } catch (e) {
+        $("dataOut").textContent = "The pack failed to reach the server.";
+      }
+      dataPackBtn.disabled = false;
+    };
   var runSliceBtn = $("runSlice");
   if (runSliceBtn)
     runSliceBtn.onclick = async () => {
@@ -37565,6 +37587,19 @@
       const label = document.createElement("span");
       label.textContent = (s.saved_at || "") + " - " + String(s.task || "").slice(0, 60) + " (" + s.steps + " steps)";
       row.appendChild(label);
+      const rerun = document.createElement("button");
+      rerun.className = "ghostbtn";
+      rerun.textContent = "Re-run";
+      rerun.title = "Put this task back in the chat box with Agent mode on - you tap Send";
+      rerun.onclick = () => {
+        $("todoPanel").classList.add("hidden");
+        const ta = $("chatText");
+        if (ta) ta.value = s.task || "";
+        const tg = $("agentToggle");
+        if (tg) tg.checked = true;
+        if (ta) ta.focus();
+      };
+      row.appendChild(rerun);
       const open = document.createElement("button");
       open.className = "ghostbtn";
       open.textContent = "Open";
@@ -37666,6 +37701,24 @@
       "Explain this terminal output and what to do about it:",
       $("termOut").textContent
     );
+  async function annotateEcoStates() {
+    let d;
+    try {
+      d = await postJson("/api/eco/board", {});
+    } catch (e) {
+      return;
+    }
+    const proj = (d.projects || [])[0];
+    if (!proj) return;
+    const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    for (const s of proj.sections || []) {
+      const chip = $("ecoState-" + norm(s.tool));
+      if (!chip) continue;
+      const state = s.state === "ok" ? "board: verified" : s.state === "absent" ? "board: no report" : "board: attention";
+      if (!chip.textContent.includes("board:"))
+        chip.textContent += " \xB7 " + state;
+    }
+  }
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
@@ -37692,6 +37745,7 @@
       row.appendChild(label);
       const chip = document.createElement("span");
       chip.className = "symkind";
+      chip.id = "ecoState-" + t2.id;
       chip.textContent = t2.state === "ready" ? "ready" : t2.state === "bundled" ? "on-device" + (t2.tests ? " \xB7 " + t2.tests + " tests" : "") : t2.state === "native" ? "built in" : t2.state === "absent" ? "not found" : t2.goal;
       row.appendChild(chip);
       if (t2.runnable) {
@@ -37745,6 +37799,7 @@
       }
       $("todoResults").appendChild(row);
     }
+    annotateEcoStates();
   }
   var I18N = {
     brandTag: { en: "offline AI editor", es: "editor de IA sin conexi\xF3n" },
@@ -41420,6 +41475,8 @@
     "REVERSE <path> - inspect a file or binary with GhostRE",
     "ECO <tool> - run an ecosystem tool (ghostindex, ghostdeps)",
     "VERIFY - run the full verify pipeline (checks + tests)",
+    "CONTEXT - fetch the repo map (GhostAtlas) when you need",
+    "  the project's shape mid-task",
     "TEST [path] - run the project tests (one file, or all)",
     "GIT status / GIT diff / GIT log - repository state",
     "MCP <server> <tool> <json-args> - call a tool on a",
@@ -41641,6 +41698,7 @@
     m = text.match(/^\s*ECO\s+(\S+)\s*$/m);
     if (m) return { type: "eco", tool: m[1].toLowerCase() };
     if (/^\s*VERIFY\s*$/m.test(text)) return { type: "verify" };
+    if (/^\s*CONTEXT\s*$/m.test(text)) return { type: "context" };
     m = text.match(/^\s*TEST(?:\s+(\S+))?\s*$/m);
     if (m) return { type: "test", path: m[1] || "" };
     m = text.match(/^\s*GIT\s+(status|diff|log)\s*$/im);
@@ -41675,7 +41733,8 @@
     "stepdone",
     "reverse",
     "eco",
-    "git"
+    "git",
+    "context"
   ];
   var AGENT_BATCH_BLOCK = /^\s*(WRITE|EDIT|RUN|DELETE|DONE|ASK|CHECK|VERIFY|TEST|MCP)\b/;
   function parseAgentLine(line) {
@@ -41699,6 +41758,7 @@
       return { type: "eco", tool: m[1].toLowerCase() };
     if (m = t2.match(/^GIT\s+(status|diff|log)$/i))
       return { type: "git", what: m[1].toLowerCase() };
+    if (/^CONTEXT$/.test(t2)) return { type: "context" };
     return null;
   }
   function parseAgentBatch(reply, allowed) {
@@ -41718,6 +41778,14 @@
   }
   async function agentToolText(act) {
     try {
+      if (act.type === "context") {
+        let map = "";
+        try {
+          map = await getRepoMap();
+        } catch (e) {
+        }
+        return "Repo map (GhostAtlas):\n" + (map ? map.slice(0, 8e3) : "(no repo map available for this workspace)");
+      }
       if (act.type === "mcp") {
         if (act.argsError)
           return "MCP " + act.server + " " + act.tool + ": the arguments were not valid JSON. Reply with MCP <server> <tool> followed by one JSON object.";
