@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.52.0";
+    static final String VERSION = "2.53.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -804,7 +804,38 @@ public final class IdeServer {
                 s.close();
                 return;
             }
-            route(s, out, method, target, body);
+            // A15/A18: a route that throws before writing
+            // gets the same {error} 400 the desktop server
+            // returns, never a silently dropped connection.
+            final boolean[] wrote = { false };
+            java.io.OutputStream rout =
+                new java.io.FilterOutputStream(out) {
+                    @Override public void write(int b)
+                            throws IOException {
+                        wrote[0] = true;
+                        super.write(b);
+                    }
+                    @Override public void write(byte[] b,
+                            int off, int len)
+                            throws IOException {
+                        wrote[0] = true;
+                        super.write(b, off, len);
+                    }
+                };
+            try {
+                route(s, rout, method, target, body);
+            } catch (Exception e) {
+                if (!wrote[0]) {
+                    try {
+                        sendJson(out, 400, "{\"error\":"
+                            + Json.quote("the request could "
+                                + "not be handled: "
+                                + trimTo(String.valueOf(
+                                    e.getMessage()), 160))
+                            + "}");
+                    } catch (Exception ignored) {}
+                }
+            }
             out.flush();
             s.close();
         } catch (Exception e) {
@@ -2556,6 +2587,12 @@ public final class IdeServer {
         }
         if (path.equals("/api/infill")) {
             handleInfill(out, body);
+            return;
+        }
+        if (path.startsWith("/api/")) {
+            // A15/A18: unknown API routes answer the JSON
+            // error contract, not the asset 404.
+            sendJson(out, 404, "{\"error\":\"no such route\"}");
             return;
         }
         // static web assets

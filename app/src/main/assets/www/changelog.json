@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.53.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign audit batch 3 (A11-A15): build, terminal, workspaces, writes, malformed input",
+   "summary": "The third audit round verified the build itself (the signing certificate is identical across all six campaign releases and staged web assets byte-match their sources), the terminal's exposure (labeled as an unsandboxed local shell on desktop; the phone build refuses it outright), workspace switching (folder validation and worktree removal refusals probed live), and write safety (a 64MB body cap with strict framing, a history snapshot before every overwrite, boot-time restore reconciliation). Malformed-input probes - bad JSON, wrong types, missing fields - all answered cleanly, and two error-contract gaps were fixed: unknown API routes used to return an HTML error page and now answer the JSON error shape on both builds, and the phone server no longer drops the connection when a route fails before responding."
+  },
+  {
    "version": "2.52.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign audit batch 2 (A6-A10): parity, secrets, XSS, bundle integrity, versions",
