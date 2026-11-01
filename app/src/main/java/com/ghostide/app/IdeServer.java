@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.49.0";
+    static final String VERSION = "2.50.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -3711,6 +3711,41 @@ public final class IdeServer {
 
     private void handleEco(String path, String method, byte[] body,
             java.io.OutputStream out) throws Exception {
+        if (path.equals("/api/eco/info")) {
+            // I18: bundle readout for Settings, from the
+            // extracted manifest + the generation stamp.
+            String gen = "unknown";
+            int nTools = 0;
+            long nBytes = 0;
+            if (ensureEco()) {
+                File ed = ecoDir();
+                String[] names = ed.list();
+                if (names != null)
+                    for (String nm : names)
+                        if (nm.startsWith(".ready-"))
+                            gen = nm.substring(".ready-"
+                                .length());
+                try {
+                    File mf = new File(ed,
+                        "eco-manifest.json");
+                    if (mf.isFile()) {
+                        Map<String, Object> mObj =
+                            Json.obj(Json.parse(readFile(mf)));
+                        nTools = mObj.size();
+                        for (Object v : mObj.values()) {
+                            Map<String, Object> tInfo =
+                                Json.obj(v);
+                            nBytes += Json.num(tInfo,
+                                "bytes", 0);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            sendJson(out, "{\"generation\":"
+                + Json.quote(gen) + ",\"tools\":" + nTools
+                + ",\"bytes\":" + nBytes + "}");
+            return;
+        }
         if (path.equals("/api/eco/tools")) {
             // Test counts ride in eco-manifest.json (written
             // by the bundle gate via build.sh).

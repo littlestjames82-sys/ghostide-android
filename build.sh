@@ -11,6 +11,9 @@
 # - Model (Qwen2.5-Coder-1.5B Q4_K_M, 986,048,800 bytes) is NOT in the
 #   APK; the app downloads it once into private storage.
 set -e
+# I20: refuse to build a half-bumped release - the five
+# version sources must agree before anything compiles.
+python3 "$(dirname "$0")/check_versions.py"
 # Workspace root: every input lives under $WS (BUILDING.md
 # lists them all). Override GHOSTIDE_WS to build from a
 # clean tree assembled by assemble_inputs.sh.

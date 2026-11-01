@@ -37719,6 +37719,40 @@
         chip.textContent += " \xB7 " + state;
     }
   }
+  var lastVerify = null;
+  var settingsBtnEl = $("settingsBtn");
+  if (settingsBtnEl)
+    settingsBtnEl.addEventListener("click", async () => {
+      const el = $("setEcoInfo");
+      if (!el) return;
+      try {
+        const d = await (await fetch("/api/eco/info")).json();
+        el.textContent = "generation " + d.generation + " \xB7 " + d.tools + " tools \xB7 " + Math.round((d.bytes || 0) / 1024) + " KB of code";
+      } catch (e) {
+        el.textContent = "unavailable";
+      }
+    });
+  var runFixBtn = $("runFix");
+  if (runFixBtn)
+    runFixBtn.onclick = () => {
+      if (!lastVerify) {
+        alert("Run Verify first (Tools > Verify pipeline) - the draft is built from its gaps.");
+        return;
+      }
+      const problems = lastVerify.checks && lastVerify.checks.problems || [];
+      const tests = lastVerify.tests || {};
+      const lines = problems.slice(0, 20).map(
+        (p) => "- " + (typeof p === "string" ? p : JSON.stringify(p))
+      );
+      if (tests.failed)
+        lines.push("- Tests: " + tests.passed + "/" + tests.total + " passed - fix the failures");
+      const task = "Fix the gaps from the last Verify run (evidence level " + (lastVerify.evidence ? lastVerify.evidence.level : "?") + "):\n" + (lines.length ? lines.join("\n") : "- (verify reported no itemized problems; read its report and fix what it flags)") + "\nWork through them one at a time, then VERIFY.";
+      const ta = $("chatText");
+      if (ta) ta.value = task;
+      const tg = $("agentToggle");
+      if (tg) tg.checked = true;
+      if (ta) ta.focus();
+    };
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
@@ -42124,6 +42158,13 @@
       }
     } catch (e) {
     }
+    try {
+      const wd = await (await fetch("/api/git/worktrees")).json();
+      const wts = wd && wd.worktrees || [];
+      if (wts.length > 1)
+        memText += "\n\nGit worktrees in this workspace: " + wts.map((w) => w.name + " (" + (w.branch || "detached") + ")").join(", ") + ".";
+    } catch (e) {
+    }
     if (memText)
       addMsg("SYSTEM", "\u{1F4DA} Agent primed with project memory (GhostRecall + error memory).");
     const messages = [
@@ -44119,6 +44160,7 @@
       $("runOut").textContent = d.error;
       return;
     }
+    lastVerify = d;
     $("runTitle").textContent = "Verify: " + d.evidence.level + " \xB7 " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s) \xB7 tests " + d.tests.passed + "/" + d.tests.total + " passed";
     $("runOut").textContent = d.report;
     loadFiles();

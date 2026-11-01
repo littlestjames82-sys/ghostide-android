@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.50.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign batch 4: worktree briefing, MCP list cache, settings bundle readout, verify fix drafts, version build gate",
+   "summary": "The agent's priming now names the workspace's git worktrees when there are several, so it knows the layout before it starts. MCP browsing gets faster and quieter: tool, resource and prompt lists are cached on the desktop server for five minutes (keyed to the config file, so an edit refreshes instantly), while calls themselves always run live - a fixture proved two list calls spawn the server once, and a call spawns it again. Settings shows the ecosystem bundle readout (generation, tool count, code size) from the real manifest. After a Verify run, a new Draft fix task button in the Run pane turns the gaps it found into a ready agent task in the chat box. And the release process hardens: the APK build now refuses to start unless server.py, VERSION.json, the changelog, the Android manifest and the Java server all agree on the version - it caught its own first half-bump during this very release."
+  },
+  {
    "version": "2.49.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign batch 3: replay re-run, scope headline in Git, eco board chips, data packs, agent CONTEXT",
