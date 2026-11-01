@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.47.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign batch 1: studio shelf (E18/E19) + replay timeline (E16) + GhostMCP 0.2",
+   "summary": "The 20x20 campaign opens with the studio shelf. Tools gains four entries: Recipes shelf (browse the GhostRecipes library, show, validate, and render any recipe to a checklist file - recipes are data-only and rendering never runs a step), Leads (import a CSV or JSON list into the workspace store, see ranked scores and tiers, re-score, and generate draft pitch packs - drafts only, nothing is ever sent), QuoteShot (open a job folder, view its items and totals, and render the customer quote fully offline), and Session replay (every agent and plan run now records its action trail; open a past run and scrub the slider through its steps). Under the hood, GhostMCP grows to 0.2: MCP servers can now offer resources and prompts, and the MCP panel grew Resources and Prompts buttons per server - binary resources are reported by size, never dumped."
+  },
+  {
    "version": "2.46.0",
    "date": "Nov 1, 2026",
    "goal": "Ecosystem board (E17) + data openers (E14) + run-pane log slicing (E13)",

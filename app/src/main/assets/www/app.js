@@ -36824,6 +36824,133 @@
         b.textContent = "Tools";
       };
       row.appendChild(b);
+      const rb = document.createElement("button");
+      rb.className = "ghostbtn";
+      rb.textContent = "Resources";
+      rb.onclick = async () => {
+        rb.disabled = true;
+        rb.textContent = "Calling\u2026";
+        try {
+          const rd = await postJson(
+            "/api/mcp/resources",
+            { server: s.name }
+          );
+          if (rd.error) {
+            box.textContent = rd.error;
+            return;
+          }
+          box.textContent = "";
+          const rh = document.createElement("div");
+          rh.className = "dim";
+          rh.textContent = s.name + ": " + (rd.resources || []).length + " resource(s).";
+          box.appendChild(rh);
+          for (const r of rd.resources || []) {
+            const rr = document.createElement("div");
+            rr.className = "todorow";
+            const rl = document.createElement("span");
+            rl.textContent = r.uri + (r.name ? " - " + r.name : "") + (r.mimeType ? " (" + r.mimeType + ")" : "");
+            rr.appendChild(rl);
+            const read = document.createElement("button");
+            read.className = "ghostbtn";
+            read.textContent = "Read";
+            read.onclick = async () => {
+              read.disabled = true;
+              try {
+                const cd = await postJson(
+                  "/api/mcp/resource",
+                  { server: s.name, uri: r.uri }
+                );
+                if (cd.error) {
+                  box.textContent = cd.error;
+                  return;
+                }
+                box.textContent = (cd.contents || []).map((c) => c.text != null ? c.text : "[binary content: " + c.blob_base64_chars + " base64 chars - not dumped]").join("\n\n") || "(empty resource)";
+              } catch (e) {
+                box.textContent = "The read failed to reach the server.";
+              }
+              read.disabled = false;
+            };
+            rr.appendChild(read);
+            box.appendChild(rr);
+          }
+        } catch (e) {
+          box.textContent = "Could not reach the server.";
+        }
+        rb.disabled = false;
+        rb.textContent = "Resources";
+      };
+      row.appendChild(rb);
+      const pb = document.createElement("button");
+      pb.className = "ghostbtn";
+      pb.textContent = "Prompts";
+      pb.onclick = async () => {
+        pb.disabled = true;
+        pb.textContent = "Calling\u2026";
+        try {
+          const pd = await postJson(
+            "/api/mcp/prompts",
+            { server: s.name }
+          );
+          if (pd.error) {
+            box.textContent = pd.error;
+            return;
+          }
+          box.textContent = "";
+          const ph = document.createElement("div");
+          ph.className = "dim";
+          ph.textContent = s.name + ": " + (pd.prompts || []).length + " prompt(s).";
+          box.appendChild(ph);
+          for (const p of pd.prompts || []) {
+            const pr = document.createElement("div");
+            pr.className = "todorow";
+            const pl = document.createElement("span");
+            pl.textContent = p.name + (p.description ? " - " + String(p.description).slice(0, 120) : "");
+            pr.appendChild(pl);
+            const use = document.createElement("button");
+            use.className = "ghostbtn";
+            use.textContent = "Use";
+            use.onclick = async () => {
+              const args = {};
+              for (const a of p.arguments || []) {
+                const v = prompt(
+                  p.name + " - " + a.name + (a.required ? " (required)" : " (optional)"),
+                  ""
+                );
+                if (v === null) return;
+                if (v !== "") args[a.name] = v;
+              }
+              use.disabled = true;
+              try {
+                const gd = await postJson(
+                  "/api/mcp/prompt",
+                  {
+                    server: s.name,
+                    name: p.name,
+                    arguments: args
+                  }
+                );
+                box.textContent = gd.error || (gd.messages || []).map((m) => (m.role ? m.role + ": " : "") + m.text).join("\n\n") || "(no messages)";
+                if (!gd.error) {
+                  const note = document.createElement("div");
+                  note.className = "dim";
+                  note.textContent = "Reopen MCP servers to use another prompt.";
+                  box.appendChild(note);
+                }
+              } catch (e) {
+                box.textContent = "The get failed to reach the server.";
+              }
+              use.disabled = false;
+            };
+            pr.appendChild(use);
+            box.appendChild(pr);
+          }
+        } catch (e) {
+          box.textContent = "Could not reach the server.";
+        }
+        pb.disabled = false;
+        pb.textContent = "Prompts";
+      };
+      row.appendChild(pb);
       box.appendChild(row);
     }
   }
@@ -37164,6 +37291,241 @@
       "Explain this output and what to do about it:",
       $("runOut").textContent
     );
+  function saveTrail(task, trail) {
+    if (!trail || !trail.length) return;
+    postJson("/api/eco/replay/save", { task, trail }).catch(() => {
+    });
+  }
+  async function studioCall(tool, verb, arg) {
+    try {
+      const d = await postJson(
+        "/api/eco/studio",
+        { tool, verb, arg: arg || "" }
+      );
+      return d.error || d.output || "(no output)";
+    } catch (e) {
+      return "Could not reach the server.";
+    }
+  }
+  function studioPanel(title) {
+    hideTools();
+    $("todoTitle").textContent = title;
+    $("todoResults").textContent = "Loading\u2026";
+    $("todoPanel").classList.remove("hidden");
+    return $("todoResults");
+  }
+  async function openRecipesPanel() {
+    const box = studioPanel("Recipes shelf");
+    const out = await studioCall("ghostrecipes", "list");
+    let items = [];
+    try {
+      items = JSON.parse(out);
+    } catch (e) {
+      box.textContent = out;
+      return;
+    }
+    box.textContent = "";
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = items.length + " recipe(s) in the library (workspace recipes/ first). Recipes are data-only checklists - rendering one never runs its steps.";
+    box.appendChild(head);
+    for (const r of items) {
+      const row = document.createElement("div");
+      row.className = "todorow";
+      const label = document.createElement("span");
+      label.textContent = r.id + " - " + (r.name || "") + " (" + (r.steps != null ? r.steps : "?") + " steps)";
+      row.appendChild(label);
+      for (const verb of ["show", "validate", "render"]) {
+        const b = document.createElement("button");
+        b.className = "ghostbtn";
+        b.textContent = verb[0].toUpperCase() + verb.slice(1);
+        b.onclick = async () => {
+          box.textContent = await studioCall(
+            "ghostrecipes",
+            verb,
+            r.id
+          );
+        };
+        row.appendChild(b);
+      }
+      box.appendChild(row);
+    }
+  }
+  async function openLeadsPanel() {
+    const box = studioPanel("Leads");
+    const render = async () => {
+      const out = await studioCall("ghostleads", "list");
+      let items = [];
+      try {
+        items = JSON.parse(out);
+      } catch (e) {
+        box.textContent = "";
+        const note = document.createElement("div");
+        note.textContent = out;
+        box.appendChild(note);
+        const inp = document.createElement("input");
+        inp.placeholder = "CSV or JSON file in the workspace";
+        box.appendChild(inp);
+        const imp = document.createElement("button");
+        imp.className = "ghostbtn";
+        imp.textContent = "Import";
+        imp.onclick = async () => {
+          box.textContent = await studioCall(
+            "ghostleads",
+            "import",
+            inp.value.trim()
+          );
+        };
+        box.appendChild(imp);
+        return;
+      }
+      box.textContent = "";
+      const head = document.createElement("div");
+      head.className = "dim";
+      head.textContent = items.length + " lead(s), ranked by score. Packs are drafts only - nothing is ever sent from here.";
+      box.appendChild(head);
+      const score2 = document.createElement("button");
+      score2.className = "ghostbtn";
+      score2.textContent = "Re-score";
+      score2.onclick = async () => {
+        await studioCall("ghostleads", "score");
+        render();
+      };
+      box.appendChild(score2);
+      for (const l of items) {
+        const row = document.createElement("div");
+        row.className = "todorow";
+        const label = document.createElement("span");
+        label.textContent = l.name + " - " + l.score + " (tier " + l.tier + ")" + (l.town ? " - " + l.town : "") + (l.trade ? " - " + l.trade : "");
+        row.appendChild(label);
+        const pack = document.createElement("button");
+        pack.className = "ghostbtn";
+        pack.textContent = "Pack";
+        pack.onclick = async () => {
+          box.textContent = await studioCall(
+            "ghostleads",
+            "pack",
+            l.name
+          );
+        };
+        row.appendChild(pack);
+        box.appendChild(row);
+      }
+    };
+    render();
+  }
+  async function openQuotePanel() {
+    const box = studioPanel("QuoteShot");
+    box.textContent = "";
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = "Open a QuoteShot job folder from this workspace. Quotes render fully offline from the job's own items and price book.";
+    box.appendChild(head);
+    const inp = document.createElement("input");
+    inp.placeholder = "job folder (e.g. job1)";
+    box.appendChild(inp);
+    const out = document.createElement("div");
+    for (const verb of ["show", "items", "render"]) {
+      const b = document.createElement("button");
+      b.className = "ghostbtn";
+      b.textContent = verb[0].toUpperCase() + verb.slice(1);
+      b.onclick = async () => {
+        out.textContent = await studioCall(
+          "quoteshot",
+          verb,
+          inp.value.trim()
+        );
+      };
+      box.appendChild(b);
+    }
+    box.appendChild(out);
+  }
+  async function openReplayPanel() {
+    const box = studioPanel("Session replay");
+    let d;
+    try {
+      d = await postJson("/api/eco/replay/list", {});
+    } catch (e) {
+      box.textContent = "Could not reach the server.";
+      return;
+    }
+    box.textContent = "";
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = (d.sessions || []).length + " recorded agent run(s). Open one to scrub its steps.";
+    box.appendChild(head);
+    for (const s of d.sessions || []) {
+      const row = document.createElement("div");
+      row.className = "todorow";
+      const label = document.createElement("span");
+      label.textContent = (s.saved_at || "") + " - " + String(s.task || "").slice(0, 60) + " (" + s.steps + " steps)";
+      row.appendChild(label);
+      const open = document.createElement("button");
+      open.className = "ghostbtn";
+      open.textContent = "Open";
+      open.onclick = async () => {
+        let rec;
+        try {
+          rec = await postJson(
+            "/api/eco/replay/get",
+            { id: s.id }
+          );
+        } catch (e) {
+          box.textContent = "Could not reach the server.";
+          return;
+        }
+        if (rec.error) {
+          box.textContent = rec.error;
+          return;
+        }
+        box.textContent = "";
+        const t2 = document.createElement("div");
+        t2.textContent = "Task: " + rec.task;
+        box.appendChild(t2);
+        const detail = document.createElement("div");
+        detail.className = "dim";
+        const show = (i2) => {
+          const e = (rec.trail || [])[i2];
+          detail.textContent = e ? "Step " + e.step + " - " + String(e.type).toUpperCase() + " - " + e.target : "";
+        };
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "0";
+        slider.max = String(
+          Math.max(0, (rec.trail || []).length - 1)
+        );
+        slider.value = "0";
+        slider.oninput = () => show(Number(slider.value));
+        box.appendChild(slider);
+        box.appendChild(detail);
+        show(0);
+        for (const [i2, e] of (rec.trail || []).entries()) {
+          const r2 = document.createElement("div");
+          r2.className = "todorow";
+          r2.textContent = e.step + ". " + String(e.type).toUpperCase() + " - " + e.target;
+          r2.onclick = () => {
+            slider.value = String(i2);
+            show(i2);
+          };
+          box.appendChild(r2);
+        }
+      };
+      row.appendChild(open);
+      box.appendChild(row);
+    }
+  }
+  for (const [id2, fn] of [
+    ["toolRecipes", openRecipesPanel],
+    ["toolLeads", openLeadsPanel],
+    ["toolQuote", openQuotePanel],
+    ["toolReplay", openReplayPanel]
+  ]) {
+    const b = $(id2);
+    if (b) b.onclick = () => {
+      hideTools();
+      fn();
+    };
+  }
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
@@ -41425,6 +41787,7 @@
     }
     agentRunning = true;
     agentStop = false;
+    const trail = [];
     const agentT0 = Date.now();
     const staged = new Map(Object.entries(opts.staged || {}));
     const deletions = new Set(opts.deletions || []);
@@ -41598,6 +41961,11 @@
         continue;
       }
       const act = parseAgentActionFull(reply);
+      trail.push({
+        step,
+        type: act.type,
+        target: act.path || act.command || act.query || act.server || ""
+      });
       if (act.type === "read") {
         const content2 = await readForAgent(act.path);
         addMsg("SYSTEM", "\u{1F4D6} READ " + act.path);
@@ -41745,6 +42113,7 @@
         messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, REVERSE, ECO, VERIFY, TEST, GIT, MCP, DONE, or ASK - or a batch of read-only actions, one per line." });
       }
     }
+    saveTrail(task, trail);
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
     agentRunning = false;
@@ -41789,6 +42158,7 @@
     }
     agentRunning = true;
     agentStop = false;
+    const trail = [];
     const planT0 = Date.now();
     let todos = [];
     addMsg("YOU", "\u{1F4DD} Plan: " + task);
@@ -41877,6 +42247,11 @@
         continue;
       }
       const act = parseAgentActionFull(reply);
+      trail.push({
+        step,
+        type: act.type,
+        target: act.path || act.command || act.query || act.server || ""
+      });
       if (act.type === "read") {
         let content2 = readCache.get(act.path);
         if (content2 === void 0) {
@@ -41938,6 +42313,7 @@
         messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, TODO, DONE, or ASK." });
       }
     }
+    saveTrail(task, trail);
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
     agentRunning = false;

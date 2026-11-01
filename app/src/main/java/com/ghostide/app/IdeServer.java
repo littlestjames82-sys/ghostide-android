@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.46.0";
+    static final String VERSION = "2.47.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2913,7 +2913,9 @@ public final class IdeServer {
         // (DEX + .NET inspectors) in the same zip.
         // v2.44.0 (generation e8) adds GhostReview,
         // GhostScope and GhostMCP to the bundle.
-        File stamp = new File(dir, ".ready-e8");
+        // v2.47.0 (generation e9) updates GhostMCP to
+        // 0.2.0 (resources + prompts) in the same zip.
+        File stamp = new File(dir, ".ready-e9");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -3255,6 +3257,46 @@ public final class IdeServer {
                     Json.str(d, "server", ""), "--tool",
                     Json.str(d, "tool", ""), "--args",
                     argsJson), 50);
+            sendMcpResult(out, r);
+            return;
+        }
+        if ((path.equals("/api/mcp/resources")
+                || path.equals("/api/mcp/resource")
+                || path.equals("/api/mcp/prompts")
+                || path.equals("/api/mcp/prompt"))
+                && method.equals("POST")) {
+            // GhostMCP 0.2 verbs, same session pattern.
+            File cfg = mcpConfigFile();
+            if (cfg == null) {
+                sendJson(out, 400, "{\"error\":\"no MCP config "
+                    + "found - add a .mcp.json to the "
+                    + "workspace\"}");
+                return;
+            }
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String verb = path.substring(
+                "/api/mcp/".length());
+            List<String> argv = new ArrayList<>(Arrays.asList(
+                verb.equals("resource") ? "resource"
+                    : verb, "--config",
+                cfg.getAbsolutePath(), "--server",
+                Json.str(d, "server", "")));
+            if (verb.equals("resources")
+                    || verb.equals("prompts")) {
+                // list verbs take nothing further
+            } else if (verb.equals("resource")) {
+                argv.add("--uri");
+                argv.add(Json.str(d, "uri", ""));
+            } else {
+                Object argsObj = d.get("arguments");
+                argv.add("--name");
+                argv.add(Json.str(d, "name", ""));
+                argv.add("--args");
+                argv.add(argsObj instanceof Map
+                    ? jsonWrite(argsObj) : "{}");
+            }
+            ProcResult r = runEcoCli("ghostmcp", argv, 50);
             sendMcpResult(out, r);
             return;
         }
@@ -4590,6 +4632,159 @@ public final class IdeServer {
             sendJson(out, cSb.toString());
             return;
         }
+        if (path.equals("/api/eco/studio")
+                && method.equals("POST")) {
+            // E18/E19: recipes / leads / quoteshot behind
+            // the same strict verb allowlist as the desktop.
+            Map<String, Object> sd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String tool = Json.str(sd, "tool", "");
+            String verb = Json.str(sd, "verb", "");
+            String arg = Json.str(sd, "arg", "");
+            File giDir = new File(workspace, ".ghostide");
+            giDir.mkdirs();
+            try {
+                String outText = ecoStudio(tool, verb, arg,
+                    giDir);
+                sendJson(out, "{\"ok\":true,\"output\":"
+                    + Json.quote(outText) + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(String.valueOf(
+                        e.getMessage())) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/eco/replay/save")
+                && method.equals("POST")) {
+            // E16: record an agent run's action trail.
+            Map<String, Object> sd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            File dir = new File(new File(workspace,
+                ".ghostide"), "replay");
+            dir.mkdirs();
+            List<Object> clean = new ArrayList<>();
+            Object trailObj = sd.get("trail");
+            if (trailObj instanceof List) {
+                for (Object e : (List<?>) trailObj) {
+                    if (clean.size() >= 200) break;
+                    if (!(e instanceof Map)) continue;
+                    Map<?, ?> em = (Map<?, ?>) e;
+                    Map<String, Object> ce =
+                        new LinkedHashMap<>();
+                    Object st = em.get("step");
+                    ce.put("step", st instanceof Number
+                        ? ((Number) st).intValue() : 0);
+                    ce.put("type", trimTo(
+                        String.valueOf(em.get("type")), 40));
+                    ce.put("target", trimTo(
+                        String.valueOf(em.get("target")), 300));
+                    clean.add(ce);
+                }
+            }
+            String task = String.valueOf(sd.get("task"));
+            if (task.length() > 500)
+                task = task.substring(0, 500);
+            java.text.SimpleDateFormat sdf =
+                new java.text.SimpleDateFormat(
+                    "yyyyMMdd-HHmmss", java.util.Locale.US);
+            String stamp = sdf.format(new java.util.Date());
+            File rec = new File(dir, "run-" + stamp + ".json");
+            int n = 1;
+            while (rec.exists()) {
+                n++;
+                rec = new File(dir, "run-" + stamp + "-"
+                    + n + ".json");
+            }
+            Map<String, Object> recMap = new LinkedHashMap<>();
+            recMap.put("task", task);
+            recMap.put("saved_at",
+                new java.text.SimpleDateFormat(
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    java.util.Locale.US).format(
+                        new java.util.Date()));
+            recMap.put("trail", clean);
+            writeFile(rec, jsonWrite(recMap));
+            sendJson(out, "{\"ok\":true,\"id\":"
+                + Json.quote(rec.getName()) + ",\"steps\":"
+                + clean.size() + "}");
+            return;
+        }
+        if (path.equals("/api/eco/replay/list")
+                && method.equals("POST")) {
+            File dir = new File(new File(workspace,
+                ".ghostide"), "replay");
+            StringBuilder sb = new StringBuilder(
+                "{\"sessions\":[");
+            if (dir.isDirectory()) {
+                File[] all = dir.listFiles();
+                java.util.List<File> fl =
+                    new java.util.ArrayList<>();
+                if (all != null) {
+                    for (File f0 : all)
+                        if (f0.getName().endsWith(".json"))
+                            fl.add(f0);
+                }
+                File[] files = fl.toArray(new File[0]);
+                Arrays.sort(files,
+                    new java.util.Comparator<File>() {
+                        public int compare(File x, File y) {
+                            return y.getName().compareTo(
+                                x.getName());
+                        }
+                    });
+                if (files != null) {
+                    int shown = 0;
+                    for (File f : files) {
+                        if (shown >= 30) break;
+                        try {
+                            Map<String, Object> rec =
+                                Json.obj(Json.parse(
+                                    readFile(f)));
+                            Object tr = rec.get("trail");
+                            int steps = tr instanceof List
+                                ? ((List<?>) tr).size() : 0;
+                            if (shown > 0) sb.append(',');
+                            shown++;
+                            sb.append("{\"id\":")
+                                .append(Json.quote(f.getName()))
+                                .append(",\"task\":")
+                                .append(Json.quote(String.valueOf(
+                                    rec.get("task"))))
+                                .append(",\"saved_at\":")
+                                .append(Json.quote(String.valueOf(
+                                    rec.get("saved_at"))))
+                                .append(",\"steps\":")
+                                .append(steps).append('}');
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+            sb.append("]}");
+            sendJson(out, sb.toString());
+            return;
+        }
+        if (path.equals("/api/eco/replay/get")
+                && method.equals("POST")) {
+            Map<String, Object> sd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String id = Json.str(sd, "id", "");
+            if (id.contains("/") || id.contains("\\")
+                    || !id.endsWith(".json")) {
+                sendJson(out, 400, "{\"error\":\"bad replay "
+                    + "id\"}");
+                return;
+            }
+            File f = new File(new File(new File(workspace,
+                ".ghostide"), "replay"), id);
+            if (!f.isFile()) {
+                sendJson(out, 400, "{\"error\":\"no such "
+                    + "replay session\"}");
+                return;
+            }
+            sendJson(out, readFile(f));
+            return;
+        }
         if (path.equals("/api/eco/board")
                 && method.equals("POST")) {
             // E17: GhostConsole's board model for this
@@ -4655,6 +4850,134 @@ public final class IdeServer {
             return;
         }
         sendJson(out, 400, "{\"error\":\"unknown eco path\"}");
+    }
+
+    private String ecoStudioRun(String tool, List<String> argv)
+            throws Exception {
+        ProcResult r = runEcoCli(tool, argv, 120);
+        String text = ((r.stdout == null ? "" : r.stdout)
+            + (r.stderr == null ? "" : r.stderr)).trim();
+        if (r.code != 0) {
+            throw new Exception(text.isEmpty()
+                ? tool + " failed"
+                : text.substring(0, Math.min(300,
+                    text.length())));
+        }
+        return text;
+    }
+
+    private String capText(String s) {
+        return s.length() > 40000 ? s.substring(0, 40000) : s;
+    }
+
+    private String ecoStudio(String tool, String verb,
+            String arg, File giDir) throws Exception {
+        if (tool.equals("ghostrecipes")) {
+            String lib = new File(workspace, "recipes")
+                .getAbsolutePath();
+            if (verb.equals("list")) {
+                return ecoStudioRun(tool, Arrays.asList(
+                    "list", "--library", lib, "--json"));
+            }
+            if (verb.equals("show")
+                    || verb.equals("validate")) {
+                if (arg.isEmpty())
+                    throw new Exception(
+                        "a recipe id is required");
+                return ecoStudioRun(tool, Arrays.asList(
+                    verb, arg, "--library", lib));
+            }
+            if (verb.equals("render")) {
+                if (arg.isEmpty())
+                    throw new Exception(
+                        "a recipe id is required");
+                String slug = arg.replaceAll(
+                    "[^A-Za-z0-9_.-]", "_");
+                File outF = new File(giDir,
+                    "recipe-" + slug + ".md");
+                ecoStudioRun(tool, Arrays.asList(
+                    "render", arg, "--library", lib, "-o",
+                    outF.getAbsolutePath()));
+                return "Rendered to .ghostide/"
+                    + outF.getName() + "\n\n"
+                    + capText(readFile(outF));
+            }
+            throw new Exception("unknown recipes verb: "
+                + verb);
+        }
+        if (tool.equals("ghostleads")) {
+            File store = new File(workspace, "leads.json");
+            if (verb.equals("import")) {
+                File src = safe(arg);
+                if (!src.isFile())
+                    throw new Exception(
+                        "import source not found: " + arg);
+                return ecoStudioRun(tool, Arrays.asList(
+                    "import", src.getAbsolutePath(),
+                    "--store", store.getAbsolutePath()));
+            }
+            if (!store.isFile())
+                throw new Exception("no leads store yet - "
+                    + "import a CSV or JSON list first");
+            if (verb.equals("list") || verb.equals("score")) {
+                return ecoStudioRun(tool, Arrays.asList(
+                    verb, "--store", store.getAbsolutePath(),
+                    "--json"));
+            }
+            if (verb.equals("pack")) {
+                if (arg.isEmpty())
+                    throw new Exception(
+                        "a lead name is required");
+                File outDir = new File(giDir, "lead-packs");
+                outDir.mkdirs();
+                ecoStudioRun(tool, Arrays.asList(
+                    "pack", "--store",
+                    store.getAbsolutePath(), "--lead", arg,
+                    "--out", outDir.getAbsolutePath()));
+                File[] allP = outDir.listFiles();
+                java.util.List<File> pl =
+                    new java.util.ArrayList<>();
+                if (allP != null) {
+                    for (File f0 : allP)
+                        if (f0.getName().endsWith(".md"))
+                            pl.add(f0);
+                }
+                File[] packs = pl.toArray(new File[0]);
+                if (packs.length == 0)
+                    throw new Exception(
+                        "the pack was not written");
+                Arrays.sort(packs);
+                return "Pack written under "
+                    + ".ghostide/lead-packs\n\n" + capText(
+                        readFile(packs[packs.length - 1]));
+            }
+            throw new Exception("unknown leads verb: " + verb);
+        }
+        if (tool.equals("quoteshot")) {
+            File job = safe(arg);
+            if (!job.isDirectory())
+                throw new Exception(
+                    "job folder not found: " + arg);
+            if (verb.equals("show") || verb.equals("items")) {
+                return ecoStudioRun(tool, Arrays.asList(
+                    verb, job.getAbsolutePath()));
+            }
+            if (verb.equals("render")) {
+                ecoStudioRun(tool, Arrays.asList(
+                    "render", job.getAbsolutePath(), "--out",
+                    job.getAbsolutePath()));
+                File txt = new File(job, "quote.txt");
+                if (!txt.isFile())
+                    throw new Exception(
+                        "the quote was not written");
+                return "Quote rendered into " + arg
+                    + " (quote.html + quote.txt)\n\n"
+                    + capText(readFile(txt));
+            }
+            throw new Exception("unknown quoteshot verb: "
+                + verb);
+        }
+        throw new Exception("unknown studio tool: " + tool);
     }
 
     // ---- Roadmap G38: classroom view ----
