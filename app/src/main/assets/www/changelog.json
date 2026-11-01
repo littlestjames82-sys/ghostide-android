@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.45.0",
+   "date": "Nov 1, 2026",
+   "goal": "Approve queue (E10) + worktrees (E15) + watch feed (E16 lite)",
+   "summary": "The Approve queue is real. A fourth RUN policy joins the pack: Queue - under it, the agent's RUN commands and DELETEs go to the GhostApprove queue instead of executing or staging, and the agent is told plainly that they have not happened. Tools, then Approve queue is where you decide: GhostApprove records each decision against the request's exact hash (it executes nothing, ever), and only then does the IDE carry out that one action - a command runs, a file is deleted - with the outcome kept in the panel's history and the whole store auditable in one tap. The Git panel gains a Worktrees section: list, add and remove worktrees, and Open switches the workspace to one on desktop (the phone workspace is fixed, and the panel says so rather than pretending). And the Files panel now watches the disk: if files change outside the editor - a terminal, another app, a checkout - a feed line names them within seconds; tap it to refresh."
+  },
+  {
    "version": "2.44.0",
    "date": "Nov 1, 2026",
    "goal": "MCP client + Git proof + evidence contract",

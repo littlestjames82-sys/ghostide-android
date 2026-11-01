@@ -33169,6 +33169,7 @@
   async function loadFiles() {
     const r = await fetch("/api/files");
     const d = await r.json();
+    watchObserve(d.files || []);
     const tree = $("fileTree");
     tree.innerHTML = "";
     for (const f of d.files) {
@@ -35499,6 +35500,7 @@
         return;
       }
       $("gitBranch").textContent = d.branch || "";
+      renderWorktrees();
       $("gitAiMsg").disabled = false;
       if (d.branch) {
         $("branchChip").textContent = "\u2387 " + d.branch;
@@ -36848,6 +36850,183 @@
   var gitGhostScopeBtn = $("gitGhostScope");
   if (gitGhostScopeBtn)
     gitGhostScopeBtn.onclick = () => gitProofRun("/api/git/scope", gitGhostScopeBtn, "\u2026");
+  async function openApprovePanel() {
+    hideTools();
+    $("todoTitle").textContent = "Approve queue";
+    $("todoResults").textContent = "Loading the queue\u2026";
+    $("todoPanel").classList.remove("hidden");
+    const box = $("todoResults");
+    let d;
+    try {
+      d = await (await fetch("/api/approve/list")).json();
+    } catch (e) {
+      box.textContent = "Could not reach the server.";
+      return;
+    }
+    box.textContent = "";
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = d.error ? d.error : (d.items || []).length + " request(s) waiting. Nothing here executes on its own: approving records your decision and only then does the IDE carry out that one action.";
+    box.appendChild(head);
+    for (const it of d.items || []) {
+      const row = document.createElement("div");
+      row.className = "todorow";
+      const label = document.createElement("span");
+      label.textContent = it.action + " - risk " + it.risk + " - " + (it.summary || "");
+      row.appendChild(label);
+      for (const dec2 of ["approve", "deny"]) {
+        const b = document.createElement("button");
+        b.className = "ghostbtn";
+        b.textContent = dec2 === "approve" ? "Approve" : "Deny";
+        b.onclick = async () => {
+          b.disabled = true;
+          b.textContent = "\u2026";
+          try {
+            const r = await postJson(
+              "/api/approve/decide",
+              { id: it.id, decision: dec2 }
+            );
+            box.textContent = r.error || (dec2 === "approve" ? r.executed ? "Approved and carried out: " + r.output : "Approved and recorded. " + (r.output || "") : "Denied and recorded. Nothing was executed.");
+            if (!r.error) {
+              const note = document.createElement("div");
+              note.className = "dim";
+              note.textContent = "Reopen the Approve queue to decide the rest.";
+              box.appendChild(note);
+            }
+          } catch (e) {
+            box.textContent = "Could not reach the server.";
+          }
+        };
+        row.appendChild(b);
+      }
+      box.appendChild(row);
+    }
+    const auditB = document.createElement("button");
+    auditB.className = "ghostbtn";
+    auditB.textContent = "Audit the store";
+    auditB.onclick = async () => {
+      try {
+        const a = await (await fetch("/api/approve/audit")).json();
+        box.textContent = a.error || (a.output || "(no output)");
+      } catch (e) {
+        box.textContent = "Could not reach the server.";
+      }
+    };
+    box.appendChild(auditB);
+    for (const r of (d.results || []).slice().reverse()) {
+      const row = document.createElement("div");
+      row.className = "dim";
+      row.textContent = "\xB7 " + r.decision + " " + r.id + (r.executed ? " - executed: " : " - ") + (r.output || "");
+      box.appendChild(row);
+    }
+  }
+  var toolApproveBtn = $("toolApprove");
+  if (toolApproveBtn)
+    toolApproveBtn.onclick = () => {
+      hideTools();
+      openApprovePanel();
+    };
+  async function renderWorktrees() {
+    const box = $("wtList");
+    if (!box) return;
+    let d;
+    try {
+      d = await (await fetch("/api/git/worktrees")).json();
+    } catch (e) {
+      return;
+    }
+    if (d.error) {
+      box.textContent = d.error;
+      return;
+    }
+    let cur2 = "";
+    try {
+      const w = await (await fetch("/api/workspace")).json();
+      cur2 = w.workspace || "";
+    } catch (e) {
+    }
+    box.textContent = "";
+    for (const t2 of d.worktrees || []) {
+      const row = document.createElement("div");
+      row.className = "todorow";
+      const label = document.createElement("span");
+      label.textContent = t2.path.split("/").pop() + (t2.branch ? " - " + t2.branch : "") + (t2.path === cur2 ? " (open)" : "");
+      row.appendChild(label);
+      if (t2.path !== cur2) {
+        const open = document.createElement("button");
+        open.className = "ghostbtn";
+        open.textContent = "Open";
+        open.onclick = () => switchWorkspace(t2.path);
+        row.appendChild(open);
+        const rm2 = document.createElement("button");
+        rm2.className = "ghostbtn";
+        rm2.textContent = "Remove";
+        rm2.onclick = async () => {
+          const r = await postJson(
+            "/api/git/worktree/remove",
+            { path: t2.path }
+          );
+          if (r.error) alert(r.error);
+          renderWorktrees();
+        };
+        row.appendChild(rm2);
+      }
+      box.appendChild(row);
+    }
+  }
+  var wtAddBtn = $("wtAdd");
+  if (wtAddBtn)
+    wtAddBtn.onclick = async () => {
+      const name2 = ($("wtName").value || "").trim();
+      if (!name2) return;
+      const r = await postJson(
+        "/api/git/worktree/add",
+        { name: name2 }
+      );
+      if (r.error) {
+        alert(r.error);
+        return;
+      }
+      $("wtName").value = "";
+      renderWorktrees();
+    };
+  var watchBase = null;
+  function watchSnapshot(files) {
+    const m = /* @__PURE__ */ new Map();
+    for (const f of files)
+      if (f.type === "file")
+        m.set(f.path, (f.mtime || 0) + ":" + (f.size || 0));
+    return m;
+  }
+  function watchObserve(files) {
+    watchBase = watchSnapshot(files);
+    const feed = $("watchFeed");
+    if (feed) feed.textContent = "";
+  }
+  async function watchTick() {
+    if (!watchBase || document.visibilityState !== "visible")
+      return;
+    try {
+      const r = await fetch("/api/files");
+      const d = await r.json();
+      const now = watchSnapshot(d.files || []);
+      const changed = [];
+      for (const [p, sig] of now)
+        if (watchBase.has(p) && watchBase.get(p) !== sig)
+          changed.push(p);
+        else if (!watchBase.has(p)) changed.push(p + " (new)");
+      for (const p of watchBase.keys())
+        if (!now.has(p)) changed.push(p + " (gone)");
+      const feed = $("watchFeed");
+      if (feed && changed.length) {
+        feed.textContent = "\u21BB Changed on disk: " + changed.slice(0, 4).join(", ") + (changed.length > 4 ? " (+" + (changed.length - 4) + " more)" : "") + " - tap to refresh";
+        feed.style.cursor = "pointer";
+        feed.onclick = () => loadFiles();
+      }
+    } catch (e) {
+    }
+  }
+  setInterval(watchTick, 8e3);
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
@@ -40607,6 +40786,9 @@
     "MCP <server> <tool> <json-args> - call a tool on a",
     "  configured MCP server; your briefing lists the servers",
     "  and tools available, if any",
+    "Depending on the user's approval policy, RUN and DELETE",
+    "may go to an approval queue instead of happening; the",
+    "result message will say so when it does.",
     "DONE <one-line summary> - the task is complete",
     "ASK <question> - you need the user to decide something",
     "You may BATCH several read-only actions in one reply, one",
@@ -41319,6 +41501,23 @@
       } else if (act.type === "editbad") {
         messages.push({ role: "user", content: "That EDIT for " + act.path + " had no usable patch. Send EDIT with two fenced blocks (exact old text, then replacement), or one block using <<<<<<< SEARCH / ======= / >>>>>>> REPLACE markers." });
       } else if (act.type === "run") {
+        if (policy === "queue") {
+          const q = await postJson(
+            "/api/approve/enqueue",
+            {
+              kind: "run",
+              command: act.command,
+              summary: "Agent task: " + task.slice(0, 200)
+            }
+          );
+          if (q.error) {
+            messages.push({ role: "user", content: "Queueing that command failed: " + q.error + " Continue without it." });
+          } else {
+            addMsg("SYSTEM", "\u{1F4E5} RUN queued for approval (" + q.id + "): " + act.command);
+            messages.push({ role: "user", content: "That command went to the Approve queue (" + q.id + ") and has NOT run. The user decides in Tools > Approve queue. Continue without its output, or finish with DONE." });
+          }
+          continue;
+        }
         let verdict = runAllowAll ? "all" : await agentApproveRunUi(act.command);
         if (verdict === "all") runAllowAll = true;
         if (agentStop) {
@@ -41338,6 +41537,23 @@
           messages.push({ role: "user", content: "Command ran: " + act.command + "\nExit code: " + d.code + "\nOutput (tail):\n" + (out || "(no output)") });
         }
       } else if (act.type === "delete") {
+        if (policy === "queue") {
+          const q = await postJson(
+            "/api/approve/enqueue",
+            {
+              kind: "delete",
+              path: act.path,
+              summary: "Agent task: " + task.slice(0, 200)
+            }
+          );
+          if (q.error) {
+            messages.push({ role: "user", content: "Queueing that deletion failed: " + q.error + " Continue without it." });
+          } else {
+            addMsg("SYSTEM", "\u{1F4E5} DELETE queued for approval (" + q.id + "): " + act.path);
+            messages.push({ role: "user", content: "Deletion of " + act.path + " went to the Approve queue (" + q.id + ") and has NOT happened. The user decides in Tools > Approve queue. Continue." });
+          }
+          continue;
+        }
         staged.delete(act.path);
         deletions.add(act.path);
         snapshot("DELETE " + act.path, step);

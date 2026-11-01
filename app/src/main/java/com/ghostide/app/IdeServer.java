@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.44.0";
+    static final String VERSION = "2.45.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -961,8 +961,12 @@ public final class IdeServer {
                 if (!dir) {
                     // Roadmap G25: file sizes for the asset
                     // browser, mirroring desktop.
-                    b.append(",\"size\":")
-                     .append(new File(workspace, p).length());
+                    // E16 (v2.45): mtime powers the watch
+                    // feed - changes made outside the IDE.
+                    File fe = new File(workspace, p);
+                    b.append(",\"size\":").append(fe.length())
+                     .append(",\"mtime\":")
+                     .append(fe.lastModified());
                 }
                 b.append("}");
             }
@@ -1661,8 +1665,10 @@ public final class IdeServer {
             return;
         }
         if (path.startsWith("/api/mcp/")
+                || path.startsWith("/api/approve/")
                 || path.equals("/api/git/review")
-                || path.equals("/api/git/scope")) {
+                || path.equals("/api/git/scope")
+                || path.startsWith("/api/git/worktree")) {
             // GhostMCP client + Git proof (v2.44): MCP runs
             // through the bundled GhostMCP tool; the review
             // and scope routes run GhostReview / GhostScope
@@ -3252,7 +3258,394 @@ public final class IdeServer {
             sendMcpResult(out, r);
             return;
         }
+        if (path.startsWith("/api/approve/")
+                || path.startsWith("/api/git/worktree")) {
+            handleApproveWt(path, method, body, out);
+            return;
+        }
         sendJson(out, 404, "{\"error\":\"unknown MCP route\"}");
+    }
+
+    // ---- GhostApprove queue (E10) + worktrees (E15) ----
+    // Mirrors server.py. GhostApprove records decisions and
+    // never executes; on a recorded approval the IDE carries
+    // out exactly the queued action. The phone has no shell,
+    // so an approved RUN records the approval and reports
+    // that it was not executed here - deletes do execute.
+    private File approveStoreDir() {
+        return new File(new File(workspace, ".ghostide"),
+            "approve-store");
+    }
+
+    private void handleApproveWt(String path, String method,
+            byte[] body, java.io.OutputStream out)
+            throws Exception {
+        if (path.equals("/api/approve/enqueue")
+                && method.equals("POST")) {
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String kind = Json.str(d, "kind", "");
+            String command = Json.str(d, "command", "");
+            String rel = Json.str(d, "path", "");
+            String summary = Json.str(d, "summary", "");
+            Map<String, Object> payload = new HashMap<>();
+            String action;
+            if (kind.equals("run")) {
+                if (command.isEmpty()) {
+                    sendJson(out, 400, "{\"error\":\"a run "
+                        + "request needs a command\"}");
+                    return;
+                }
+                action = "Run command: " + command;
+                payload.put("kind", "run");
+                payload.put("command", command);
+            } else if (kind.equals("delete")) {
+                File t = safe(rel);
+                if (!t.isFile()) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote("delete target is not a "
+                            + "file in the workspace: " + rel)
+                        + "}");
+                    return;
+                }
+                action = "Delete file: " + rel;
+                payload.put("kind", "delete");
+                payload.put("path", rel);
+            } else {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("unknown queue kind: " + kind)
+                    + "}");
+                return;
+            }
+            Map<String, Object> req = new HashMap<>();
+            req.put("action", action);
+            req.put("summary", summary.isEmpty()
+                ? "Raised by the GhostIDE agent." : summary);
+            req.put("source", "ghostide-agent");
+            req.put("risk", "high");
+            req.put("payload", payload);
+            req.put("requested_by", "GhostIDE agent");
+            File inbox = new File(new File(workspace,
+                ".ghostide"), "approve-inbox");
+            inbox.mkdirs();
+            File f = new File(inbox, "req-"
+                + System.currentTimeMillis() + ".json");
+            writeFile(f, jsonWrite(req));
+            ProcResult r = runEcoCli("ghostapprove",
+                Arrays.asList("ingest", f.getAbsolutePath(),
+                    "--store",
+                    approveStoreDir().getAbsolutePath(),
+                    "--json"), 60);
+            f.delete();
+            if (r.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostApprove refused the "
+                        + "request: " + trimTo(
+                            (r.stderr == null ? "" : r.stderr)
+                            + (r.stdout == null ? ""
+                                : r.stdout), 300)) + "}");
+                return;
+            }
+            sendJson(out, (r.stdout == null ? ""
+                : r.stdout.trim()));
+            return;
+        }
+        if (path.equals("/api/approve/list")
+                && method.equals("GET")) {
+            ProcResult r = runEcoCli("ghostapprove",
+                Arrays.asList("list", "--store",
+                    approveStoreDir().getAbsolutePath(),
+                    "--status", "pending", "--json"), 60);
+            if (r.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(trimTo(r.stderr, 300)) + "}");
+                return;
+            }
+            String items = r.stdout == null ? "[]"
+                : r.stdout.trim();
+            StringBuilder res = new StringBuilder();
+            File rp = new File(new File(workspace, ".ghostide"),
+                "approve-results.jsonl");
+            if (rp.isFile()) {
+                try {
+                    String[] lines = readFile(rp)
+                        .split("\n");
+                    int from = Math.max(0, lines.length - 15);
+                    for (int i = from; i < lines.length; i++) {
+                        String ln = lines[i].trim();
+                        if (ln.startsWith("{")) {
+                            if (res.length() > 0) res.append(',');
+                            res.append(ln);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            sendJson(out, "{\"items\":" + items
+                + ",\"results\":[" + res + "]}");
+            return;
+        }
+        if (path.equals("/api/approve/decide")
+                && method.equals("POST")) {
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String id = Json.str(d, "id", "");
+            String decision = Json.str(d, "decision", "");
+            if (!decision.equals("approve")
+                    && !decision.equals("deny")) {
+                sendJson(out, 400, "{\"error\":\"decision "
+                    + "must be approve or deny\"}");
+                return;
+            }
+            ProcResult rs = runEcoCli("ghostapprove",
+                Arrays.asList("show", id, "--store",
+                    approveStoreDir().getAbsolutePath(),
+                    "--json"), 60);
+            if (rs.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(trimTo(rs.stderr, 300)) + "}");
+                return;
+            }
+            Map<String, Object> rec = Json.obj(Json.parse(
+                rs.stdout.trim()));
+            if (!"pending".equals(
+                    String.valueOf(rec.get("status")))) {
+                sendJson(out, 400, "{\"error\":\"that request "
+                    + "is no longer pending\"}");
+                return;
+            }
+            ProcResult r = runEcoCli("ghostapprove",
+                Arrays.asList(decision, id, "--hash",
+                    String.valueOf(rec.get("hash")), "--by",
+                    "ghostide-panel", "--store",
+                    approveStoreDir().getAbsolutePath(),
+                    "--json"), 60);
+            if (r.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostApprove refused the "
+                        + "decision: " + trimTo(
+                            (r.stderr == null ? "" : r.stderr)
+                            + (r.stdout == null ? ""
+                                : r.stdout), 300)) + "}");
+                return;
+            }
+            boolean executed = false;
+            String output = "";
+            long code = -1;
+            if (decision.equals("approve")) {
+                Object content = rec.get("content");
+                Object pl = content instanceof Map
+                    ? ((Map<?, ?>) content).get("payload")
+                    : null;
+                Map<?, ?> payload = pl instanceof Map
+                    ? (Map<?, ?>) pl : null;
+                String kind = payload == null ? ""
+                    : String.valueOf(payload.get("kind"));
+                if (kind.equals("run")) {
+                    output = "Approved and recorded. Commands "
+                        + "run on the desktop build - the "
+                        + "phone has no shell for the IDE, so "
+                        + "this command was NOT executed here.";
+                } else if (kind.equals("delete")) {
+                    String rel = String.valueOf(
+                        payload.get("path"));
+                    File t = safe(rel);
+                    if (t.isFile()) {
+                        t.delete();
+                        executed = true;
+                        output = "Deleted " + rel;
+                    } else {
+                        output = "The file no longer exists - "
+                            + "nothing was deleted.";
+                    }
+                } else {
+                    output = "Unknown payload kind - nothing "
+                        + "was executed.";
+                }
+            }
+            Map<String, Object> result = new HashMap<>();
+            result.put("id", id);
+            result.put("decision", decision);
+            result.put("executed", executed);
+            result.put("output", output);
+            if (code >= 0) result.put("code", code);
+            File rp = new File(new File(workspace, ".ghostide"),
+                "approve-results.jsonl");
+            rp.getParentFile().mkdirs();
+            Map<String, Object> line = new HashMap<>();
+            line.put("ts", System.currentTimeMillis() / 1000);
+            line.put("id", id);
+            line.put("decision", decision);
+            line.put("executed", executed);
+            line.put("output", output.length() > 500
+                ? output.substring(0, 500) : output);
+            java.io.FileWriter fw = new java.io.FileWriter(
+                rp, true);
+            fw.write(jsonWrite(line) + "\n");
+            fw.close();
+            sendJson(out, jsonWrite(result));
+            return;
+        }
+        if (path.equals("/api/approve/audit")
+                && method.equals("GET")) {
+            ProcResult r = runEcoCli("ghostapprove",
+                Arrays.asList("verify", "--store",
+                    approveStoreDir().getAbsolutePath()), 60);
+            if (r.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(trimTo(r.stderr, 300)) + "}");
+                return;
+            }
+            String text = ((r.stdout == null ? "" : r.stdout)
+                + (r.stderr == null ? "" : r.stderr)).trim();
+            if (text.length() > 4000)
+                text = text.substring(0, 4000);
+            sendJson(out, "{\"output\":" + Json.quote(text)
+                + "}");
+            return;
+        }
+        if (path.equals("/api/git/worktrees")
+                && method.equals("GET")) {
+            ProcResult gr = gitRun(gitArgs("worktree",
+                "list", "--porcelain"));
+            if (gr.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("git worktree list failed: "
+                        + trimTo(gr.stderr, 200)) + "}");
+                return;
+            }
+            StringBuilder sb = new StringBuilder(
+                "{\"worktrees\":[");
+            boolean first = true;
+            String curPath = null, curBranch = "",
+                curHead = "";
+            List<String[]> trees = new ArrayList<>();
+            for (String ln : (gr.stdout == null ? ""
+                    : gr.stdout).split("\n")) {
+                if (ln.startsWith("worktree ")) {
+                    if (curPath != null)
+                        trees.add(new String[]{curPath,
+                            curBranch, curHead});
+                    curPath = ln.substring(9).trim();
+                    curBranch = ""; curHead = "";
+                } else if (ln.startsWith("HEAD ")
+                        && curPath != null) {
+                    curHead = ln.substring(5).trim();
+                    if (curHead.length() > 12)
+                        curHead = curHead.substring(0, 12);
+                } else if (ln.startsWith("branch ")
+                        && curPath != null) {
+                    curBranch = ln.substring(7).trim()
+                        .replace("refs/heads/", "");
+                } else if (ln.trim().equals("detached")
+                        && curPath != null) {
+                    curBranch = "(detached)";
+                }
+            }
+            if (curPath != null)
+                trees.add(new String[]{curPath, curBranch,
+                    curHead});
+            for (String[] t : trees) {
+                if (!first) sb.append(',');
+                first = false;
+                sb.append("{\"path\":").append(Json.quote(t[0]))
+                    .append(",\"branch\":")
+                    .append(Json.quote(t[1]))
+                    .append(",\"head\":")
+                    .append(Json.quote(t[2])).append('}');
+            }
+            sb.append("]}");
+            sendJson(out, sb.toString());
+            return;
+        }
+        if (path.equals("/api/git/worktree/add")
+                && method.equals("POST")) {
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String name = Json.str(d, "name", "");
+            String branch = Json.str(d, "branch", "");
+            if (!name.matches("[A-Za-z0-9._-]+")
+                    || name.equals(".") || name.equals("..")) {
+                sendJson(out, 400, "{\"error\":\"worktree "
+                    + "name may use letters, digits, dot, "
+                    + "dash and underscore\"}");
+                return;
+            }
+            File dest = new File(workspace.getParentFile(),
+                workspace.getName() + "-" + name);
+            if (dest.exists()) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("that worktree path already "
+                        + "exists: " + dest.getAbsolutePath())
+                    + "}");
+                return;
+            }
+            List<String> wa = new ArrayList<>(
+                gitArgs("worktree", "add"));
+            if (!branch.isEmpty()) {
+                if (!branch.matches("[A-Za-z0-9._/-]+")) {
+                    sendJson(out, 400, "{\"error\":\"branch "
+                        + "name has unsupported characters\"}");
+                    return;
+                }
+                wa.add("-b");
+                wa.add(branch);
+            }
+            wa.add(dest.getAbsolutePath());
+            ProcResult gr = gitRun(wa);
+            if (gr.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("git worktree add failed: "
+                        + trimTo(gr.stderr == null
+                            || gr.stderr.isEmpty()
+                            ? gr.stdout : gr.stderr, 300))
+                    + "}");
+                return;
+            }
+            sendJson(out, "{\"path\":"
+                + Json.quote(dest.getAbsolutePath()) + "}");
+            return;
+        }
+        if (path.equals("/api/git/worktree/remove")
+                && method.equals("POST")) {
+            Map<String, Object> d = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String target = Json.str(d, "path", "");
+            ProcResult gl = gitRun(gitArgs("worktree",
+                "list", "--porcelain"));
+            boolean known = false;
+            for (String ln : (gl.stdout == null ? ""
+                    : gl.stdout).split("\n")) {
+                if (ln.startsWith("worktree ")
+                        && ln.substring(9).trim()
+                            .equals(target))
+                    known = true;
+            }
+            if (!known) {
+                sendJson(out, 400, "{\"error\":\"that path "
+                    + "is not a worktree of this repo\"}");
+                return;
+            }
+            if (target.equals(workspace.getAbsolutePath())) {
+                sendJson(out, 400, "{\"error\":\"the main "
+                    + "workspace cannot be removed\"}");
+                return;
+            }
+            ProcResult gr = gitRun(gitArgs("worktree",
+                "remove", target));
+            if (gr.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("git worktree remove "
+                        + "failed: " + trimTo(gr.stderr == null
+                            || gr.stderr.isEmpty()
+                            ? gr.stdout : gr.stderr, 300))
+                    + "}");
+                return;
+            }
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
+        sendJson(out, 404, "{\"error\":\"unknown queue "
+            + "route\"}");
     }
 
     private void handleEco(String path, String method, byte[] body,

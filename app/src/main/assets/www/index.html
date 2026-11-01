@@ -71,6 +71,7 @@ setTimeout(function () {
     <div class="panel-head"><span id="filesHeadTxt">FILES</span> <span><button id="wsBtn" title="Open a different folder (desktop)" aria-label="Open a different folder">📂</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
     <input id="fileFilter" type="text" placeholder="Filter files…">
     <div id="wsPath" class="hint"></div>
+    <div id="watchFeed" class="dim"></div>
     <div id="fileTree"></div>
     <div id="gitPanel">
       <div class="panel-head"><span id="gitHeadTxt">GIT</span> <span id="gitBranch" class="tag"></span></div>
@@ -84,6 +85,14 @@ setTimeout(function () {
         <button id="gitAiMsg" disabled title="Let Ghost write the commit message from the diff (desktop git)">✨ AI</button>
       </div>
       <div id="gitLog" class="dim"></div>
+      <div class="git-remote">
+        <div class="dim">Worktrees</div>
+        <div id="wtList" class="dim"></div>
+        <div class="ghBtns">
+          <input id="wtName" placeholder="new worktree name">
+          <button id="wtAdd">Add worktree</button>
+        </div>
+      </div>
       <div class="git-remote">
         <div class="dim">GitHub / remote</div>
         <input id="ghToken" type="password" placeholder="GitHub token (stays on this device)">
@@ -201,6 +210,7 @@ setTimeout(function () {
         <option value="each">Approve every command</option>
         <option value="plan">Auto-approve when following an approved plan</option>
         <option value="all">Auto-approve all commands (trusted workspace)</option>
+        <option value="queue">Queue commands + deletes for approval (Approve queue)</option>
       </select>
     </label>
     <div class="optRow">
@@ -423,6 +433,7 @@ setTimeout(function () {
     <button id="toolChangelog">What's new</button>
     <button id="toolEco">Ecosystem tools</button>
     <button id="toolMcp">MCP servers</button>
+    <button id="toolApprove">Approve queue</button>
   </div>
 </div>
 
