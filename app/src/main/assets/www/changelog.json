@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.54.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign audit batch 4 (A16-A20) - Cycle 1 audits complete",
+   "summary": "The final audit round of Cycle 1: every subprocess on both servers is time-bounded (a hung tool gets destroyed, never wedges a thread); fourteen approval requests fired in parallel landed as fourteen unique records with zero corruption; the error contract is uniform JSON on every API route; and two honesty fixes landed - the panel button class used across the app was never actually defined in the stylesheet, so buttons now get a proper 36px minimum tap target, and the Known Issues doc no longer claims LAN mode has no authentication (pairing shipped long ago; the doc now describes the real token and role rules, including the ungated static shell). Cycle 1 closes with twenty improvements (v2.47-v2.50) and twenty audits (v2.51-v2.54): five findings fixed in the campaign's own new code, which is exactly what the audits were for."
+  },
+  {
    "version": "2.53.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign audit batch 3 (A11-A15): build, terminal, workspaces, writes, malformed input",

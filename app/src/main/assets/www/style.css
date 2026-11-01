@@ -41,6 +41,13 @@ button.primary {
   background: var(--ghost-accent); border-color: var(--ghost-accent); color: #fff;
 }
 button.primary:hover { background: var(--ghost-accent-hi); }
+/* A19 (v2.54): .ghostbtn was used by dozens of panel
+   buttons but never defined - they fell back to the
+   generic button rule (~29px tall). Defined here with
+   a 36px minimum tap target. */
+button.ghostbtn {
+  min-height: 36px; padding: 6px 14px;
+}
 button:disabled {
   background: var(--raise); color: #777; border-color: var(--raise-2);
   cursor: default;
