@@ -539,6 +539,20 @@ body.onehand .fileMenuBtn { min-width: 40px; }
 }
 #dbGrid th { background: var(--inset); color: #9fe8bb; }
 
+/* Reverse engineering panel (REA bridge + GhostRE) */
+#reversePanel { border-top: 1px solid var(--line); margin-top: 8px; }
+#reversePanel.hidden { display: none; }
+#reaOut {
+  margin: 0; padding: 6px 10px; overflow: auto; font-size: 12px;
+  white-space: pre-wrap; word-break: break-word; max-height: 320px;
+  font-family: ui-monospace, monospace; color: var(--ink-soft);
+}
+#reaTool {
+  background: var(--inset); color: #e6e8f0; border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 13px; flex: 1;
+  min-width: 0;
+}
+
 /* Roadmap G23: API client */
 #apiPanel { border-top: 1px solid var(--line); margin-top: 8px; }
 .apiRow { display: flex; gap: 6px; padding: 6px 10px; }

@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.42.0",
+   "date": "Nov 1, 2026",
+   "goal": "Reverse engineering: REA bridge (desktop) + GhostRE (built in)",
+   "summary": "New Reverse panel in Tools. On desktop, GhostIDE detects a locally installed REA (Reverse Engineer Anything) and runs its read-only analysis commands against workspace files, saving the full Evidence JSON under .ghostide/rea/ and showing provider status from rea doctor (Ghidra, JADX, Rizin and other free engines light up as they are installed). Built into every build, including this phone APK, is GhostRE: a Ghost-native, stdlib-only Python inspector covering ELF, PE, Mach-O, WASM, APK/ZIP, Python .pyc, SQLite, plist, entropy, strings, and JavaScript app structure, parity-checked against REA's own output on the facts they share. Live capture, debugging, and instrumentation commands are deliberately not in the bridge allowlist."
+  },
+  {
    "version": "2.41.0",
    "date": "Nov 1, 2026",
    "goal": "Phone fit, clean + getJson startup fix",

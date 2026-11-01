@@ -43924,6 +43924,70 @@
     apiRenderSaved();
     $("apiStatus").textContent = 'Saved "' + name2 + '" to ' + API_SAVE_PATH;
   };
+  async function reaLoadStatus() {
+    const el = $("reaStatus");
+    el.textContent = "checking\u2026";
+    try {
+      const r = await fetch("/api/rea/status");
+      const d = await r.json();
+      if (!d.found) {
+        el.textContent = "REA: not installed on this machine. " + (d.hint || "GhostRE below still works.");
+        return;
+      }
+      const prov = d.providers || {};
+      const parts = Object.keys(prov).map((k) => k + ": " + (prov[k] ? "ready" : "missing"));
+      el.textContent = "REA " + (d.version || "") + " at " + d.path + (d.healthy === false ? " \xB7 doctor: providers missing" : "") + (parts.length ? " \xB7 " + parts.join(" \xB7 ") : "");
+    } catch (e) {
+      el.textContent = "REA status unavailable on this build; GhostRE below still works.";
+    }
+  }
+  function openReverse() {
+    hideTools();
+    $("reversePanel").classList.remove("hidden");
+    if (!$("reaPath").value && currentFile)
+      $("reaPath").value = currentFile;
+    reaLoadStatus();
+    $("reversePanel").scrollIntoView({ block: "nearest" });
+  }
+  $("toolReverse").onclick = openReverse;
+  $("reaClose").onclick = () => $("reversePanel").classList.add("hidden");
+  $("reaRefresh").onclick = reaLoadStatus;
+  $("reaRun").onclick = async () => {
+    const tool = $("reaTool").value;
+    const path = $("reaPath").value.trim() || currentFile || "";
+    const out = $("reaOut"), msg = $("reaMsg");
+    if (!path) {
+      msg.textContent = "Open a file or type a workspace path first.";
+      return;
+    }
+    msg.textContent = "Analyzing " + path + "\u2026";
+    out.textContent = "";
+    try {
+      if (tool === "ghostre") {
+        const d2 = await postJson("/api/ghostre/run", { path });
+        if (d2.error) {
+          msg.textContent = d2.error;
+          return;
+        }
+        msg.textContent = "GhostRE \xB7 " + (d2.output ? "done" : "done");
+        out.textContent = d2.output || "";
+        return;
+      }
+      const d = await postJson(
+        "/api/rea/run",
+        { command: tool, path }
+      );
+      if (d.error) {
+        msg.textContent = d.error;
+        return;
+      }
+      const s = d.summary || {};
+      msg.textContent = "REA \xB7 " + (s.operation || tool) + (s.format ? " \xB7 format: " + s.format : "") + (s.provider ? " \xB7 " + s.provider : "") + " \xB7 full Evidence saved to " + d.evidenceFile;
+      out.textContent = (d.output || "").slice(0, 12e3);
+    } catch (e) {
+      msg.textContent = "Analysis failed: " + e;
+    }
+  };
   var dbState = { path: null, write: false, tables: [] };
   async function dbPost(url, body) {
     const r = await fetch(url, {

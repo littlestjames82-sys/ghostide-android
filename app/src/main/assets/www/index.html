@@ -385,6 +385,7 @@ setTimeout(function () {
     <button id="toolPair">Pair mode</button>
     <button id="toolBackup">Encrypted backup</button>
     <button id="toolApi">API client</button>
+    <button id="toolReverse">Reverse engineering</button>
     <button id="toolDocs">Export docs site</button>
     <button id="toolAssets">Asset browser</button>
     <button id="toolContext">Context lab</button>
@@ -478,6 +479,44 @@ setTimeout(function () {
   <pre id="apiRespHeaders"></pre>
   <pre id="apiResp"></pre>
   <div id="apiHistory" class="apiList"></div>
+</div>
+<div id="reversePanel" class="hidden">
+  <div class="run-head">
+    <span>🔬 Reverse engineering</span>
+    <span>
+      <button id="reaRefresh">↻ Status</button>
+      <button id="reaClose">✕</button>
+    </span>
+  </div>
+  <div id="reaStatus" class="dim" style="padding:4px 10px">checking…</div>
+  <div class="apiRow">
+    <input id="reaPath" type="text" placeholder="Workspace path to analyze (defaults to the open file)">
+  </div>
+  <div class="apiRow">
+    <select id="reaTool">
+      <option value="ghostre">GhostRE inspect (built in, works everywhere)</option>
+      <option value="inspect-artifact">REA: Inspect artifact</option>
+      <option value="inspect-byte-entropy">REA: Byte entropy</option>
+      <option value="inspect-binary-layout">REA: Binary layout</option>
+      <option value="analyze-javascript-application">REA: Analyze JavaScript application</option>
+      <option value="inspect-android-package">REA: Android package</option>
+      <option value="inspect-apk-signature">REA: APK signature</option>
+      <option value="inspect-sqlite-database">REA: SQLite database</option>
+      <option value="inspect-python-pyc">REA: Python .pyc</option>
+      <option value="inspect-wasm-artifact">REA: WebAssembly</option>
+      <option value="inspect-macho">REA: Mach-O</option>
+      <option value="inspect-pe-imports">REA: PE imports</option>
+      <option value="inspect-elf-notes">REA: ELF notes</option>
+      <option value="inspect-go-binary">REA: Go binary</option>
+      <option value="inspect-rust-binary">REA: Rust binary</option>
+      <option value="inspect-managed-artifact">REA: Managed (.NET)</option>
+      <option value="inspect-plist">REA: Plist</option>
+      <option value="decompile">REA: Decompile (needs a provider engine)</option>
+    </select>
+    <button id="reaRun">▶ Analyze</button>
+  </div>
+  <div id="reaMsg" class="dim" style="padding:2px 10px"></div>
+  <pre id="reaOut"></pre>
 </div>
 <div id="assetPanel" class="hidden">
   <div class="run-head">

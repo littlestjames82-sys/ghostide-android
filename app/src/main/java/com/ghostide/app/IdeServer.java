@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.41.0";
+    static final String VERSION = "2.42.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -1646,6 +1646,20 @@ public final class IdeServer {
             }
             return;
         }
+        if (path.startsWith("/api/rea/")
+                || path.equals("/api/ghostre/run")) {
+            // REA bridge + GhostRE (v2.42): REA itself is a
+            // desktop engine (Node + desktop providers), so on
+            // the phone the status route says so plainly and
+            // GhostRE - bundled in eco.zip - does the work.
+            try {
+                handleRea(path, method, body, out);
+            } catch (Exception e) {
+                sendJson(out, "{\"error\":" + Json.quote(
+                    String.valueOf(e.getMessage())) + "}");
+            }
+            return;
+        }
         if (path.startsWith("/api/eco/")) {
             // Roadmap ECO E1: the ecosystem runner. The E1
             // proof pair (GhostIndex, GhostDeps) ships in the
@@ -2801,6 +2815,7 @@ public final class IdeServer {
         {"ghostdocs", "GhostDocs", "listed", "Docs slicer (native docs mode)"},
         {"ghostport", "GhostPort", "listed", "Migration CLI - stays a CLI"},
         {"ghostproxy", "GhostProxy", "listed", "Live-traffic proxy - out of scope for an offline IDE"},
+        {"ghostre", "GhostRE", "RE1", "Reverse engineering inspector - REA's provider-free core, Ghost-native (Reverse panel)"},
     };
 
     // The E2 audited bundle: suites green against the
@@ -2821,7 +2836,7 @@ public final class IdeServer {
             "ghostrecipes", "ghostenv", "ghostmcpdoctor",
             "ghostleads", "quoteshot", "ghostreplay",
             "ghostconsole", "ghosthandoff", "ghostrecall",
-            "ghostatlas"));
+            "ghostatlas", "ghostre"));
 
     private File ecoDir() {
         return new File(ctx.getFilesDir(), "eco");
@@ -2833,7 +2848,8 @@ public final class IdeServer {
         // v1.55.0 adds packages to eco.zip; a fresh stamp
         // forces re-extraction on updated installs, whose
         // filesDir otherwise survives with the old tool set.
-        File stamp = new File(dir, ".ready-e5");
+        // v2.42.0 (generation e6) adds GhostRE to the bundle.
+        File stamp = new File(dir, ".ready-e6");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -2894,6 +2910,69 @@ public final class IdeServer {
             }
         }
         return null;
+    }
+
+    private void handleRea(String path, String method, byte[] body,
+            java.io.OutputStream out) throws Exception {
+        if (path.equals("/api/rea/status")) {
+            sendJson(out, "{\"found\":false,\"onDevice\":true,"
+                + "\"hint\":\"REA itself runs on the desktop "
+                + "build (it needs Node and desktop provider "
+                + "engines). On this phone, GhostRE below is "
+                + "built in and works offline.\"}");
+            return;
+        }
+        if (path.equals("/api/rea/run")) {
+            sendJson(out, 400, "{\"error\":\"REA runs on the "
+                + "desktop build; on this device use GhostRE "
+                + "inspect (built in)\"}");
+            return;
+        }
+        if (path.equals("/api/ghostre/run")
+                && method.equals("POST")) {
+            Map<String, Object> req = Json.obj(Json.parse(
+                new String(body, "UTF-8")));
+            String rel = Json.str(req, "path", "");
+            File target = new File(workspace, rel);
+            if (!PathCheck.inside(workspace, target)
+                    || !target.exists()) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("target not found in the "
+                        + "workspace: " + rel) + "}");
+                return;
+            }
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            Map<String, String> env = pythonEnv();
+            env.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            ProcResult r = runProcess(
+                Arrays.asList(pythonBin(), "-m", "ghostre",
+                    "inspect", target.getAbsolutePath()),
+                workspace, 120, env);
+            String text = (r.stdout == null ? "" : r.stdout)
+                .strip();
+            if (r.code != 0 || text.isEmpty()) {
+                String err = (r.stderr == null ? "" : r.stderr)
+                    .strip();
+                if (err.length() > 300)
+                    err = err.substring(0, 300);
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostRE could not inspect "
+                        + "that target: " + err) + "}");
+                return;
+            }
+            if (text.length() > 60000)
+                text = text.substring(0, 60000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(text) + "}");
+            return;
+        }
+        sendJson(out, 404, "{\"error\":\"unknown REA route\"}");
     }
 
     private void handleEco(String path, String method, byte[] body,
