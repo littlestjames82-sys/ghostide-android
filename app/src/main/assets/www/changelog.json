@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.51.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign audit batch 1 (A1-A5): pairing, paths, toolrunner, agent rails, queue integrity",
+   "summary": "The first audit round probed the security rails with live attacks, and four of five areas passed clean: the pairing gate covers every API route on both methods with rate-limited joins and expiring tokens; every path-escape attempt (encoded dots, absolute paths, symlink escapes, write escapes) was refused; the ecosystem tool runner only reaches its wired verbs and cannot be flag-injected; and the Approve queue's hash binding refused a tampered record at decision time while the audit flagged the tamper by id. One real hole was found and fixed: the agent's MCP tool calls used to bypass the approval rails that govern RUN commands. They now queue under the queue policy (a new queue kind that executes on your approval) and ask per call under the other policies, exactly like commands."
+  },
+  {
    "version": "2.50.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign batch 4: worktree briefing, MCP list cache, settings bundle readout, verify fix drafts, version build gate",

@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.50.0";
+    static final String VERSION = "2.51.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -3360,6 +3360,31 @@ public final class IdeServer {
                 action = "Run command: " + command;
                 payload.put("kind", "run");
                 payload.put("command", command);
+            } else if (kind.equals("mcp")) {
+                // A4 audit fix: agent MCP calls queue like
+                // RUN/DELETE - they act on the outside world.
+                Object mcpObj = d.get("mcp");
+                Map<?, ?> mcp = mcpObj instanceof Map
+                    ? (Map<?, ?>) mcpObj : null;
+                String mServer = mcp == null ? ""
+                    : String.valueOf(mcp.get("server"));
+                String mTool = mcp == null ? ""
+                    : String.valueOf(mcp.get("tool"));
+                Object mArgs = mcp == null ? null
+                    : mcp.get("arguments");
+                if (mServer.isEmpty() || mTool.isEmpty()
+                        || !(mArgs instanceof Map)) {
+                    sendJson(out, 400, "{\"error\":\"an MCP "
+                        + "request needs a server, a tool and "
+                        + "an arguments object\"}");
+                    return;
+                }
+                action = "Call MCP " + mServer + "." + mTool
+                    + " with " + trimTo(jsonWrite(mArgs), 200);
+                payload.put("kind", "mcp");
+                payload.put("server", mServer);
+                payload.put("tool", mTool);
+                payload.put("arguments", mArgs);
             } else if (kind.equals("delete")) {
                 File t = safe(rel);
                 if (!t.isFile()) {
@@ -3517,6 +3542,57 @@ public final class IdeServer {
                     } else {
                         output = "The file no longer exists - "
                             + "nothing was deleted.";
+                    }
+                } else if (kind.equals("mcp")) {
+                    // The phone has the MCP client bundled,
+                    // so an approved call executes here too.
+                    File cfg = mcpConfigFile();
+                    if (cfg == null) {
+                        output = "The approved MCP call could "
+                            + "not run: no MCP config found.";
+                    } else {
+                        Object aObj = payload.get("arguments");
+                        String aJson = aObj instanceof Map
+                            ? jsonWrite(aObj) : "{}";
+                        ProcResult mr = runEcoCli("ghostmcp",
+                            Arrays.asList("call", "--config",
+                                cfg.getAbsolutePath(), "--server",
+                                String.valueOf(
+                                    payload.get("server")),
+                                "--tool",
+                                String.valueOf(
+                                    payload.get("tool")),
+                                "--args", aJson), 50);
+                        String mText = mr.stdout == null
+                            ? "" : mr.stdout.trim();
+                        String mLast = mText;
+                        for (String ln : mText.split("\n"))
+                            if (ln.trim().startsWith("{"))
+                                mLast = ln.trim();
+                        try {
+                            Map<String, Object> mObj =
+                                Json.obj(Json.parse(mLast));
+                            if (mObj.get("error") != null) {
+                                output = "The approved MCP call "
+                                    + "could not run: "
+                                    + mObj.get("error");
+                            } else {
+                                executed = true;
+                                output = (Boolean.TRUE.equals(
+                                        mObj.get("isError"))
+                                        ? "MCP error: "
+                                        : "MCP result: ")
+                                    + String.valueOf(
+                                        mObj.get("text"));
+                            }
+                        } catch (Exception e) {
+                            output = "The approved MCP call "
+                                + "could not run: unreadable "
+                                + "GhostMCP result.";
+                        }
+                        if (output.length() > 2000)
+                            output = output.substring(
+                                output.length() - 2000);
                     }
                 } else {
                     output = "Unknown payload kind - nothing "

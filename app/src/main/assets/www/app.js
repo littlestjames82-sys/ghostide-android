@@ -42333,13 +42333,61 @@
         if (!notes.length) notes.push("nothing staged to check");
         addMsg("SYSTEM", "\u{1F50D} CHECK\n" + notes.join("\n"));
         messages.push({ role: "user", content: "Check results:\n" + notes.join("\n") + "\nFix any problems with another WRITE or EDIT, or finish with DONE." });
+      } else if (act.type === "mcp") {
+        if (act.argsError) {
+          messages.push({
+            role: "user",
+            content: await agentToolText(act)
+          });
+        } else if (policy === "queue") {
+          const q = await postJson(
+            "/api/approve/enqueue",
+            {
+              kind: "mcp",
+              mcp: {
+                server: act.server,
+                tool: act.tool,
+                arguments: act.args || {}
+              },
+              summary: "Agent task: " + task.slice(0, 200)
+            }
+          );
+          if (q.error) {
+            messages.push({ role: "user", content: "Queueing that MCP call failed: " + q.error + " Continue without it." });
+          } else {
+            addMsg("SYSTEM", "\u{1F4E5} MCP call queued for approval (" + q.id + "): " + act.server + "." + act.tool);
+            messages.push({ role: "user", content: "That MCP call went to the Approve queue (" + q.id + ") and has NOT run. The user decides in Tools > Approve queue. Continue without its result, or finish with DONE." });
+          }
+        } else if (!runAllowAll) {
+          const verdict = await agentApproveRunUi("MCP " + act.server + "." + act.tool + " " + JSON.stringify(act.args || {}).slice(0, 300));
+          if (verdict === "all") runAllowAll = true;
+          if (agentStop) {
+            outcome = "stopped";
+            break;
+          }
+          if (verdict === "deny") {
+            addMsg("SYSTEM", "\u26D4 MCP call denied by you: " + act.server + "." + act.tool);
+            messages.push({ role: "user", content: "The user denied that MCP call. Do not retry it; find another way or finish with DONE." });
+          } else {
+            const t2 = await agentToolText(act);
+            messages.push({
+              role: "user",
+              content: t2 + "\nContinue."
+            });
+          }
+        } else {
+          const t2 = await agentToolText(act);
+          messages.push({
+            role: "user",
+            content: t2 + "\nContinue."
+          });
+        }
       } else if ([
         "reverse",
         "eco",
         "git",
         "verify",
-        "test",
-        "mcp"
+        "test"
       ].includes(act.type)) {
         addMsg("SYSTEM", "\u{1F9F0} " + act.type.toUpperCase() + (act.path ? " " + act.path : "") + (act.tool ? " " + act.tool : "") + (act.what ? " " + act.what : ""));
         const t2 = await agentToolText(act);
