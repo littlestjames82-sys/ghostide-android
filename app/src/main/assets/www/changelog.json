@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.46.0",
+   "date": "Nov 1, 2026",
+   "goal": "Ecosystem board (E17) + data openers (E14) + run-pane log slicing (E13)",
+   "summary": "Three deeper forms land. The Ecosystem board (Tools, then Ecosystem board) renders GhostConsole's own board model for the workspace: the project's column and the console's reasoning up top, then every tool's latest report as a card under Verified, Attention or Stale. It fills in as you work, because Verify, Verdict, Scope and the log slicer already write the reports the console reads. Data files open properly now: a CSV, TSV or JSON file shows a data pane above the editor with GhostData's report (schema, bounded sample, sensitive columns redacted), and OpenAPI or JSON Schema files get GhostSchema's endpoint outline - the tools' own words, verbatim, with an Ask Ghost button that drops the report into the chat box. And the Run pane gains Slice log: one tap turns raw output into a GhostLogs incident pack (error windows kept, duplicates collapsed) right in the pane, ready to ask Ghost about."
+  },
+  {
    "version": "2.45.0",
    "date": "Nov 1, 2026",
    "goal": "Approve queue (E10) + worktrees (E15) + watch feed (E16 lite)",

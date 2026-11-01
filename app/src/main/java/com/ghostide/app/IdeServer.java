@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.45.0";
+    static final String VERSION = "2.46.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -4588,6 +4588,70 @@ public final class IdeServer {
             }
             cSb.append("]}");
             sendJson(out, cSb.toString());
+            return;
+        }
+        if (path.equals("/api/eco/board")
+                && method.equals("POST")) {
+            // E17: GhostConsole's board model for this
+            // workspace, returned as-is.
+            ProcResult br = runEcoCli("ghostconsole",
+                Arrays.asList("summary",
+                    workspace.getAbsolutePath(), "--json"),
+                120);
+            if (br.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostConsole could not "
+                        + "run: " + trimTo(
+                            (br.stderr == null ? "" : br.stderr)
+                            + (br.stdout == null ? ""
+                                : br.stdout), 300)) + "}");
+                return;
+            }
+            sendJson(out, br.stdout == null ? "{}"
+                : br.stdout.trim());
+            return;
+        }
+        if (path.equals("/api/eco/slicelog")
+                && method.equals("POST")) {
+            // E13: run output -> GhostLogs incident pack.
+            Map<String, Object> sd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String text = Json.str(sd, "text", "");
+            if (text.trim().isEmpty()) {
+                sendJson(out, 400, "{\"error\":\"nothing to "
+                    + "slice - run something first\"}");
+                return;
+            }
+            if (text.length() > 2000000)
+                text = text.substring(0, 2000000);
+            File giDir = new File(workspace, ".ghostide");
+            giDir.mkdirs();
+            File logFile = new File(giDir, "run-output.log");
+            writeFile(logFile, text);
+            File packDir = new File(giDir, "ghostlogs-pack");
+            ProcResult lr = runEcoCli("ghostlogs",
+                Arrays.asList("pack",
+                    logFile.getAbsolutePath(), "-o",
+                    packDir.getAbsolutePath()), 120);
+            String lText = (lr.stdout == null ? "" : lr.stdout)
+                + (lr.stderr == null ? "" : lr.stderr);
+            if (lr.code == 2 || lr.code < 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + trimTo(lText, 300)) + "}");
+                return;
+            }
+            String lFinal = lText.trim();
+            File incident = new File(packDir, "INCIDENT.md");
+            if (incident.isFile()) {
+                try {
+                    lFinal = readFile(incident);
+                } catch (Exception ignored) {}
+            }
+            if (lFinal.length() > 60000)
+                lFinal = lFinal.substring(0, 60000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(lFinal) + "}");
             return;
         }
         sendJson(out, 400, "{\"error\":\"unknown eco path\"}");

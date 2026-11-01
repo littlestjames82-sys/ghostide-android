@@ -33405,6 +33405,7 @@
     stashTab();
     if (tabStates.has(path)) {
       activateTab(path);
+      maybeDataView(path, null);
       return;
     }
     const r = await fetch("/api/file?path=" + encodeURIComponent(path));
@@ -33422,6 +33423,7 @@
     tabDirty.set(path, false);
     pairNoteOpened(path, d.content);
     activateTab(path);
+    maybeDataView(path, d.content);
     checkDraft(path, d.content);
     checkQuiet();
   }
@@ -37027,6 +37029,141 @@
     }
   }
   setInterval(watchTick, 8e3);
+  function askGhostWith(lead, text) {
+    const box = $("chatText");
+    if (!box) return;
+    box.value = lead + "\n\n" + (text || "").slice(0, 6e3);
+    box.focus();
+  }
+  async function openBoardPanel() {
+    hideTools();
+    $("todoTitle").textContent = "Ecosystem board";
+    $("todoResults").textContent = "Building the board\u2026";
+    $("todoPanel").classList.remove("hidden");
+    const box = $("todoResults");
+    let d;
+    try {
+      d = await postJson("/api/eco/board", {});
+    } catch (e) {
+      box.textContent = "Could not reach the server.";
+      return;
+    }
+    if (d.error) {
+      box.textContent = d.error;
+      return;
+    }
+    const proj = (d.projects || [])[0];
+    box.textContent = "";
+    if (!proj) {
+      box.textContent = "No board model for this workspace.";
+      return;
+    }
+    const head = document.createElement("div");
+    head.className = "dim";
+    head.textContent = proj.name + " - board column: " + proj.column + ". " + (proj.column_reason || "");
+    box.appendChild(head);
+    const groups = {
+      "Verified": [],
+      "Attention": [],
+      "Stale": []
+    };
+    for (const s of proj.sections || []) {
+      const g = s.state === "ok" ? "Verified" : s.state === "absent" ? "Stale" : "Attention";
+      groups[g].push(s);
+    }
+    for (const g of ["Verified", "Attention", "Stale"]) {
+      if (!groups[g].length) continue;
+      const h = document.createElement("div");
+      h.textContent = g + " (" + groups[g].length + ")";
+      box.appendChild(h);
+      for (const s of groups[g]) {
+        const row = document.createElement("div");
+        row.className = "todorow";
+        const label = document.createElement("span");
+        label.textContent = s.tool + " - " + (s.state === "absent" ? "no report yet" : s.summary || s.state) + (s.when ? " (" + String(s.when).slice(0, 10) + ")" : "");
+        row.appendChild(label);
+        box.appendChild(row);
+      }
+    }
+  }
+  var toolBoardBtn = $("toolBoard");
+  if (toolBoardBtn)
+    toolBoardBtn.onclick = () => {
+      hideTools();
+      openBoardPanel();
+    };
+  async function maybeDataView(path, content2) {
+    const pane = $("dataPane");
+    if (!pane) return;
+    const lower = (path || "").toLowerCase();
+    let tool = null;
+    if (/\.(csv|tsv)$/.test(lower)) tool = "ghostdata";
+    else if (/\.json$/.test(lower)) {
+      let c = content2;
+      if (c == null) {
+        try {
+          const r = await fetch("/api/file?path=" + encodeURIComponent(path));
+          const dd = await r.json();
+          c = dd.content || "";
+        } catch (e) {
+          c = "";
+        }
+      }
+      tool = /"openapi"|"swagger"|"\$schema"|"jsonschema"/.test(c.slice(0, 4e3)) || /schema/.test(lower) ? "ghostschema" : "ghostdata";
+    }
+    if (!tool) {
+      pane.classList.add("hidden");
+      return;
+    }
+    try {
+      const d = await postJson(
+        "/api/eco/toolrun",
+        { tool, path }
+      );
+      if (d.error) {
+        pane.classList.add("hidden");
+        return;
+      }
+      $("dataTitle").textContent = (tool === "ghostdata" ? "\u{1F4CA} GhostData - " : "\u{1F9E9} GhostSchema - ") + path;
+      $("dataOut").textContent = d.output || "(no output)";
+      pane.classList.remove("hidden");
+    } catch (e) {
+      pane.classList.add("hidden");
+    }
+  }
+  var dataCloseBtn = $("dataClose");
+  if (dataCloseBtn)
+    dataCloseBtn.onclick = () => $("dataPane").classList.add("hidden");
+  var dataAskBtn = $("dataAsk");
+  if (dataAskBtn)
+    dataAskBtn.onclick = () => askGhostWith(
+      "Explain this data report and anything unusual in it:",
+      $("dataOut").textContent
+    );
+  var runSliceBtn = $("runSlice");
+  if (runSliceBtn)
+    runSliceBtn.onclick = async () => {
+      const text = $("runOut").textContent || "";
+      runSliceBtn.disabled = true;
+      try {
+        const d = await postJson("/api/eco/slicelog", { text });
+        if (d.error) {
+          alert(d.error);
+          return;
+        }
+        $("runTitle").textContent = "Incident pack (GhostLogs)";
+        $("runOut").textContent = d.output || "(no output)";
+      } catch (e) {
+        alert("The slice failed to reach the server.");
+      }
+      runSliceBtn.disabled = false;
+    };
+  var runAskBtn = $("runAsk");
+  if (runAskBtn)
+    runAskBtn.onclick = () => askGhostWith(
+      "Explain this output and what to do about it:",
+      $("runOut").textContent
+    );
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";

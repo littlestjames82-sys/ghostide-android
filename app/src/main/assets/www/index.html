@@ -128,8 +128,16 @@ setTimeout(function () {
     </div>
     <div id="runPane" class="hidden">
       <div class="run-head"><span id="runTitle">Output</span>
-        <button id="runClose">✕</button></div>
+        <span><button id="runSlice" title="GhostLogs: slice this output into an incident pack (error windows, duplicates collapsed)">🔪 Slice log</button>
+        <button id="runAsk" title="Put this output in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
+        <button id="runClose">✕</button></span></div>
       <pre id="runOut" aria-live="polite"></pre>
+    </div>
+    <div id="dataPane" class="hidden">
+      <div class="run-head"><span id="dataTitle">Data view</span>
+        <span><button id="dataAsk" title="Put this report in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
+        <button id="dataClose">✕</button></span></div>
+      <pre id="dataOut"></pre>
     </div>
     <div id="termPane" class="hidden">
       <div class="run-head"><span><span id="termTitle">Terminal · workspace folder · local shell (unsandboxed)</span> <span id="termCwd"></span></span>
@@ -434,6 +442,7 @@ setTimeout(function () {
     <button id="toolEco">Ecosystem tools</button>
     <button id="toolMcp">MCP servers</button>
     <button id="toolApprove">Approve queue</button>
+    <button id="toolBoard">Ecosystem board</button>
   </div>
 </div>
 
