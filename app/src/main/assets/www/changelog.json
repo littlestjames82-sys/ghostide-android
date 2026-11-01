@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.55.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 batch 1: persistent MCP sessions, sessions readout, durable test fixtures",
+   "summary": "Cycle 2 opens with the deepest carry-over from the audits: MCP servers now stay alive. GhostMCP 0.3.0 adds a serve daemon that keeps one handshaken session per configured server, and the desktop IDE routes every MCP list and call through it (with the old one-shot CLI as an automatic fallback if the daemon ever fails). A fixture proved the win end to end: three requests, exactly one server process spawned, where before there were three. The MCP panel shows which sessions are live and how many calls each has served. Also in this batch: the GhostConsole test fixtures that kept expiring on a calendar schedule now compute their dates from today, so they cannot rot again - its suite runs 103/103. The phone's ecosystem bundle moves to generation e10 to carry the new GhostMCP."
+  },
+  {
    "version": "2.54.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign audit batch 4 (A16-A20) - Cycle 1 audits complete",

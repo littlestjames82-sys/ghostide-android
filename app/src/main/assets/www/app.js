@@ -37701,6 +37701,21 @@
       "Explain this terminal output and what to do about it:",
       $("termOut").textContent
     );
+  var _openMcpPanelC2 = openMcpPanel;
+  openMcpPanel = async function() {
+    await _openMcpPanelC2();
+    try {
+      const d = await postJson("/api/mcp/sessions", {});
+      if (!d.sessions || !d.sessions.length) return;
+      const note = document.createElement("div");
+      note.className = "dim";
+      note.textContent = "Live sessions: " + d.sessions.map(
+        (s) => s.server + " (" + s.calls + " calls)"
+      ).join(", ");
+      todoResults.appendChild(note);
+    } catch (e) {
+    }
+  };
   async function annotateEcoStates() {
     let d;
     try {

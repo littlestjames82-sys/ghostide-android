@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.54.0";
+    static final String VERSION = "2.55.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2971,7 +2971,7 @@ public final class IdeServer {
         // GhostScope and GhostMCP to the bundle.
         // v2.47.0 (generation e9) updates GhostMCP to
         // 0.2.0 (resources + prompts) in the same zip.
-        File stamp = new File(dir, ".ready-e9");
+        File stamp = new File(dir, ".ready-e10");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
