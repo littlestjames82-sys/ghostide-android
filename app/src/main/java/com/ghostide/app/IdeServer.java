@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.47.0";
+    static final String VERSION = "2.48.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -1983,9 +1983,28 @@ public final class IdeServer {
                               .append("}");
                         }
                     }
+                    String scopeLine = "";
+                    File packMd = new File(new File(
+                        new File(workspace, ".ghostide"),
+                        "scope-pack"), "REVIEW.md");
+                    if (packMd.isFile()) {
+                        try {
+                            for (String ln : readFile(packMd)
+                                    .split("\n")) {
+                                String t = ln.trim()
+                                    .replaceFirst("^#+\\s*", "");
+                                if (!t.isEmpty()) {
+                                    scopeLine = t.length() > 160
+                                        ? t.substring(0, 160) : t;
+                                    break;
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                    }
                     sendJson(out, "{\"repo\":true,\"branch\":"
                         + Json.quote(branch) + ",\"changes\":["
-                        + ch + "]}");
+                        + ch + "],\"scope_line\":"
+                        + Json.quote(scopeLine) + "}");
                     return;
                 }
                 if (path.equals("/api/git/remote")) {
@@ -4783,6 +4802,54 @@ public final class IdeServer {
                 return;
             }
             sendJson(out, readFile(f));
+            return;
+        }
+        if (path.equals("/api/eco/datapack")
+                && method.equals("POST")) {
+            // I14: full GhostData pack for a data file.
+            Map<String, Object> sd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String rel = Json.str(sd, "path", "");
+            File target = safe(rel);
+            if (!target.isFile()) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("not a file in the "
+                        + "workspace: " + rel) + "}");
+                return;
+            }
+            String stem = target.getName();
+            int dot = stem.lastIndexOf('.');
+            if (dot > 0) stem = stem.substring(0, dot);
+            stem = stem.replaceAll("[^A-Za-z0-9_.-]", "_");
+            if (stem.isEmpty()) stem = "data";
+            File giDir = new File(workspace, ".ghostide");
+            giDir.mkdirs();
+            File outDir = new File(giDir, "data-pack-" + stem);
+            ProcResult pr = runEcoCli("ghostdata",
+                Arrays.asList("pack",
+                    target.getAbsolutePath(), "-o",
+                    outDir.getAbsolutePath()), 120);
+            String pText = (pr.stdout == null ? "" : pr.stdout)
+                + (pr.stderr == null ? "" : pr.stderr);
+            if (pr.code != 0) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("GhostData could not pack "
+                        + "it: " + trimTo(pText, 300)) + "}");
+                return;
+            }
+            String bodyOut = pText.trim();
+            File prompt = new File(outDir, "PROMPT.md");
+            if (prompt.isFile()) {
+                try {
+                    bodyOut = "Pack built at .ghostide/"
+                        + outDir.getName() + "\n\n"
+                        + readFile(prompt);
+                } catch (Exception ignored) {}
+            }
+            if (bodyOut.length() > 40000)
+                bodyOut = bodyOut.substring(0, 40000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(bodyOut) + "}");
             return;
         }
         if (path.equals("/api/eco/board")

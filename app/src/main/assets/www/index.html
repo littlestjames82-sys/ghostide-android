@@ -141,7 +141,9 @@ setTimeout(function () {
     </div>
     <div id="termPane" class="hidden">
       <div class="run-head"><span><span id="termTitle">Terminal · workspace folder · local shell (unsandboxed)</span> <span id="termCwd"></span></span>
-        <span><button id="termReset">↺ Session</button>
+        <span><button id="termSlice" title="GhostLogs: slice the terminal output into an incident pack">🔪 Slice log</button>
+        <button id="termAsk" title="Put the terminal output in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
+        <button id="termReset">↺ Session</button>
         <button id="termClose">✕</button></span></div>
       <pre id="termOut"></pre>
       <div class="term-row">

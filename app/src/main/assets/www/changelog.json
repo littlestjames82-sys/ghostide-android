@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.48.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign batch 2: board actions, watch auto-reload, queue badge + bulk, terminal slicing",
+   "summary": "The Ecosystem board stops being read-only: every card with a report gains an Open report button that opens the source file in the editor, and a Run row at the bottom fires Verify, Verdict or Scope and redraws the board with the fresh results. The watch feed grows up - if a file you have open (and haven't edited) changes on disk, its tab now reloads in place and the feed says so; dirty tabs are never touched. The Approve queue shows a live pending count right on its Tools entry, and the queue panel gains Approve all and Deny all for clearing a backlog in one decision sweep. Finally, the Terminal pane gets the same Slice log and Ask Ghost buttons the Run pane has, so noisy terminal output becomes an incident pack just as easily."
+  },
+  {
    "version": "2.47.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign batch 1: studio shelf (E18/E19) + replay timeline (E16) + GhostMCP 0.2",

@@ -37030,6 +37030,33 @@
       }
       box.appendChild(row);
     }
+    if ((d.items || []).length >= 2) {
+      const bulk = document.createElement("div");
+      for (const dec2 of ["approve", "deny"]) {
+        const b = document.createElement("button");
+        b.className = "ghostbtn";
+        b.textContent = dec2 === "approve" ? "Approve all" : "Deny all";
+        b.onclick = async () => {
+          b.disabled = true;
+          b.textContent = "Working\u2026";
+          const lines = [];
+          for (const it of d.items) {
+            try {
+              const r = await postJson(
+                "/api/approve/decide",
+                { id: it.id, decision: dec2 }
+              );
+              lines.push(it.id + ": " + (r.error || (r.executed ? "carried out - " + r.output : dec2 === "approve" ? "recorded - " + (r.output || "") : "denied, not executed")));
+            } catch (e) {
+              lines.push(it.id + ": could not reach the server");
+            }
+          }
+          box.textContent = lines.join("\n");
+        };
+        bulk.appendChild(b);
+      }
+      box.appendChild(bulk);
+    }
     const auditB = document.createElement("button");
     auditB.className = "ghostbtn";
     auditB.textContent = "Audit the store";
@@ -37127,10 +37154,30 @@
         m.set(f.path, (f.mtime || 0) + ":" + (f.size || 0));
     return m;
   }
+  var watchNote = "";
   function watchObserve(files) {
     watchBase = watchSnapshot(files);
     const feed = $("watchFeed");
-    if (feed) feed.textContent = "";
+    if (feed) {
+      feed.textContent = watchNote;
+      watchNote = "";
+    }
+  }
+  async function reloadOpenTab(p) {
+    try {
+      const r = await fetch("/api/file?path=" + encodeURIComponent(p));
+      const d = await r.json();
+      if (d.error || d.content == null) return false;
+      tabStates.set(p, EditorState.create({
+        doc: d.content,
+        extensions: baseExtensions(p)
+      }));
+      tabDirty.set(p, false);
+      if (p === currentFile) activateTab(p);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
   async function watchTick() {
     if (!watchBase || document.visibilityState !== "visible")
@@ -37140,17 +37187,31 @@
       const d = await r.json();
       const now = watchSnapshot(d.files || []);
       const changed = [];
+      const modified = [];
       for (const [p, sig] of now)
         if (watchBase.has(p) && watchBase.get(p) !== sig)
-          changed.push(p);
+          modified.push(p);
         else if (!watchBase.has(p)) changed.push(p + " (new)");
       for (const p of watchBase.keys())
         if (!now.has(p)) changed.push(p + " (gone)");
+      const reloaded = [];
+      for (const p of modified) {
+        const isOpen = tabStates.has(p);
+        const isDirty = p === currentFile ? dirty : !!tabDirty.get(p);
+        if (isOpen && !isDirty && await reloadOpenTab(p))
+          reloaded.push(p);
+        else changed.push(p);
+      }
+      if (reloaded.length && reloaded.includes(currentFile))
+        watchNote = "\u21BB Reloaded " + currentFile.split("/").pop() + " (changed on disk)";
       const feed = $("watchFeed");
       if (feed && changed.length) {
         feed.textContent = "\u21BB Changed on disk: " + changed.slice(0, 4).join(", ") + (changed.length > 4 ? " (+" + (changed.length - 4) + " more)" : "") + " - tap to refresh";
         feed.style.cursor = "pointer";
         feed.onclick = () => loadFiles();
+      } else if (feed && watchNote) {
+        feed.textContent = watchNote;
+        watchNote = "";
       }
     } catch (e) {
     }
@@ -37209,9 +37270,53 @@
         const label = document.createElement("span");
         label.textContent = s.tool + " - " + (s.state === "absent" ? "no report yet" : s.summary || s.state) + (s.when ? " (" + String(s.when).slice(0, 10) + ")" : "");
         row.appendChild(label);
+        if (s.source) {
+          const open = document.createElement("button");
+          open.className = "ghostbtn";
+          open.textContent = "Open report";
+          open.onclick = () => {
+            $("todoPanel").classList.add("hidden");
+            openFile(s.source);
+          };
+          row.appendChild(open);
+        }
         box.appendChild(row);
       }
     }
+    const runRow = document.createElement("div");
+    const runNote = document.createElement("div");
+    runNote.className = "dim";
+    runNote.textContent = "Run a report now:";
+    runRow.appendChild(runNote);
+    for (const [label, url] of [
+      ["Verify", "/api/verify/run"],
+      ["Verdict", "/api/git/review"],
+      ["Scope", "/api/git/scope"]
+    ]) {
+      const b = document.createElement("button");
+      b.className = "ghostbtn";
+      b.textContent = label;
+      b.onclick = async () => {
+        b.disabled = true;
+        b.textContent = "Running\u2026";
+        try {
+          const d2 = await postJson(url, {});
+          if (d2.error) {
+            runNote.textContent = label + ": " + d2.error;
+            b.disabled = false;
+            b.textContent = label;
+            return;
+          }
+          openBoardPanel();
+        } catch (e) {
+          runNote.textContent = label + ": could not reach the server.";
+          b.disabled = false;
+          b.textContent = label;
+        }
+      };
+      runRow.appendChild(b);
+    }
+    box.appendChild(runRow);
   }
   var toolBoardBtn = $("toolBoard");
   if (toolBoardBtn)
@@ -37526,6 +37631,41 @@
       fn();
     };
   }
+  async function queueBadgeTick() {
+    const b = $("toolApprove");
+    if (!b || document.visibilityState !== "visible")
+      return;
+    try {
+      const d = await (await fetch("/api/approve/list")).json();
+      const n = (d.items || []).length;
+      b.textContent = n ? "Approve queue (" + n + ")" : "Approve queue";
+    } catch (e) {
+    }
+  }
+  setInterval(queueBadgeTick, 2e4);
+  var termSliceBtn = $("termSlice");
+  if (termSliceBtn)
+    termSliceBtn.onclick = async () => {
+      const text = $("termOut").textContent || "";
+      termSliceBtn.disabled = true;
+      try {
+        const d = await postJson("/api/eco/slicelog", { text });
+        if (d.error) {
+          alert(d.error);
+          return;
+        }
+        $("termOut").textContent = d.output || "(no output)";
+      } catch (e) {
+        alert("The slice failed to reach the server.");
+      }
+      termSliceBtn.disabled = false;
+    };
+  var termAskBtn = $("termAsk");
+  if (termAskBtn)
+    termAskBtn.onclick = () => askGhostWith(
+      "Explain this terminal output and what to do about it:",
+      $("termOut").textContent
+    );
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
