@@ -194,6 +194,13 @@ setTimeout(function () {
     </div>
     <label class="ctx-toggle"><input type="checkbox" id="agentToggle"> 🤖 Agent mode: multi-step edits, reviewed before saving</label>
     <label class="ctx-toggle"><input type="checkbox" id="planToggle"> 📝 Plan mode: research only, written plan first, nothing edited until you approve the plan</label>
+    <label class="ctx-toggle">🛡 Agent RUN policy:
+      <select id="agentPolicySel">
+        <option value="each">Approve every command</option>
+        <option value="plan">Auto-approve when following an approved plan</option>
+        <option value="all">Auto-approve all commands (trusted workspace)</option>
+      </select>
+    </label>
     <div class="optRow">
       <button id="ckptBtn">🗂 Checkpoints</button>
       <button id="agentResumeBtn">▶ Resume agent task</button>

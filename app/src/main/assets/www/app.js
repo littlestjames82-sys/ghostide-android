@@ -36718,6 +36718,17 @@
       settings.fontSize
     );
   };
+  var ECO_TOOLRUN = {
+    ghostenv: { path: false },
+    ghostlogs: { path: true, hint: "log file to slice" },
+    ghostdata: { path: true, hint: "data file to slice" },
+    ghostschema: { path: true, hint: "schema file to slice" },
+    ghostledger: { path: false },
+    ghostmcpdoctor: { path: false },
+    ghostconsole: { path: false },
+    ghostreplay: { path: false },
+    ghostexposure: { path: false }
+  };
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
@@ -36734,7 +36745,7 @@
     $("todoResults").textContent = "";
     const ecoHead = document.createElement("div");
     ecoHead.className = "dim";
-    ecoHead.textContent = tools.length + " tools in the catalog. Ready tools run here against this workspace; the rest land with their roadmap goals.";
+    ecoHead.textContent = tools.length + " tools in the catalog. Ready tools run here against this workspace.";
     $("todoResults").appendChild(ecoHead);
     for (const t2 of tools) {
       const row = document.createElement("div");
@@ -36759,6 +36770,33 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ tool: t2.id })
             })).json();
+            $("todoResults").textContent = rr.error || t2.name + " report:\n\n" + (rr.output || "(no output)");
+          } catch (e) {
+            $("todoResults").textContent = "The run failed to reach the server.";
+          }
+          b.disabled = false;
+          b.textContent = "Run";
+        };
+        row.appendChild(b);
+      }
+      const tr = ECO_TOOLRUN[t2.id];
+      if (tr) {
+        const b = document.createElement("button");
+        b.className = "ghostbtn";
+        b.textContent = "Run";
+        b.onclick = async () => {
+          let path = "";
+          if (tr.path) {
+            path = prompt(t2.name + " - " + (tr.hint || "file") + " (workspace path):", currentFile || "");
+            if (!path) return;
+          }
+          b.disabled = true;
+          b.textContent = "Running\u2026";
+          try {
+            const rr = await postJson(
+              "/api/eco/toolrun",
+              { tool: t2.id, path }
+            );
             $("todoResults").textContent = rr.error || t2.name + " report:\n\n" + (rr.output || "(no output)");
           } catch (e) {
             $("todoResults").textContent = "The run failed to reach the server.";
@@ -40442,8 +40480,16 @@
     "TODO <text> - add an item to the task plan list",
     "STEP_DONE <text or number> - mark a plan item done",
     "CHECK - syntax-check everything you have staged",
+    "REVERSE <path> - inspect a file or binary with GhostRE",
+    "ECO <tool> - run an ecosystem tool (ghostindex, ghostdeps)",
+    "VERIFY - run the full verify pipeline (checks + tests)",
+    "TEST [path] - run the project tests (one file, or all)",
+    "GIT status / GIT diff / GIT log - repository state",
     "DONE <one-line summary> - the task is complete",
     "ASK <question> - you need the user to decide something",
+    "You may BATCH several read-only actions in one reply, one",
+    "per line: READ, SEARCH, LIST, REVERSE, ECO, GIT, TODO,",
+    "STEP_DONE. Never batch WRITE, EDIT, RUN or DELETE.",
     "Rules: never invent file contents - READ a file before",
     "rewriting it. Keep every WRITE and EDIT syntactically valid.",
     "Do not explain outside the action line. You have at most " + AGENT_MAX_STEPS + " actions."
@@ -40455,6 +40501,11 @@
     "READ <path> - ask for a file's current content",
     "SEARCH <query> - search the whole workspace for text",
     "LIST [path] - list workspace files",
+    "REVERSE <path> - inspect a file or binary with GhostRE",
+    "ECO <tool> - run an ecosystem tool (ghostindex, ghostdeps)",
+    "GIT status / GIT diff / GIT log - repository state",
+    "You may BATCH several read-only actions in one reply, one",
+    "per line: READ, SEARCH, LIST, REVERSE, ECO, GIT, TODO.",
     "TODO <text> - add one step of the plan",
     "DONE <one-line summary> - on the following lines, a fenced",
     "  block with the full written plan in markdown",
@@ -40613,7 +40664,7 @@
     const tail = messages.slice(-6);
     return head.concat([{
       role: "user",
-      content: "Earlier steps were compacted to save context. " + summary + " Continue with exactly one action."
+      content: "Earlier steps were compacted to save context. " + summary + " Continue with one action, or a batch of read-only actions."
     }], tail);
   }
   function buildDiskCheckpoint(task, originals, deletedOriginals) {
@@ -40633,6 +40684,151 @@
   }
   window.__ghostParseAgent2 = parseAgent2Action;
   window.__ghostApplyEdit = applyEditPatch;
+  function agentPolicy() {
+    try {
+      return localStorage.getItem("ghostide-agent-policy") || "each";
+    } catch (e) {
+      return "each";
+    }
+  }
+  function parseAgent3Action(reply) {
+    const text = reply || "";
+    let m = text.match(/^\s*REVERSE\s+(\S+)\s*$/m);
+    if (m) return { type: "reverse", path: m[1] };
+    m = text.match(/^\s*ECO\s+(\S+)\s*$/m);
+    if (m) return { type: "eco", tool: m[1].toLowerCase() };
+    if (/^\s*VERIFY\s*$/m.test(text)) return { type: "verify" };
+    m = text.match(/^\s*TEST(?:\s+(\S+))?\s*$/m);
+    if (m) return { type: "test", path: m[1] || "" };
+    m = text.match(/^\s*GIT\s+(status|diff|log)\s*$/im);
+    if (m) return { type: "git", what: m[1].toLowerCase() };
+    return null;
+  }
+  function parseAgentActionFull(reply) {
+    return parseAgent3Action(reply) || parseAgent2Action(reply);
+  }
+  var AGENT_BATCHABLE = [
+    "read",
+    "search",
+    "list",
+    "todo",
+    "stepdone",
+    "reverse",
+    "eco",
+    "git"
+  ];
+  var AGENT_BATCH_BLOCK = /^\s*(WRITE|EDIT|RUN|DELETE|DONE|ASK|CHECK|VERIFY|TEST)\b/;
+  function parseAgentLine(line) {
+    const t2 = (line || "").trim();
+    if (!t2) return null;
+    if (AGENT_BATCH_BLOCK.test(t2)) return { type: "__block" };
+    let m;
+    if (m = t2.match(/^READ\s+(\S+)$/))
+      return { type: "read", path: m[1] };
+    if (m = t2.match(/^SEARCH\s+(.+)$/))
+      return { type: "search", query: m[1].trim() };
+    if (m = t2.match(/^LIST(?:\s+(\S+))?$/))
+      return { type: "list", path: m[1] || "" };
+    if (m = t2.match(/^TODO\s+(.+)$/))
+      return { type: "todo", text: m[1].trim() };
+    if (m = t2.match(/^STEP_DONE\s+(.+)$/))
+      return { type: "stepdone", text: m[1].trim() };
+    if (m = t2.match(/^REVERSE\s+(\S+)$/))
+      return { type: "reverse", path: m[1] };
+    if (m = t2.match(/^ECO\s+(\S+)$/))
+      return { type: "eco", tool: m[1].toLowerCase() };
+    if (m = t2.match(/^GIT\s+(status|diff|log)$/i))
+      return { type: "git", what: m[1].toLowerCase() };
+    return null;
+  }
+  function parseAgentBatch(reply, allowed) {
+    const ok = allowed || AGENT_BATCHABLE;
+    const text = reply || "";
+    if (text.includes("```")) return [];
+    const acts = [];
+    for (const line of text.split("\n")) {
+      if (!line.trim()) continue;
+      const a = parseAgentLine(line);
+      if (!a) continue;
+      if (a.type === "__block" || !ok.includes(a.type))
+        return [];
+      acts.push(a);
+    }
+    return acts.length > 1 ? acts : [];
+  }
+  async function agentToolText(act) {
+    try {
+      if (act.type === "reverse") {
+        const d = await postJson(
+          "/api/ghostre/run",
+          { path: act.path }
+        );
+        if (d.error)
+          return "REVERSE failed for " + act.path + ": " + d.error;
+        return "GhostRE inspection of " + act.path + ":\n" + (d.output || "").slice(0, 6e3);
+      }
+      if (act.type === "eco") {
+        if (act.tool !== "ghostindex" && act.tool !== "ghostdeps")
+          return "ECO " + act.tool + ": that tool has no agent runner. From the agent you can run: ECO ghostindex, ECO ghostdeps. (The Ecosystem panel runs the rest.)";
+        const d = await postJson(
+          "/api/eco/run",
+          { tool: act.tool }
+        );
+        if (d.error)
+          return "ECO " + act.tool + " failed: " + d.error;
+        return act.tool + " report:\n" + (d.output || "").slice(0, 6e3);
+      }
+      if (act.type === "git") {
+        if (act.what === "status") {
+          const r2 = await fetch("/api/git/status");
+          const d2 = await r2.json();
+          if (!d2.repo)
+            return "GIT status: not a git repo (" + (d2.error || "no repo") + ").";
+          return "GIT status on branch " + (d2.branch || "?") + ": " + (d2.changes.length ? d2.changes.map((c) => c.path + " (" + (c.index === "?" ? "untracked" : "changed") + ")").join(", ") : "clean, nothing changed.");
+        }
+        if (act.what === "diff") {
+          const r2 = await fetch("/api/git/diff-all");
+          const d2 = await r2.json();
+          return "GIT diff vs HEAD:\n" + (d2.diff ? d2.diff.slice(0, 6e3) : "(no uncommitted changes)");
+        }
+        const r = await fetch("/api/git/log");
+        const d = await r.json();
+        return "Recent commits:\n" + ((d.commits || []).slice(0, 15).map((c) => c.hash + " " + c.subject).join("\n") || "(none)");
+      }
+      if (act.type === "verify") {
+        const d = await postJson("/api/verify/run", {});
+        if (d.error) return "VERIFY failed: " + d.error;
+        return "Verify pipeline: evidence level " + d.evidence.level + "; " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s); tests " + d.tests.passed + "/" + d.tests.total + " passed.\nReport:\n" + (d.report || "").slice(0, 5e3);
+      }
+      if (act.type === "test") {
+        const d = await postJson(
+          "/api/tests/run",
+          act.path ? { path: act.path } : {}
+        );
+        if (d.error) return "TEST failed: " + d.error;
+        const fails = (d.results || []).filter((x) => x.status !== "pass").slice(0, 20).map((x) => "\u2717 " + x.name + " (" + x.file + (x.line ? ":" + x.line : "") + ")" + (x.message ? " - " + String(x.message).slice(0, 160) : "")).join("\n");
+        return "Tests: " + d.passed + " passed, " + d.failed + " failed (" + d.ms + " ms)." + (fails ? "\nFailures:\n" + fails : "");
+      }
+    } catch (e) {
+      return "Tool call failed: " + e;
+    }
+    return "Unknown tool action.";
+  }
+  window.__ghostParseAgent3 = parseAgent3Action;
+  window.__ghostParseAgentBatch = parseAgentBatch;
+  var agentPolicySel = $("agentPolicySel");
+  if (agentPolicySel) {
+    agentPolicySel.value = agentPolicy();
+    agentPolicySel.onchange = () => {
+      try {
+        localStorage.setItem(
+          "ghostide-agent-policy",
+          agentPolicySel.value
+        );
+      } catch (e) {
+      }
+    };
+  }
   function agentTodosSave(todos) {
     try {
       localStorage.setItem(
@@ -40761,7 +40957,8 @@
     const deletions = new Set(opts.deletions || []);
     let todos = normalizeAgentTodos(opts.todos || []);
     let checkpoints = [];
-    let runAllowAll = false;
+    const policy = agentPolicy();
+    let runAllowAll = policy === "all" || policy === "plan" && !!opts.plan;
     addMsg("YOU", "\u{1F916} " + task + (opts.plan ? "\n(following the approved plan)" : ""));
     const sendBtn = $("chatSend");
     const oldSend = sendBtn.onclick;
@@ -40779,6 +40976,39 @@
       if (d.error) return null;
       readCache.set(path, d.content);
       return d.content;
+    }
+    async function runBatch(acts) {
+      const parts = [];
+      for (const a of acts) {
+        if (a.type === "read") {
+          const c = await readForAgent(a.path);
+          parts.push(c == null ? "READ failed: " + a.path + " does not exist yet. You may create it with WRITE." : "Content of " + a.path + ":\n```\n" + c.slice(0, 8e3) + "\n```");
+        } else if (a.type === "search") {
+          const d = await postJson(
+            "/api/search",
+            { query: a.query }
+          );
+          const ms = (d.matches || []).slice(0, 20);
+          parts.push("Search results for " + a.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)"));
+        } else if (a.type === "list") {
+          const fr = await fetch("/api/files");
+          const fd = await fr.json();
+          let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
+          if (a.path) names = names.filter((p) => p === a.path || p.startsWith(a.path + "/"));
+          parts.push("Files" + (a.path ? " under " + a.path : "") + ":\n" + names.slice(0, 120).join("\n"));
+        } else if (a.type === "todo") {
+          todos = addAgentTodo(todos, a.text);
+          parts.push("Plan item added: " + a.text);
+        } else if (a.type === "stepdone") {
+          todos = completeAgentTodo(todos, a.text);
+          parts.push("Plan item marked done: " + a.text);
+        } else {
+          parts.push(await agentToolText(a));
+        }
+      }
+      persist();
+      renderAgentTodos(todos, checkpoints);
+      return parts.join("\n\n");
     }
     function snapshot(label, step) {
       const cp = makeAgentCheckpoint(
@@ -40814,8 +41044,25 @@
       mapText = await getRepoMap();
     } catch (e) {
     }
+    let memText = "";
+    try {
+      const rd = await postJson(
+        "/api/eco/recall",
+        { task, budget: 4e3, context: true }
+      );
+      if (rd && rd.context) memText = rd.context;
+    } catch (e) {
+    }
+    try {
+      const es = Object.entries(emStore()).slice(-5);
+      if (es.length)
+        memText += "\n\nError memory (past errors and what fixed them):\n" + es.map(([sig, v]) => sig + " -> " + (v && v.fix ? v.fix : JSON.stringify(v).slice(0, 200))).join("\n");
+    } catch (e) {
+    }
+    if (memText)
+      addMsg("SYSTEM", "\u{1F4DA} Agent primed with project memory (GhostRecall + error memory).");
     const messages = [
-      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") + (opts.plan ? "\n\nApproved plan:\n" + opts.plan : "") },
+      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") + (memText ? "\n\nProject memory for this task:\n" + memText.slice(0, 8e3) : "") + (opts.plan ? "\n\nApproved plan:\n" + opts.plan : "") },
       { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") + (todos.length ? "\nPlan items: " + todos.map((t2, i2) => i2 + 1 + ". " + t2.text).join(" | ") : "") }
     ];
     snapshot("task start", 0);
@@ -40849,7 +41096,14 @@
         break;
       }
       messages.push({ role: "assistant", content: reply });
-      const act = parseAgent2Action(reply);
+      const batch = parseAgentBatch(reply);
+      if (batch.length > 1) {
+        addMsg("SYSTEM", "\u{1F9FA} Batch of " + batch.length + " actions: " + batch.map((a) => a.type.toUpperCase()).join(", "));
+        const out = await runBatch(batch);
+        messages.push({ role: "user", content: "Batch results:\n" + out.slice(0, 16e3) + "\nContinue with the next action (or a batch of read-only actions)." });
+        continue;
+      }
+      const act = parseAgentActionFull(reply);
       if (act.type === "read") {
         const content2 = await readForAgent(act.path);
         addMsg("SYSTEM", "\u{1F4D6} READ " + act.path);
@@ -40934,6 +41188,10 @@
         if (!notes.length) notes.push("nothing staged to check");
         addMsg("SYSTEM", "\u{1F50D} CHECK\n" + notes.join("\n"));
         messages.push({ role: "user", content: "Check results:\n" + notes.join("\n") + "\nFix any problems with another WRITE or EDIT, or finish with DONE." });
+      } else if (["reverse", "eco", "git", "verify", "test"].includes(act.type)) {
+        addMsg("SYSTEM", "\u{1F9F0} " + act.type.toUpperCase() + (act.path ? " " + act.path : "") + (act.tool ? " " + act.tool : "") + (act.what ? " " + act.what : ""));
+        const t2 = await agentToolText(act);
+        messages.push({ role: "user", content: t2 + "\nContinue." });
       } else if (act.type === "done") {
         outcome = "done";
         summary = act.summary;
@@ -40949,12 +41207,20 @@
           outcome = "failed";
           break;
         }
-        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, DONE, or ASK." });
+        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, REVERSE, ECO, VERIFY, TEST, GIT, DONE, or ASK - or a batch of read-only actions, one per line." });
       }
     }
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
     agentRunning = false;
+    if (outcome === "done") {
+      try {
+        const hd = await postJson("/api/eco/handoff", {});
+        if (hd && !hd.error)
+          addMsg("SYSTEM", "\u{1F4E6} Session handoff saved at .ghostide/handoff/HANDOFF.md (GhostHandoff).");
+      } catch (e) {
+      }
+    }
     if (outcome === "stopped") {
       addMsg("SYSTEM", "Agent stopped by you. Nothing was written - the staged changes stay saved as a resumable task (Chat options: Resume agent task).");
       persist();
@@ -41026,7 +41292,56 @@
         break;
       }
       messages.push({ role: "assistant", content: reply });
-      const act = parseAgent2Action(reply);
+      const pBatch = parseAgentBatch(
+        reply,
+        [
+          "read",
+          "search",
+          "list",
+          "todo",
+          "reverse",
+          "eco",
+          "git"
+        ]
+      );
+      if (pBatch.length > 1) {
+        const parts = [];
+        for (const a of pBatch) {
+          if (a.type === "read") {
+            let c = readCache.get(a.path);
+            if (c === void 0) {
+              const r = await fetch("/api/file?path=" + encodeURIComponent(a.path));
+              const d = await r.json();
+              c = d.error ? null : d.content;
+              readCache.set(a.path, c);
+            }
+            parts.push(c == null ? "READ failed: " + a.path + " does not exist." : "Content of " + a.path + ":\n```\n" + c.slice(0, 8e3) + "\n```");
+          } else if (a.type === "search") {
+            const d = await postJson(
+              "/api/search",
+              { query: a.query }
+            );
+            const ms = (d.matches || []).slice(0, 20);
+            parts.push("Search results for " + a.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)"));
+          } else if (a.type === "list") {
+            const fr = await fetch("/api/files");
+            const fd = await fr.json();
+            let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
+            if (a.path) names = names.filter((p) => p === a.path || p.startsWith(a.path + "/"));
+            parts.push("Files:\n" + names.slice(0, 120).join("\n"));
+          } else if (a.type === "todo") {
+            todos = addAgentTodo(todos, a.text);
+            parts.push("Plan step recorded: " + a.text);
+          } else {
+            parts.push(await agentToolText(a));
+          }
+        }
+        agentTodosSave(todos);
+        renderAgentTodos(todos, []);
+        messages.push({ role: "user", content: "Batch results:\n" + parts.join("\n\n").slice(0, 16e3) + "\nContinue." });
+        continue;
+      }
+      const act = parseAgentActionFull(reply);
       if (act.type === "read") {
         let content2 = readCache.get(act.path);
         if (content2 === void 0) {
@@ -41064,7 +41379,19 @@
         addMsg("GHOST", "\u2753 " + act.question);
         outcome = "asked";
         break;
-      } else if (["write", "edit", "run", "delete"].includes(act.type)) {
+      } else if (["reverse", "eco", "git"].includes(act.type)) {
+        messages.push({
+          role: "user",
+          content: await agentToolText(act) + "\nContinue."
+        });
+      } else if ([
+        "write",
+        "edit",
+        "run",
+        "delete",
+        "verify",
+        "test"
+      ].includes(act.type)) {
         messages.push({ role: "user", content: "Plan mode is read-only: " + act.type.toUpperCase() + " is not allowed here. Record it as a TODO step instead, and finish with DONE plus the written plan." });
       } else {
         nudges++;

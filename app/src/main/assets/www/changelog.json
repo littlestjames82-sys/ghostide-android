@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.43.0",
+   "date": "Nov 1, 2026",
+   "goal": "Agent toolbelt + tools wiring: the all-in expansion",
+   "summary": "The agent can finally use the IDE's own machinery. New agent actions: REVERSE (GhostRE-inspect a file), ECO (run GhostIndex or GhostDeps), VERIFY (the full verify pipeline), TEST (project tests), and GIT status/diff/log, in Plan and Act modes. Read-only actions can be batched in one reply, one per line, so a run takes far fewer model round trips. Every Act run is primed with GhostRecall project memory plus the error memory, and a finished run saves a GhostHandoff pack for the next session. RUN approvals follow a policy pack you pick beside the Agent toggle: approve every command, auto-approve under an approved plan, or auto-approve in a trusted workspace. Tools track: the Ecosystem panel now runs nine more bundled tools for real (GhostEnv audit, GhostLogs, GhostData, GhostSchema, GhostLedger, MCP Doctor, GhostConsole, GhostReplay, GhostExposure) through a generic runner on desktop and on-device. GhostRE grows to 0.2.0 with a DEX deep inspector (class, string and method counts for Android bytecode, including inside APKs) and .NET managed-PE inspection (CLR runtime version, assembly name, strong-name flag). One honest note: REA compare commands did not join the bridge, because REA 6.8.0's compare family takes session bundles or workflow JSON rather than two files."
+  },
+  {
    "version": "2.42.0",
    "date": "Nov 1, 2026",
    "goal": "Reverse engineering: REA bridge (desktop) + GhostRE (built in)",

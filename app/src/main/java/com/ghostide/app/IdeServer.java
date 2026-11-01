@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.42.0";
+    static final String VERSION = "2.43.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2849,7 +2849,9 @@ public final class IdeServer {
         // forces re-extraction on updated installs, whose
         // filesDir otherwise survives with the old tool set.
         // v2.42.0 (generation e6) adds GhostRE to the bundle.
-        File stamp = new File(dir, ".ready-e6");
+        // v2.43.0 (generation e7) updates GhostRE to 0.2.0
+        // (DEX + .NET inspectors) in the same zip.
+        File stamp = new File(dir, ".ready-e7");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -3088,6 +3090,143 @@ public final class IdeServer {
                 ecoFinal = ecoFinal.substring(0, 60000);
             sendJson(out, "{\"ok\":true,\"output\":"
                 + Json.quote(ecoFinal) + "}");
+            return;
+        }
+        if (path.equals("/api/eco/toolrun") && method.equals("POST")) {
+            // Track B: single-shot report runners for the
+            // bundled tools beyond the E1 proof pair. Each
+            // wired tool maps to the one CLI verb that prints
+            // (or, for GhostLogs, writes) its own workspace
+            // report - the same verbs as the desktop's
+            // eco_toolrun. File-level tools (ghostlogs,
+            // ghostdata, ghostschema) take the request's
+            // workspace-contained file. Every wired tool uses
+            // exit 2 for "could not run"; exit 1 is a normal
+            // findings-present result for ghostenv,
+            // ghostledger, ghostmcpdoctor and ghostexposure.
+            Map<String, Object> trReq = Json.obj(Json.parse(
+                new String(body, "UTF-8")));
+            String trTool = Json.str(trReq, "tool", "");
+            String trRel = Json.str(trReq, "path", "");
+            java.util.Set<String> trWired =
+                new java.util.HashSet<>(Arrays.asList(
+                    "ghostenv", "ghostlogs", "ghostdata",
+                    "ghostschema", "ghostledger", "ghostmcpdoctor",
+                    "ghostconsole", "ghostreplay", "ghostexposure"));
+            if (!trWired.contains(trTool)) {
+                boolean trKnown = false;
+                for (String[] t : ECO_CATALOG)
+                    if (t[0].equals(trTool)) trKnown = true;
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(trKnown
+                        ? "that tool has no in-IDE runner yet - "
+                          + "it lands with its roadmap goal"
+                        : "unknown tool") + "}");
+                return;
+            }
+            boolean trNeedsFile = trTool.equals("ghostlogs")
+                || trTool.equals("ghostdata")
+                || trTool.equals("ghostschema");
+            File trTarget = null;
+            if (trNeedsFile) {
+                if (trRel.isEmpty()) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote(trTool + " inspects one "
+                            + "file - pass the workspace path "
+                            + "of the file to inspect") + "}");
+                    return;
+                }
+                trTarget = new File(workspace, trRel);
+                if (!PathCheck.inside(workspace, trTarget)
+                        || !trTarget.isFile()) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote("file not found in the "
+                            + "workspace: " + trRel) + "}");
+                    return;
+                }
+            }
+            if (!ensurePythonHome() || !ensureEco()) {
+                sendJson(out, 400, "{\"error\":\"the bundled "
+                    + "Python tools could not be prepared\"}");
+                return;
+            }
+            Map<String, String> trEnv = pythonEnv();
+            trEnv.put("PYTHONPATH",
+                ctx.getApplicationInfo().nativeLibraryDir + ":"
+                + ecoDir().getAbsolutePath());
+            List<String> trCmd = new ArrayList<>();
+            trCmd.add(pythonBin());
+            trCmd.add("-m");
+            trCmd.add(trTool);
+            File trPackDir = null;
+            if (trTool.equals("ghostenv")) {
+                trCmd.add("check");
+                trCmd.add(workspace.getAbsolutePath());
+            } else if (trTool.equals("ghostlogs")) {
+                // pack writes INCIDENT.md + manifest.json
+                // into a directory; the incident file is the
+                // report text.
+                trPackDir = new File(new File(workspace,
+                    ".ghostide"), "ghostlogs-pack");
+                trCmd.add("pack");
+                trCmd.add(trTarget.getAbsolutePath());
+                trCmd.add("-o");
+                trCmd.add(trPackDir.getAbsolutePath());
+            } else if (trTool.equals("ghostdata")) {
+                trCmd.add("schema");
+                trCmd.add(trTarget.getAbsolutePath());
+            } else if (trTool.equals("ghostschema")) {
+                trCmd.add("inspect");
+                trCmd.add(trTarget.getAbsolutePath());
+            } else if (trTool.equals("ghostledger")) {
+                // summary reads ./.ghostledger.jsonl, so the
+                // run's cwd (the workspace) is the scope.
+                trCmd.add("summary");
+            } else if (trTool.equals("ghostmcpdoctor")) {
+                // scan audits MCP client configs in their
+                // default locations (home-level plus this
+                // project's own .mcp.json / mcp.json, since
+                // cwd is the workspace); --no-report keeps it
+                // to the printed summary instead of writing
+                // report files into the workspace.
+                trCmd.add("scan");
+                trCmd.add("--no-report");
+            } else if (trTool.equals("ghostconsole")) {
+                trCmd.add("summary");
+                trCmd.add(workspace.getAbsolutePath());
+            } else if (trTool.equals("ghostreplay")) {
+                trCmd.add("trend");
+                trCmd.add(workspace.getAbsolutePath());
+            } else { // ghostexposure: built-in starter pack
+                trCmd.add("scan");
+                trCmd.add(workspace.getAbsolutePath());
+            }
+            ProcResult trR = runProcess(trCmd, workspace, 120,
+                trEnv);
+            String trText = (trR.stdout == null ? "" : trR.stdout)
+                + (trR.stderr == null ? "" : trR.stderr);
+            if (trR.code == 2 || trR.code < 0) {
+                String trTrim = trText.trim();
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote("the tool could not run: "
+                        + trTrim.substring(0, Math.min(300,
+                            trTrim.length()))) + "}");
+                return;
+            }
+            String trFinal = trText.strip();
+            if (trPackDir != null) {
+                File trIncident = new File(trPackDir,
+                    "INCIDENT.md");
+                if (trIncident.isFile()) {
+                    try {
+                        trFinal = readFile(trIncident);
+                    } catch (Exception ignored) {}
+                }
+            }
+            if (trFinal.length() > 60000)
+                trFinal = trFinal.substring(0, 60000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(trFinal) + "}");
             return;
         }
         if (path.equals("/api/eco/search") && method.equals("POST")) {
