@@ -33181,13 +33181,37 @@
     }
     return false;
   }
+  var treeSortMode = (() => {
+    try {
+      return localStorage.getItem("ghostide.treeSort") || "server";
+    } catch (e) {
+      return "server";
+    }
+  })();
+  function treeOrder(files) {
+    if (treeSortMode !== "name") return files;
+    return files.slice().sort((a, b) => a.path.toLowerCase() < b.path.toLowerCase() ? -1 : a.path.toLowerCase() > b.path.toLowerCase() ? 1 : 0);
+  }
+  var treeSortBtn = $("treeSortBtn");
+  if (treeSortBtn)
+    treeSortBtn.onclick = () => {
+      treeSortMode = treeSortMode === "name" ? "server" : "name";
+      try {
+        localStorage.setItem(
+          "ghostide.treeSort",
+          treeSortMode
+        );
+      } catch (e) {
+      }
+      loadFiles();
+    };
   async function loadFiles() {
     const r = await fetch("/api/files");
     const d = await r.json();
     watchObserve(d.files || []);
     const tree = $("fileTree");
     tree.innerHTML = "";
-    for (const f of d.files) {
+    for (const f of treeOrder(d.files)) {
       if (fileFilterText) {
         if (f.type !== "file") continue;
         if (!f.path.toLowerCase().includes(fileFilterText)) continue;
@@ -35470,6 +35494,8 @@
     $("runPane").classList.remove("hidden");
     $("runTitle").textContent = "Running " + currentFile + " \u2026";
     $("runOut").textContent = "";
+    const pb = $("runProblems");
+    if (pb) pb.textContent = "";
     const d = await postJson("/api/run", { path: currentFile });
     if (d.error) {
       $("runTitle").textContent = "Run unavailable";
@@ -35497,6 +35523,26 @@
     }
   };
   $("runClose").onclick = () => $("runPane").classList.add("hidden");
+  var lastGitStatus = null;
+  var gitCopyBtn = $("gitCopyStatus");
+  if (gitCopyBtn)
+    gitCopyBtn.onclick = async () => {
+      const d = lastGitStatus;
+      if (!d || !d.repo) {
+        alert("No git status loaded yet - open the Git panel first.");
+        return;
+      }
+      const line = "On branch " + (d.branch || "?") + (d.ahead ? ", " + d.ahead + " ahead" : "") + (d.behind ? ", " + d.behind + " behind" : "") + ": " + (d.changes || []).length + " uncommitted change(s).";
+      try {
+        await navigator.clipboard.writeText(line);
+        gitCopyBtn.textContent = "\u2713";
+        setTimeout(() => {
+          gitCopyBtn.textContent = "\u{1F4CB}";
+        }, 1200);
+      } catch (e) {
+        alert("Clipboard was not available here.");
+      }
+    };
   async function refreshGit() {
     refreshGhRemote();
     const box = $("gitChanges");
@@ -35504,6 +35550,7 @@
     try {
       const r = await fetch("/api/git/status");
       const d = await r.json();
+      lastGitStatus = d;
       if (!d.repo) {
         $("gitBranch").textContent = "";
         $("gitLog").textContent = "";
@@ -35591,7 +35638,31 @@
         const lr = await fetch("/api/git/log");
         const ld = await lr.json();
         if (ld.commits && ld.commits.length) {
-          $("gitLog").textContent = "Recent commits:\n" + ld.commits.map((c) => c.hash + "  " + c.subject).join("\n");
+          const gl = $("gitLog");
+          gl.textContent = "";
+          const gh = document.createElement("div");
+          gh.textContent = "Recent commits (tap to view):";
+          gl.appendChild(gh);
+          for (const c of ld.commits) {
+            const row = document.createElement("div");
+            row.className = "findRow";
+            row.textContent = c.hash + "  " + c.subject;
+            row.onclick = async () => {
+              const box2 = studioPanel("Commit " + c.hash);
+              try {
+                const sd = await (await fetch(
+                  "/api/git/show?hash=" + encodeURIComponent(c.hash)
+                )).json();
+                const pre = document.createElement("pre");
+                pre.textContent = sd.error || sd.output || "(empty commit)";
+                box2.textContent = "";
+                box2.appendChild(pre);
+              } catch (e) {
+                box2.textContent = "Could not reach the server.";
+              }
+            };
+            gl.appendChild(row);
+          }
         } else {
           $("gitLog").textContent = "";
         }
@@ -36818,6 +36889,31 @@
           th.className = "dim";
           th.textContent = s.name + ": " + (td.tools || []).length + " tool(s).";
           box.appendChild(th);
+          const rfRow = document.createElement("div");
+          rfRow.className = "todorow";
+          const rf = document.createElement("button");
+          rf.className = "ghostbtn";
+          rf.textContent = "\u21BB Refresh tools";
+          rf.onclick = async () => {
+            rf.disabled = true;
+            rf.textContent = "Refreshing\u2026";
+            try {
+              const nd = await postJson(
+                "/api/mcp/tools",
+                { server: s.name, refresh: true }
+              );
+              if (!nd.error) {
+                th.textContent = s.name + ": " + (nd.tools || []).length + " tool(s) (refreshed).";
+                rf.textContent = "\u2713 Refreshed";
+              } else {
+                rf.textContent = nd.error;
+              }
+            } catch (e) {
+              rf.textContent = "Refresh failed";
+            }
+          };
+          rfRow.appendChild(rf);
+          box.appendChild(rfRow);
           for (const t2 of td.tools || []) {
             const tr = document.createElement("div");
             tr.className = "todorow";
@@ -36885,6 +36981,31 @@
           rh.className = "dim";
           rh.textContent = s.name + ": " + (rd.resources || []).length + " resource(s).";
           box.appendChild(rh);
+          const rfRow = document.createElement("div");
+          rfRow.className = "todorow";
+          const rf = document.createElement("button");
+          rf.className = "ghostbtn";
+          rf.textContent = "\u21BB Refresh resources";
+          rf.onclick = async () => {
+            rf.disabled = true;
+            rf.textContent = "Refreshing\u2026";
+            try {
+              const nd = await postJson(
+                "/api/mcp/resources",
+                { server: s.name, refresh: true }
+              );
+              if (nd.error) {
+                rf.textContent = nd.error;
+                return;
+              }
+              rb.disabled = false;
+              rb.onclick();
+            } catch (e) {
+              rf.textContent = "Refresh failed";
+            }
+          };
+          rfRow.appendChild(rf);
+          box.appendChild(rfRow);
           for (const r of rd.resources || []) {
             const rr = document.createElement("div");
             rr.className = "todorow";
@@ -37097,6 +37218,17 @@
         bar.appendChild(fb);
       }
       box.appendChild(bar);
+      const search = document.createElement("input");
+      search.type = "search";
+      search.placeholder = "Filter by text\u2026";
+      search.addEventListener("input", () => {
+        const q = search.value.trim().toLowerCase();
+        for (const r2 of box.querySelectorAll(
+          ".todorow[data-kind]"
+        ))
+          r2.style.display = !q || r2.textContent.toLowerCase().includes(q) ? "" : "none";
+      });
+      box.appendChild(search);
     }
     for (const it of d.items || []) {
       const row = document.createElement("div");
@@ -37116,6 +37248,24 @@
       }
       label.textContent = it.action + " - risk " + it.risk + ageTxt + " - " + (it.summary || "");
       row.appendChild(label);
+      const cpAct = document.createElement("button");
+      cpAct.className = "ghostbtn";
+      cpAct.textContent = "\u{1F4CB}";
+      cpAct.title = "Copy this request's action text";
+      cpAct.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(
+            label.textContent
+          );
+          cpAct.textContent = "\u2713";
+          setTimeout(() => {
+            cpAct.textContent = "\u{1F4CB}";
+          }, 1200);
+        } catch (e) {
+          alert("Clipboard was not available here.");
+        }
+      };
+      row.appendChild(cpAct);
       for (const dec2 of ["approve", "deny"]) {
         const b = document.createElement("button");
         b.className = "ghostbtn";
@@ -37433,6 +37583,20 @@
     };
     gitRow.appendChild(gitB);
     box.appendChild(gitRow);
+    const askRow = document.createElement("div");
+    askRow.className = "todorow";
+    const askB = document.createElement("button");
+    askB.className = "ghostbtn";
+    askB.textContent = "\u{1F4AC} Ask Ghost about this board";
+    askB.onclick = () => {
+      $("todoPanel").classList.add("hidden");
+      askGhostWith(
+        "Board check",
+        "The studio board says: " + boardSummaryLine(d) + ". What should I do next on this project?"
+      );
+    };
+    askRow.appendChild(askB);
+    box.appendChild(askRow);
     try {
       const lg = await (await fetch("/api/git/log")).json();
       const top2 = (lg.commits || [])[0];
@@ -37659,6 +37823,19 @@
       "Explain this output and what to do about it:",
       $("runOut").textContent
     );
+  var runSaveBtn = $("runSave");
+  if (runSaveBtn)
+    runSaveBtn.onclick = () => {
+      const blob = new Blob(
+        [$("runOut").textContent || ""],
+        { type: "text/plain" }
+      );
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "ghostide-output-" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".log";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
+    };
   var runCopyBtn = $("runCopy");
   if (runCopyBtn)
     runCopyBtn.onclick = async () => {
@@ -37960,6 +38137,23 @@
         if (ta) ta.focus();
       };
       row.appendChild(rerun);
+      const cpRun = document.createElement("button");
+      cpRun.className = "ghostbtn";
+      cpRun.textContent = "\u{1F4CB} Copy";
+      cpRun.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(
+            label.textContent
+          );
+          cpRun.textContent = "\u2713";
+          setTimeout(() => {
+            cpRun.textContent = "\u{1F4CB} Copy";
+          }, 1200);
+        } catch (e) {
+          alert("Clipboard was not available here.");
+        }
+      };
+      row.appendChild(cpRun);
       const exp = document.createElement("button");
       exp.className = "ghostbtn";
       exp.textContent = "Export .md";
@@ -38253,12 +38447,82 @@
     try {
       const d = await (await fetch("/api/health")).json();
       el.textContent = "GhostIDE " + (d.version || "?") + " \xB7 workspace " + (d.workspace || "?") + " \xB7 model " + (d.model || "?") + (d.modelName ? " (" + d.modelName + ")" : "");
+      try {
+        const fl = await (await fetch("/api/files")).json();
+        const n = (fl.files || []).filter((f) => f.type === "file").length;
+        el.textContent += " \xB7 " + n + " file(s)";
+      } catch (e) {
+      }
     } catch (e) {
       el.textContent = "unavailable";
     }
   }
   if (settingsBtnEl)
     settingsBtnEl.addEventListener("click", refreshAbout);
+  async function pollHealthDot() {
+    const dot3 = $("healthDot");
+    if (!dot3) return;
+    if (document.hidden) return;
+    try {
+      const d = await (await fetch("/api/health")).json();
+      dot3.style.color = "#4caf7d";
+      dot3.title = "Server up: GhostIDE " + (d.version || "?") + " \xB7 " + (d.workspace || "");
+    } catch (e) {
+      dot3.style.color = "#e5534b";
+      dot3.title = "Server unreachable - panels will fail until it is back.";
+    }
+  }
+  setInterval(pollHealthDot, 6e4);
+  pollHealthDot();
+  var healthDotEl = $("healthDot");
+  if (healthDotEl)
+    healthDotEl.onclick = () => {
+      const sb = $("settingsBtn");
+      if (sb) sb.click();
+    };
+  var copySettingsBtn = $("setCopySettings");
+  if (copySettingsBtn)
+    copySettingsBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(
+          JSON.stringify(settings, null, 1)
+        );
+        copySettingsBtn.textContent = "\u2713 Copied";
+        setTimeout(() => {
+          copySettingsBtn.textContent = "Copy settings";
+        }, 1200);
+      } catch (e) {
+        alert("Clipboard was not available here.");
+      }
+    };
+  var clearHistBtn = $("setClearHist");
+  if (clearHistBtn)
+    clearHistBtn.onclick = () => {
+      if (!confirm("Clear the on-device histories? Eco runs, verify runs, terminal history and recent files. Settings and chats stay."))
+        return;
+      const keys2 = [
+        "ghostide.ecoRuns",
+        "ghostide.verifyHistory",
+        "ghostide.termHistory",
+        "ghostide-recent-files"
+      ];
+      try {
+        termHistory.length = 0;
+      } catch (e) {
+      }
+      let n = 0;
+      for (const k of keys2) {
+        try {
+          if (localStorage.getItem(k) !== null) n++;
+          localStorage.removeItem(k);
+        } catch (e) {
+        }
+      }
+      clearHistBtn.textContent = "\u2713 Cleared " + n + " store(s)";
+      setTimeout(() => {
+        clearHistBtn.textContent = "Clear on-device histories";
+      }, 1500);
+    };
   var whatsNewBtn = $("setWhatsNew");
   if (whatsNewBtn)
     whatsNewBtn.onclick = async () => {
@@ -38271,13 +38535,27 @@
         return;
       }
       box.textContent = "";
-      for (const en of (d.entries || []).slice(0, 6)) {
-        const row = document.createElement("div");
-        row.className = "todorow";
-        const lab = document.createElement("span");
-        lab.textContent = "v" + en.version + " (" + en.date + ") - " + en.goal + "\n" + en.summary;
-        row.appendChild(lab);
-        box.appendChild(row);
+      const renderEntries = (list) => {
+        box.textContent = "";
+        for (const en of list) {
+          const row = document.createElement("div");
+          row.className = "todorow";
+          const lab = document.createElement("span");
+          lab.textContent = "v" + en.version + " (" + en.date + ") - " + en.goal + "\n" + en.summary;
+          row.appendChild(lab);
+          box.appendChild(row);
+        }
+      };
+      const all = d.entries || [];
+      renderEntries(all.slice(0, 6));
+      if (all.length > 6) {
+        const more = document.createElement("button");
+        more.className = "ghostbtn";
+        more.textContent = "Show all " + all.length + " entries";
+        more.onclick = () => {
+          renderEntries(all);
+        };
+        box.appendChild(more);
       }
       if (!box.children.length)
         box.textContent = "No changelog entries bundled.";
@@ -38342,6 +38620,27 @@
         ecoHead.textContent += " Bundle generation " + d.generation + ".";
     }).catch(() => {
     });
+    const ecoCopyRow = document.createElement("div");
+    ecoCopyRow.className = "todorow";
+    const ecoCopy = document.createElement("button");
+    ecoCopy.className = "ghostbtn";
+    ecoCopy.textContent = "\u{1F4CB} Copy catalog summary";
+    ecoCopy.onclick = async () => {
+      const lines = tools.map((t2) => t2.id + " - " + t2.name + " (" + t2.state + ")");
+      try {
+        await navigator.clipboard.writeText(
+          tools.length + " ecosystem tools:\n" + lines.join("\n")
+        );
+        ecoCopy.textContent = "\u2713 Copied";
+        setTimeout(() => {
+          ecoCopy.textContent = "\u{1F4CB} Copy catalog summary";
+        }, 1200);
+      } catch (e) {
+        alert("Clipboard was not available here.");
+      }
+    };
+    ecoCopyRow.appendChild(ecoCopy);
+    $("todoResults").appendChild(ecoCopyRow);
     try {
       const runs = JSON.parse(localStorage.getItem(
         "ghostide.ecoRuns"
@@ -38350,6 +38649,18 @@
         const rh = document.createElement("div");
         rh.className = "dim";
         rh.textContent = "Recent runs: " + runs.map((r2) => r2.tool + (r2.ok ? "" : " (failed)")).join(", ");
+        const clr = document.createElement("button");
+        clr.className = "ghostbtn";
+        clr.textContent = "Clear";
+        clr.onclick = () => {
+          try {
+            localStorage.removeItem("ghostide.ecoRuns");
+          } catch (e) {
+          }
+          rh.textContent = "Recent runs cleared.";
+        };
+        rh.appendChild(document.createTextNode(" "));
+        rh.appendChild(clr);
         $("todoResults").appendChild(rh);
       }
     } catch (e) {
@@ -41277,6 +41588,16 @@
     { title: "Classroom view", run: () => $("toolClassroom").click() },
     { title: "Take the tour", run: () => $("toolTour").click() },
     { title: "What's new", run: () => $("toolChangelog").click() },
+    /* Cycle 5 I14/I15: this cycle's Settings and Files
+       actions join the palette, like the older ones. */
+    { title: "Toggle file tree order", run: () => {
+      const b = $("treeSortBtn");
+      if (b) b.click();
+    } },
+    { title: "Copy settings JSON", run: () => {
+      const b = $("setCopySettings");
+      if (b) b.click();
+    } },
     { title: "Add cursor on selected lines", run: () => cursorsOnSelectedLines(view) },
     { title: "Select all occurrences", run: () => selectAllOccurrences(view) },
     { title: "Encrypted backup", run: () => $("toolBackup").click() },
@@ -41777,7 +42098,8 @@
       const row = document.createElement("div");
       row.className = "findRow";
       const now = view ? view.state.doc.length : 0;
-      const delta = now ? e.size === now ? " \xB7 same size as now" : e.size < now ? " \xB7 " + Math.max(1, Math.round((now - e.size) / 1024)) + " KB smaller than now" : " \xB7 " + Math.max(1, Math.round((e.size - now) / 1024)) + " KB larger than now" : "";
+      const diff = now ? e.size - now : 0;
+      const delta = !now ? "" : Math.abs(diff) < 1024 ? " \xB7 about the same size as now" : diff < 0 ? " \xB7 " + Math.round(-diff / 1024) + " KB smaller than now" : " \xB7 " + Math.round(diff / 1024) + " KB larger than now";
       row.textContent = "\u{1F558} " + fmtSnapTs(e.ts) + "  \xB7  " + Math.max(1, Math.round(e.size / 1024)) + " KB" + delta;
       row.onclick = async () => {
         const rr = await fetch("/api/history/file?path=" + encodeURIComponent(currentFile) + "&ts=" + encodeURIComponent(e.ts));
@@ -42806,7 +43128,11 @@
     try {
       const gs = await (await fetch("/api/git/status")).json();
       if (gs && gs.branch)
-        memText += "\n\nGit: on branch " + gs.branch + ", " + (gs.changes || []).length + " changed file(s) not yet committed.";
+        memText += "\n\nGit: on branch " + gs.branch + ", " + (gs.changes || []).length + " changed file(s) not yet committed." + /* Cycle 4 I16: upstream distance joins the
+           priming (the fields landed with I1). */
+        (gs.ahead ? " " + gs.ahead + " commit(s) ahead of upstream." : "") + (gs.behind ? " " + gs.behind + " commit(s) behind upstream." : "") + /* Cycle 5 I20: name the first few changed
+           paths, not just the count. */
+        ((gs.changes || []).length ? " Changed: " + gs.changes.slice(0, 3).map((c) => c.path).join(", ") + (gs.changes.length > 3 ? " (+" + (gs.changes.length - 3) + " more)" : "") + "." : "");
     } catch (e) {
     }
     try {
@@ -42817,6 +43143,15 @@
         memText += "\n\nTests: " + tests.length + " test file(s) in this workspace (e.g. " + tests[0] + "). Keep them passing.";
       else
         memText += "\n\nTests: no test files found in this workspace.";
+      const dirs = new Set(paths.filter((p) => p.includes("/")).map((p) => p.split("/").slice(0, -1).join("/")));
+      let bigName = "", bigSize = 0;
+      for (const f of fl.files || []) {
+        if (f.type === "file" && (f.size || 0) > bigSize) {
+          bigSize = f.size || 0;
+          bigName = f.path;
+        }
+      }
+      memText += "\n\nWorkspace shape: " + paths.length + " file(s) across " + dirs.size + " folder(s)" + (bigName ? "; largest is " + bigName + " (" + (bigSize >= 1024 ? Math.round(bigSize / 1024) + " KB" : "under 1 KB") + ")." : ".");
     } catch (e) {
     }
     if (memText)
@@ -44863,6 +45198,20 @@
       return;
     }
     lastVerify = d;
+    const probBox = $("runProblems");
+    if (probBox) {
+      probBox.textContent = "";
+      for (const p of d.checks.problems || []) {
+        const row = document.createElement("div");
+        row.className = "findRow";
+        row.textContent = "\u26A0 " + p.path + ":" + (p.line || 1) + "  " + (p.message || "");
+        row.onclick = async () => {
+          await openFile(p.path);
+          jumpToLine(p.line || 1);
+        };
+        probBox.appendChild(row);
+      }
+    }
     $("runTitle").textContent = "Verify: " + d.evidence.level + " \xB7 " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s) \xB7 tests " + d.tests.passed + "/" + d.tests.total + " passed";
     $("runOut").textContent = d.report;
     try {

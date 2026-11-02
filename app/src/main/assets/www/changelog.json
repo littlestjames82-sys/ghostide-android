@@ -3,6 +3,30 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.86.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 4: leak sweep, approval rails, caps, rendering honesty, version ritual - cycle complete",
+   "summary": "The fifth cycle closes clean: no secret-shaped strings anywhere in the shipped sources, one approval route per server with every decision riding it, output caps re-pinned including the new commit viewer's, problem rows rendering only from structured fields, and the five-source version ritual holding. Twenty improvements and twenty audits are complete, and the cycle's headline remains the freshness audit that caught and fixed a silently frozen interface."
+  },
+  {
+   "version": "2.85.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 3: signer, route census, name pins, delta wording, JSON guard",
+   "summary": "The signing certificate is verified live on the shipped package, the route census is re-derived at exactly the expected counts (the baseline plus this cycle's one deliberate route pair), datapack name pins still refuse traversal shapes, history size deltas stay honest in both directions, and malformed JSON still earns a clean error with the server healthy afterwards."
+  },
+  {
+   "version": "2.84.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 2: timeouts, lineage, sink census, bundle freshness - and a caught freeze",
+   "summary": "This audit caught a real defect: two health pollers shared one function name, the web bundle build had been refusing ever since, and recent builds quietly shipped an older interface while the servers kept advancing. The poller is renamed, the bundle is rebuilt and verified fresh inside the app package itself, and a freshness check joins the permanent suite so a stale bundle can never pass silently again. Everything from this cycle's twenty improvements is now genuinely in the interface, and the HTML-sink census still stands at 101."
+  },
+  {
+   "version": "2.83.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 1: pairing, traversal, atomic writes, secret sweep, bundle pins",
+   "summary": "The fifth cycle's audits open by re-proving the foundations on current code: the pairing gate still wraps every request path, workspace traversal and the new commit route's hash pin refuse bad input live, file writes stay atomic on both servers, a secret canary planted in the workspace appears in none of the probed responses, and the ecosystem bundle pins are unchanged."
+  },
+  {
    "version": "2.82.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 5 batch 4: commit viewer, summary copies, priming change names",
