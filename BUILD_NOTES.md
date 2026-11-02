@@ -2963,6 +2963,14 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.82.0 (versionCode 187) - Nov 2, 2026 - Campaign Cycle 5 batch 4 (C5-I16-I20) - IMPROVEMENTS COMPLETE
+- C5-I16 commit viewer: Recent commits tappable; new /api/git/show on both servers, hash pinned to hex 7-40, output capped 20000. Live-proven on current code (real hash served stat+patch; "--help" and garbage refused).
+- C5-I17 replay Copy summary; C5-I18 eco catalog Copy summary (id/name/state - the payload has no version field and the copy invents none); C5-I19 approve-row copy action text; C5-I20 priming names the first three changed paths (+N more).
+- Census consequence: routes 136/126 -> 137/127 (the one deliberate addition); the Cycle 4 census pin was updated with a dated note and the Cycle 5 A12 audit re-derives it independently.
+- Build lesson burned in: piping build.sh through grep hid a javac failure (a local named `body` collided with route()'s byte[] body parameter) behind two apparently-fine runs; the post-build badging check caught it both times. Badging verification after every build is mandatory, and a stale-md5 match means the build did not happen.
+- Proof: version gate 2.82.0/187; DOM-stub gate passes; run-all 109/109 (new cycle5-batch4-harness 5/5); build self-checks green; badging verified 2.82.0/187.
+- Built APK: 20,464,232 B, md5 3516b0a95e16d555d966a80b9002f60e, versionCode 187, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.81.0 (versionCode 186) - Nov 2, 2026 - Campaign Cycle 5 batch 3 (C5-I11-I15)
 - C5-I11 eco Recent runs Clear button (beside the history it clears).
 - C5-I12 Settings Clear on-device histories: eco runs, verify runs, terminal history (store + in-memory list, so it cannot resurrect itself), recent files; settings and chats untouched; reports the store count cleared.
