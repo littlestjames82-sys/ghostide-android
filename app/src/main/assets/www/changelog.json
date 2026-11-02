@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.77.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 3: signer, route census, pins, hostile input",
+   "summary": "The third audit verifies the shipped APK's signing certificate matches the long-standing lineage, takes a full route census as the baseline for the next cycle (this cycle changed no routes), confirms the data-pack name pins still refuse traversal shapes, and probes the server with malformed JSON: clean error answers, and the server stays healthy. All pass."
+  },
+  {
    "version": "2.76.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 4 audit batch 2: parity, canary, sinks, pins, atomic writes",
