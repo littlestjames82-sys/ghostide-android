@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.81.0";
+    static final String VERSION = "2.82.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2103,6 +2103,33 @@ public final class IdeServer {
                         }
                     }
                     sendJson(out, "{\"commits\":[" + cm + "]}");
+                    return;
+                }
+                if (path.equals("/api/git/show")) {
+                    // Cycle 5 I16: one commit, stat + patch;
+                    // the hash is pinned to hex.
+                    String chash = queryParam(query, "hash");
+                    if (chash == null
+                            || !chash.matches("[0-9a-f]{7,40}")) {
+                        sendJson(out, 400, "{\"error\":"
+                            + "\"bad commit hash\"}");
+                        return;
+                    }
+                    ProcResult gr = gitRun(gitArgs("show",
+                        "--stat", "--patch", "--no-color",
+                        chash));
+                    if (gr.code != 0) {
+                        sendJson(out, 400, "{\"error\":"
+                            + Json.quote(trimTo(
+                                gr.stderr, 200)) + "}");
+                        return;
+                    }
+                    String showBody =
+                        gr.stdout.length() > 20000
+                        ? gr.stdout.substring(0, 20000)
+                        : gr.stdout;
+                    sendJson(out, "{\"output\":"
+                        + Json.quote(showBody) + "}");
                     return;
                 }
                 if (path.equals("/api/git/diff-all")) {

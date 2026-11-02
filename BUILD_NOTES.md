@@ -2963,6 +2963,14 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.81.0 (versionCode 186) - Nov 2, 2026 - Campaign Cycle 5 batch 3 (C5-I11-I15)
+- C5-I11 eco Recent runs Clear button (beside the history it clears).
+- C5-I12 Settings Clear on-device histories: eco runs, verify runs, terminal history (store + in-memory list, so it cannot resurrect itself), recent files; settings and chats untouched; reports the store count cleared.
+- C5-I13 Verify problems as clickable rows (server problems verified structured {path, line, message} in basic_syntax_checks first); plain runs clear stale rows.
+- C5-I14/I15 palette mirrors: Toggle file tree order, Copy settings JSON.
+- Proof: version gate 2.81.0/186; DOM-stub gate passes; run-all 108/108 (new cycle5-batch3-harness 5/5); build self-checks green. (The ritual's completion delivery lagged; results confirmed from the process log.)
+- Built APK: 20,464,235 B, md5 8b9b5df8323e35727b71e380abda0b41, versionCode 186, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.80.0 (versionCode 185) - Nov 2, 2026 - Campaign Cycle 5 batch 2 (C5-I6-I10)
 - C5-I6 Settings Copy settings (preferences JSON; the object was audited first - no credentials live in it).
 - C5-I7 tree order toggle (server / A-Z), persisted as ghostide.treeSort; sorting is a render-order copy, collapse logic untouched.

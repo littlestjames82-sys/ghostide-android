@@ -138,6 +138,7 @@ setTimeout(function () {
         <button id="runFix" title="After a Verify run: draft an agent fix task from the gaps it found (fills the chat box, never sends)">🛠 Draft fix task</button>
         <button id="runClose">✕</button></span></div>
       <pre id="runOut" aria-live="polite"></pre>
+      <div id="runProblems"></div>
     </div>
     <div id="dataPane" class="hidden">
       <div class="run-head"><span id="dataTitle">Data view</span>
@@ -927,6 +928,7 @@ setTimeout(function () {
     <button id="setUpdateBtn">Check for updates</button>
     <button id="setWhatsNew">What's new</button>
     <button id="setCopySettings">Copy settings</button>
+    <button id="setClearHist">Clear on-device histories</button>
     <span id="setUpdateOut"></span></p>
   <p class="dim">Ecosystem bundle: <span id="setEcoInfo">…</span></p>
   <p class="dim">MCP sessions: <span id="setMcpInfo">…</span> <button id="setMcpRestart" title="Drop every persistent MCP session (desktop) and clear the phone's list cache">Restart sessions</button></p>

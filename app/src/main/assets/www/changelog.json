@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.82.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 4: commit viewer, summary copies, priming change names",
+   "summary": "Recent commits are now tappable: each opens its stat and patch in a panel, served by a new route on both servers that only accepts a hex commit hash. Replay rows, the ecosystem catalog and approval rows each gain a small copy button for their summary or action text. And the agent's priming names the first changed files instead of only counting them. Cycle 5's twenty improvements are complete; the audits follow."
+  },
+  {
+   "version": "2.81.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 3: history controls, clickable verify problems, palette mirrors",
+   "summary": "On-device histories get controls: the ecosystem's recent-runs line can clear itself, and Settings gains a single Clear on-device histories action covering eco runs, verify runs, terminal history and recent files, while settings and chats stay untouched. Verify problems are now clickable rows that open the file at the problem line, and a plain run clears them away. The command palette learns this cycle's new actions: toggling the tree order and copying settings."
+  },
+  {
    "version": "2.80.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 5 batch 2: settings copy, tree sort, board Ask, queue text filter, git status copy",
