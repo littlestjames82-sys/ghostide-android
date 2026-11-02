@@ -2963,6 +2963,15 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.89.0 (versionCode 194) - Nov 2, 2026 - Campaign Cycle 6 (Agentic) batch 3 (C6-I11-I15)
+- C6-I11 EXPLORE: bounded (6-step) read-only sub-run inside runAgent; dispatch whitelist = read/search/list + reverse/eco/git/context via agentToolText + read-only batches (parseAgentBatch with an explicit allowed list). No write/run/delete/MCP/nested-EXPLORE branches exist in its dispatch - delegation cannot widen authority. DONE returns the summary as the observation.
+- C6-I12 NOTE: appends to .ghostide/agent-notes.md via the file route (app state, the handoff/checkpoint precedent - not staged project changes), 8 KB cap with an honest trim marker.
+- C6-I13 priming: notes tail (1500 chars) + last recorded run (task/date/steps from /api/eco/replay/list) join memText.
+- C6-I14 EXPLORE/NOTE in AGENT_RULES + the no-action nudge list; both fenced out of batches (AGENT_BATCH_BLOCK extended - the older agent3 harness pin updated to the stronger fence); trail target chain carries question/note text.
+- C6-I15 Agent notes viewer in Chat options with owner Clear.
+- Proof: version gate 2.89.0/194; esbuild exit 0; DOM-stub gate passes; run-all 116/116 (new cycle6-batch3-harness 5/5, incl. a negative-space check that runExplore's body contains no write/run/mcp dispatch); build self-checks green; badging verified; asset carries runExplore.
+- Built APK: md5 6c390460754c7e36b2811e1a1ac31d99, versionCode 194, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.88.0 (versionCode 193) - Nov 2, 2026 - Campaign Cycle 6 (Agentic) batch 2 (C6-I6-I10)
 - C6-I6 budgets as settings: agentMaxSteps (25/50/75/100 in Chat options) wired into the ACT loop, step banner, cap message, and the budget line in the model's briefing; repair rounds (0/1/2/3/5) selectable beside it. PLAN mode keeps its own 20-step cap.
 - C6-I7 batched actions push individual trail entries (same step number) - replays and the accounting line now count them.

@@ -35251,6 +35251,11 @@
     }
     if ($("agentToggle") && $("agentToggle").checked) {
       ta.value = "";
+      if (agentRunning) {
+        agentQueue.push(text);
+        addMsg("SYSTEM", "\u{1F4E5} Agent busy - task queued (#" + agentQueue.length + "): " + text.slice(0, 80));
+        return;
+      }
       runAgent(text);
       return;
     }
@@ -42475,6 +42480,25 @@
   var AGENT_PLAN_MAX_STEPS = 20;
   var agentRunning = false;
   var agentStop = false;
+  var agentPause = false;
+  var agentQueue = [];
+  function agentPillShow(label) {
+    const pill = $("agentPill");
+    if (!pill) return;
+    pill.classList.remove("hidden");
+    const t2 = $("agentPillTxt");
+    if (t2) t2.textContent = label;
+    const pb = $("agentPillPause");
+    if (pb) pb.textContent = agentPause ? "\u25B6" : "\u23F8";
+  }
+  function agentPillStep(text) {
+    const t2 = $("agentPillTxt");
+    if (t2 && agentRunning) t2.textContent = text;
+  }
+  function agentPillHide() {
+    const pill = $("agentPill");
+    if (pill) pill.classList.add("hidden");
+  }
   var AGENT_RULES = [
     "You are Ghost in AGENT MODE. Complete the task by",
     "replying with exactly ONE action per message:",
@@ -42908,6 +42932,24 @@
       }
     };
   }
+  var agentPillPauseBtn = $("agentPillPause");
+  if (agentPillPauseBtn)
+    agentPillPauseBtn.onclick = () => {
+      agentPause = !agentPause;
+      agentPillPauseBtn.textContent = agentPause ? "\u25B6" : "\u23F8";
+      agentPillStep(agentPause ? "\u23F8 Agent paused - tap \u25B6 to resume" : "\u{1F916} Agent working\u2026");
+    };
+  var agentPillStopBtn = $("agentPillStop");
+  if (agentPillStopBtn)
+    agentPillStopBtn.onclick = () => {
+      agentStop = true;
+    };
+  var agentPillTxtEl = $("agentPillTxt");
+  if (agentPillTxtEl)
+    agentPillTxtEl.onclick = () => {
+      const vc = $("viewChat");
+      if (vc) vc.click();
+    };
   var agentStepsSel = $("agentStepsSel");
   if (agentStepsSel) {
     agentStepsSel.value = String(settings.agentMaxSteps || 50);
@@ -43047,6 +43089,8 @@
     }
     agentRunning = true;
     agentStop = false;
+    agentPause = false;
+    agentPillShow("\u{1F916} " + task.slice(0, 60));
     const trail = [];
     const agentT0 = Date.now();
     const staged = new Map(Object.entries(opts.staged || {}));
@@ -43110,7 +43154,13 @@
         parts = await Promise.all(acts.map(batchPart));
       } else {
         parts = [];
-        for (const a of acts) parts.push(await batchPart(a));
+        for (const a of acts) {
+          if (agentStop) {
+            parts.push("(batch stopped by the user)");
+            break;
+          }
+          parts.push(await batchPart(a));
+        }
       }
       persist();
       renderAgentTodos(todos, checkpoints);
@@ -43380,10 +43430,15 @@
         addMsg("SYSTEM", "\u{1F321} Agent stopped: the device reached severe heat. (Thermal guard.)");
         agentStop = true;
       }
+      while (agentPause && !agentStop) {
+        agentPillStep("\u23F8 Agent paused at step " + step + " - tap \u25B6 to resume");
+        await new Promise((r) => setTimeout(r, 400));
+      }
       if (agentStop) {
         outcome = "stopped";
         break;
       }
+      agentPillStep("\u{1F916} step " + step + "/" + stepCap + " \xB7 " + task.slice(0, 40));
       addMsg("SYSTEM", "\u{1F916} step " + step + "/" + stepCap);
       if (step > 1 && step % 10 === 1)
         addMsg("SYSTEM", "\u{1F4CA} " + (step - 1) + " steps in, " + Math.round((Date.now() - agentT0) / 1e3) + "s elapsed, " + staged.size + " file(s) staged, " + repairs + " repair round(s) used.");
@@ -43680,13 +43735,19 @@
       });
     } else if (outcome === "done") {
       agentActiveClear();
-      addMsg("GHOST", "\u{1F916} Done: " + summary);
+      addMsg("GHOST", "\u{1F916} Done: " + summary + " (Run: " + trail.filter((t2) => t2.step > 0).length + " step(s), " + repairs + " repair round(s), " + Math.round((Date.now() - agentT0) / 1e3) + "s.)");
     }
+    agentPillHide();
     notifyDone(
       "Agent finished",
       "The agent task ended (" + outcome + ").",
       agentT0
     );
+    if (agentQueue.length) {
+      const nextTask = agentQueue.shift();
+      addMsg("SYSTEM", "\u25B6 Starting queued task (" + agentQueue.length + " left): " + nextTask.slice(0, 80));
+      setTimeout(() => runAgent(nextTask), 50);
+    }
   }
   async function runPlan(task) {
     if (agentRunning) {
@@ -43695,6 +43756,8 @@
     }
     agentRunning = true;
     agentStop = false;
+    agentPause = false;
+    agentPillShow("\u{1F4DD} Planning: " + task.slice(0, 50));
     const trail = [];
     const planT0 = Date.now();
     let todos = [];
@@ -43888,6 +43951,7 @@
     } else if (outcome === "stopped") {
       addMsg("SYSTEM", "Planning stopped. Nothing was changed.");
     }
+    agentPillHide();
     notifyDone(
       "Plan finished",
       "The planning run ended (" + outcome + ").",

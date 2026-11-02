@@ -319,6 +319,11 @@ setTimeout(function () {
     <button id="handoffBtn" title="Draft a propose-only handoff pack from repo facts with GhostHandoff (nothing is committed, sent, or changed)">📦 Draft handoff</button>
     <button id="recallBtn" title="Recall this project's memory (decisions, notes, git history) ranked for the task in the chat box, with GhostRecall; the selected memory can be added to chat context">📚 Recall memory</button>
   </aside>
+<div id="agentPill" class="hidden">
+  <span id="agentPillTxt">🤖 Agent working…</span>
+  <button id="agentPillPause" title="Pause or resume the agent between steps">⏸</button>
+  <button id="agentPillStop" title="Stop the agent">■</button>
+</div>
 </main>
 <div id="fileMenu" class="hidden">
   <button id="menuRename">Rename / move</button>

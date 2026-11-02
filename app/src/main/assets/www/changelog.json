@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.90.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 4: background runs and control",
+   "summary": "Agent runs are no longer tied to the chat screen. A status pill stays visible from any view while the agent works, showing its step and task, with pause, resume and stop on the pill itself; tapping it jumps back to chat. Sending another task while the agent is busy now queues it instead of bouncing, and queued tasks start automatically with fresh priming. Stop also lands mid-batch instead of waiting for the next step, and every finished run reports its steps, repair rounds and seconds. The Agentic Cycle's twenty improvements are complete; its audits follow."
+  },
+  {
    "version": "2.89.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 6 (Agentic) batch 3: sub-runs and agent memory",
