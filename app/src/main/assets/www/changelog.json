@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.78.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 4: concurrency, timeouts, shapes, labels - Cycle 4 complete",
+   "summary": "The closing audit of Cycle 4. Parallel approval reads and denies under load all answered cleanly with nothing executed, every subprocess path keeps its timeout bound, and response shapes stayed plain. One honesty fix: snapshot size differences under a kilobyte no longer round up to a claimed full KB. Cycle 4 is complete: twenty improvements and twenty audits, with the audits catching real defects in the cycle's own new code and fixing them in-cycle, as designed."
+  },
+  {
    "version": "2.77.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 4 audit batch 3: signer, route census, pins, hostile input",
