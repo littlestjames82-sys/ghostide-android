@@ -2930,6 +2930,22 @@ byte-matches the source build. Device pass is Ryan's.
 - No code changes beyond version sources + changelog + harness + campaign record. Proof: 86/86 harness files (new cycle2-audit1-harness 5/5); build self-check green.
 - Built APK: 20,456,043 B, md5 1756248e94ba12e2e1103aa7e73f1165, versionCode 164, same signer (8ea8684a). The v2.58 pushes confirmed EMPTY in the same window (ghost-ide fe5bb826, ghostide-android 899b99ad). Device pass is Ryan's: install over v2.58.0.
 
+## v2.60.0 (versionCode 165) - Nov 1, 2026 - Campaign Cycle 2 audit batch 2 (A6-A10 re-run, A7 deepened)
+- C2-A6 PASS: Cycle 2 routes on both servers; pack mtime seconds on both.
+- C2-A7 PASS (deepened): live canary hunt across board JSON, datapack list, MCP sessions, eco/info - all clean; GhostData analyze of a canary-header CSV via the IDE: zero canary occurrences (C2-I4 redaction holding integrated). Pack contents stay same-user-by-design.
+- C2-A8 PASS: Cycle 2 sinks textContent throughout.
+- C2-A9 PASS: gate state holds 29 tools at Cycle 2 pins (ghostdata 0.1.1, ghostmcp 0.3.0, ghostconsole 103/103); nothing bundled changed since the e11 gate run.
+- C2-A10 PASS: five-source version gate.
+- No code changes beyond version/changelog/harness/campaign. Proof: 87/87 harness files (new cycle2-audit2-harness 5/5); build self-check green.
+- Built APK: 20,456,042 B, md5 553016443d1abbaf7e76c4b8b6fd9402, versionCode 165, same signer (8ea8684a). Device pass is Ryan's: install over v2.59.0.
+
+## v2.61.0 (versionCode 166) - Nov 1, 2026 - Campaign Cycle 2 audit batch 3 (A11-A15 re-run)
+- C2-A11 PASS: v2.60 signer prefix 8ea8684a3476... (lineage); staged match enforced in-build (C2-I20).
+- C2-A12 PASS / C2-A13 PASS / C2-A14 PASS: terminal honesty, switch guards and snapshot-before-overwrite all unchanged; Cycle 2 added no content-writing routes.
+- C2-A15 PASS: live error-shape probes - unknown studio verb, unknown studio tool, malformed JSON body all returned clean {error} JSON.
+- No code changes beyond version/changelog/harness/campaign. Proof: 88/88 harness files (new cycle2-audit3-harness 5/5); build self-check green.
+- Built APK: 20,456,042 B, md5 22e72c2186bbb60142b2780da228e67d, versionCode 166, same signer (8ea8684a). Pushes confirmed in this window: v2.57 (ghost-ide f12f54ea, ghostide-android 947ebfc3) and v2.59 (3ee9e813, 98deca25), both EMPTY. Device pass is Ryan's: install over v2.60.0.
+
 ### Cycle 1 posture note (consolidated, v2.47-v2.54)
 Twenty improvements shipped (studio shelf, replay timeline + re-run, MCP resources/prompts, board actions + state chips, watch auto-reload, approve badge + bulk actions, terminal slice/ask, worktree-aware agent memory, desktop MCP list cache, bundle readout, verify draft-fix, the version build gate). Twenty audits ran against the result. PASS clean: A1 pairing, A2 traversal (9/9 escapes), A3 toolrun allowlist, A5 approval-store hash binding, A7 secrets (env names only), A8 XSS (escape-first renderer), A10 versions, A11 signer stability, A12 terminal exposure, A16 timeouts, A17 concurrency, A18 error contract. Fixed in-cycle: A4 (real hole - agent MCP calls bypassed the approval rails; now queued/per-call like RUN), A6 (worktree briefing read a nonexistent key), A9 (bundle count alignment), A15 (JSON 404s both servers; Java no longer drops crashed routes), A19 (.ghostbtn undefined), A20 (stale LAN-auth doc). Accepted-with-note: A13 (any-folder workspace switch is an IDE feature behind pairing), A14 (writes not atomic; history snapshot is the recovery). Carried to Cycle 2: full persistent MCP sessions + Java cache parity, GhostConsole clock-relative fixtures (rot ~Nov 7), GhostData header-name redaction scan, E20 full Seatbelt enforcement and E21 GhostBus (Ryan-gated, unchanged).
 - Proof: esbuild clean; DOM-stub gate passes extension construction (ends on the known stub defaultView artifact); 67/67 harness files (66 in the standard format + ghconnect ALL PASS 19 checks); eco gate GREEN for ghostre.

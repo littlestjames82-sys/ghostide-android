@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.61.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 audit batch 3: A11-A15 re-run",
+   "summary": "The third audit sweep re-checks the platform guarantees: the signing lineage continues unbroken, staged-asset matching is now enforced by the build itself, terminal honesty labels and refusals are unchanged, workspace switching guards are untouched, every file overwrite still snapshots first, and the new routes' error paths were probed live - an unknown studio verb, an unknown tool and a malformed request body each returned a clean JSON error instead of a dropped connection or an HTML page. No findings; no code changes beyond the version."
+  },
+  {
    "version": "2.60.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 2 audit batch 2: A6-A10 re-run with the secrets audit deepened",
