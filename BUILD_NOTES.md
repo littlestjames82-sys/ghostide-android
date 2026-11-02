@@ -2963,6 +2963,12 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.75.0 (versionCode 180) - Nov 2, 2026 - Campaign Cycle 4 audit batch 1 (A1-A5)
+- All PASS. Cycle 4 added no routes: I1 extended /api/git/status's response, I18 an existing request flag, everything else is frontend. Pair gate wraps do_GET/do_POST once each (exact C3 pin form), viewer role check intact, deny-all = per-id decide loop, refresh widens only list reads (never the call path).
+- Process note: the harness's first draft failed A1/A2 on guessed identifiers (_pair_gate() call form); the pins were corrected to the measured source forms the C3 harness already used. Feature code untouched.
+- Proof: version gate 2.75.0/180; DOM-stub gate passes; run-all 102/102 (new cycle4-audit1-harness 5/5); build self-checks green.
+- Built APK: md5 8b34cc9e5e5b9af17870f617e09bc154, versionCode 180, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.74.0 (versionCode 179) - Nov 2, 2026 - Campaign Cycle 4 batch 4 (C4-I16-I20) - CYCLE 4 IMPROVEMENTS COMPLETE
 - C4-I16 agent priming reports upstream distance (fields from I1); the scouted first pick (pair revoke-all) was already shipped since v2.32, frontend and both servers.
 - C4-I17 Run pane Save output downloads the full pane text as a timestamped .log.

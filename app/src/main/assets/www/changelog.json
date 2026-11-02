@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.76.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 2: parity, canary, sinks, pins, atomic writes",
+   "summary": "The second audit checks the cycle's surfaces for leaks and drift: the git ahead/behind data matches on both servers, a canary sweep over the touched endpoints finds nothing, the HTML-sink census is unchanged because every new element uses safe text rendering, the ecosystem bundle pins hold, and atomic writes remain in place on both servers. All pass."
+  },
+  {
+   "version": "2.75.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 1: gates, roles, approval rails re-verified",
+   "summary": "The first Cycle 4 audit re-checks the safety rails against everything the cycle changed: no new routes were added, the pairing gate still wraps every request, viewer guests stay read-only, the new deny-all rides the same per-request decision path, and the MCP refresh flag can only widen a list read, never a tool call. All pass."
+  },
+  {
    "version": "2.74.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 4 batch 4: upstream-aware agent, output saving, MCP refresh, richer About, health dot",
