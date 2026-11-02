@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.62.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 audit batch 4: A16-A20 re-run, concurrency deepened - Cycle 2 complete",
+   "summary": "The final Cycle 2 sweep stress-tested concurrency where the cycle added shared state: ten MCP calls fired in parallel through the new persistent-session daemon all answered correctly while spawning the underlying server exactly once, and ten parallel approval-queue reads all returned valid data. Timeout bounds, response shapes and label honesty held across the cycle's surface. With this release Cycle 2 is complete - twenty improvements (persistent MCP sessions, header redaction, board-aware priming, pack management, tree change dots, a build that verifies its own bundle, and more) and twenty audits re-run against them, with two planned items found already covered and recorded as verified instead of rebuilt. The full posture note lives in the build notes."
+  },
+  {
    "version": "2.61.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 2 audit batch 3: A11-A15 re-run",
