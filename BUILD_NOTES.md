@@ -2963,6 +2963,11 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.77.0 (versionCode 182) - Nov 2, 2026 - Campaign Cycle 4 audit batch 3 (A11-A15)
+- All PASS. A11: apksigner live on the v2.76 APK - SHA-256 8ea8684a3476785530435c4d7289383977766702d6c2fe1baede7fad7bec8bea, lineage unbroken (first attempt failed only on a PATH gap for java - environment, not artifact). A12: route census 136 desktop / 126 Java, recorded as the Cycle 5 baseline; Cycle 4 changed zero routes. A13: datapack pins intact. A14: history delta is display-only. A15: malformed JSON probed live on the fixture server (v2.70 code; read_json unchanged in Cycle 4) - clean {error} on /api/mcp/tools and /api/approve/decide, health 200 after.
+- Proof: version gate 2.77.0/182; DOM-stub gate passes; run-all 104/104 (new cycle4-audit3-harness 5/5); build self-checks green.
+- Built APK: md5 b683410e55d132df7d0565b1dc6f8eb8, versionCode 182, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.76.0 (versionCode 181) - Nov 2, 2026 - Campaign Cycle 4 audit batch 2 (A6-A10, A6 deepened)
 - All PASS. A6: ahead/behind parity (desktop live both ways in batch 1; Java same fields, compiled into this build). A7: live canary sweep over /api/git/status, /api/health, /api/eco/info, /api/files on the canary fixture server - zero hits. A8: built-bundle innerHTML census unchanged at 101. A9: eco state 29 tools / ghostmcp 0.3.2 / e13. A10: os.replace x2 + ATOMIC_MOVE intact.
 - Proof: version gate 2.76.0/181; DOM-stub gate passes; run-all 103/103 (new cycle4-audit2-harness 5/5); build self-checks green.
