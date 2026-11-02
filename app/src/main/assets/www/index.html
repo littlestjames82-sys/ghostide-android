@@ -236,6 +236,23 @@ setTimeout(function () {
         <option value="queue">Queue commands + deletes for approval (Approve queue)</option>
       </select>
     </label>
+    <label class="ctx-toggle">🤖 Agent step budget:
+      <select id="agentStepsSel">
+        <option value="25">25 steps</option>
+        <option value="50">50 steps</option>
+        <option value="75">75 steps</option>
+        <option value="100">100 steps</option>
+      </select>
+    </label>
+    <label class="ctx-toggle">🛠 Agent repair rounds (DONE gate):
+      <select id="agentRepairSel">
+        <option value="0">Off</option>
+        <option value="1">1 round</option>
+        <option value="2">2 rounds</option>
+        <option value="3">3 rounds</option>
+        <option value="5">5 rounds</option>
+      </select>
+    </label>
     <div class="optRow">
       <button id="ckptBtn">🗂 Checkpoints</button>
       <button id="agentResumeBtn">▶ Resume agent task</button>

@@ -2963,6 +2963,25 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.88.0 (versionCode 193) - Nov 2, 2026 - Campaign Cycle 6 (Agentic) batch 2 (C6-I6-I10)
+- C6-I6 budgets as settings: agentMaxSteps (25/50/75/100 in Chat options) wired into the ACT loop, step banner, cap message, and the budget line in the model's briefing; repair rounds (0/1/2/3/5) selectable beside it. PLAN mode keeps its own 20-step cap.
+- C6-I7 batched actions push individual trail entries (same step number) - replays and the accounting line now count them.
+- C6-I8 meter line at steps 11/21/31... reporting steps-in, elapsed, staged count, repairs used.
+- C6-I9 runBatch refactored to batchPart(a); pure-read batches run via Promise.all in reply order; batches containing TODO/STEP_DONE stay sequential because they mutate the shared plan.
+- C6-I10 compaction: lastBad (from CHECK and the DONE gate) rides agentStateSummary as "open check problems", so mid-repair compaction preserves the repair context.
+- Proof: version gate 2.88.0/193; esbuild exit 0; DOM-stub gate passes; run-all 115/115 (new cycle6-batch2-harness 5/5); build self-checks green; badging verified; asset carries batchPart.
+- Built APK: md5 e3e6f579fc8d2f44a715f0da7adfd90b, versionCode 193, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.87.0 (versionCode 192) - Nov 2, 2026 - Campaign Cycle 6 (Agentic) batch 1 (C6-I1-I5)
+- C6-I1 DONE gate: with staged changes, DONE runs every staged file's automatic check first; failures refuse DONE and feed back for repair (settings.agentRepairRounds, default 3, capped 5; rules text tells the model). Deletions-only DONE passes (nothing to check); "check skipped" file types never block.
+- C6-I2 post-apply verify: the review Apply runs the full pipeline on disk (tests can only run against written files) and reports it; problems prefill a fix task via askGhostWith - never auto-sent.
+- C6-I3 VERIFY action returns up to 10 problem lines (path:line message), not just counts.
+- C6-I4 loop detection: identical action signature 3x = in-conversation warning, 4x = run stops as "looping", nothing written.
+- C6-I5 accounting: repairs ride the trail; the end-of-run line reports steps / repair rounds / seconds.
+- Suite note: Cycle 5 audit4's A20 pin held a version literal (true for one release only); rewritten as a server/VERSION.json agreement check, which is the durable claim.
+- Proof: version gate 2.87.0/192; esbuild exit 0 (one brace slip in the loop-warning insertion was caught by esbuild itself and fixed before build); DOM-stub gate passes; run-all 114/114 (new cycle6-batch1-harness 5/5); build self-checks green; badging verified; APK asset carries doneGate.
+- Built APK: md5 cebaf75734264402b4d90cb2606c80cd, versionCode 192, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.86.0 (versionCode 191) - Nov 2, 2026 - Campaign Cycle 5 audit batch 4 (A16-A20) - CYCLE 5 COMPLETE
 - A16 leak sweep zero hits. A17 one decide route per server, all decisions ride it (live ledger proof from Cycle 4 stands). A18 caps re-pinned incl. the show route's 20000 both servers. A19 verify rows render from structured fields via textContent. A20 version ritual held.
 - CYCLE 5 POSTURE (consolidated): Improvements I1-I20 shipped v2.79-v2.82: the ghostide-android CI frontend-layout fix (harnesses can now read the Android tree in CI; first CI run under the fix is the live confirmation), workspace-shape priming, What's New show-all, health-dot tap, MCP resources refresh parity, settings copy (audited credential-free), tree sort, board Ask, queue text filter, git status copy, history clears, clickable verify problems, palette mirrors, the hex-pinned commit viewer, summary copies, and priming that names changed paths. Audits A1-A20 re-ran against the Cycle 4 baselines: census moved only by I16's deliberate pair (137/127), sinks unchanged at 101 on the true bundle, eco e13/29 tools/ghostmcp 0.3.2, signer 8ea8684a verified live twice, canary and leak sweeps zero.

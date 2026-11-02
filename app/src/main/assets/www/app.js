@@ -32812,7 +32812,9 @@
       roleLabels: true,
       sliceBudget: 6e3,
       attachSelection: true,
-      attachDiff: false
+      attachDiff: false,
+      agentRepairRounds: 3,
+      agentMaxSteps: 50
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
   );
@@ -42480,6 +42482,9 @@
     "STEP_DONE. Never batch WRITE, EDIT, RUN or DELETE.",
     "Rules: never invent file contents - READ a file before",
     "rewriting it. Keep every WRITE and EDIT syntactically valid.",
+    "DONE is gated: if your staged files fail their automatic",
+    "checks, DONE is refused and the failures come back to you",
+    "to fix first (a limited number of repair rounds).",
     "Do not explain outside the action line. You have at most " + AGENT_MAX_STEPS + " actions."
   ].join("\n");
   var AGENT_PLAN_RULES = [
@@ -42638,10 +42643,12 @@
       todos: normalizeAgentTodos(todos)
     };
   }
-  function agentStateSummary(staged, deletions, todos) {
+  function agentStateSummary(staged, deletions, todos, problems) {
     const files = Object.keys(staged || {});
     const open = normalizeAgentTodos(todos).filter((t2) => !t2.done).map((t2) => t2.text);
-    return "State so far: " + files.length + " file(s) staged" + (files.length ? " (" + files.join(", ") + ")" : "") + ((deletions || []).length ? "; deletions staged: " + deletions.join(", ") : "") + (open.length ? "; open plan items: " + open.join(" | ") : "") + ".";
+    return "State so far: " + files.length + " file(s) staged" + (files.length ? " (" + files.join(", ") + ")" : "") + ((deletions || []).length ? "; deletions staged: " + deletions.join(", ") : "") + (open.length ? "; open plan items: " + open.join(" | ") : "") + /* Cycle 6 I10: open check problems survive
+       compaction too - they are what a repair is for. */
+    ((problems || []).length ? "; open check problems: " + problems.join(" | ") : "") + ".";
   }
   function compactAgentMessages(messages, summary, limit) {
     const cap = limit || 56e3;
@@ -42829,7 +42836,8 @@
       if (act.type === "verify") {
         const d = await postJson("/api/verify/run", {});
         if (d.error) return "VERIFY failed: " + d.error;
-        return "Verify pipeline: evidence level " + d.evidence.level + "; " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s); tests " + d.tests.passed + "/" + d.tests.total + " passed.\nReport:\n" + (d.report || "").slice(0, 5e3);
+        const probs = (d.checks.problems || []).slice(0, 10).map((p) => "\u26A0 " + p.path + ":" + (p.line || 1) + " " + (p.message || "")).join("\n");
+        return "Verify pipeline: evidence level " + d.evidence.level + "; " + d.checks.checked + " checked, " + d.checks.problems.length + " problem(s); tests " + d.tests.passed + "/" + d.tests.total + " passed." + (probs ? "\nProblems:\n" + probs : "") + "\nReport:\n" + (d.report || "").slice(0, 5e3);
       }
       if (act.type === "test") {
         const d = await postJson(
@@ -42858,6 +42866,22 @@
         );
       } catch (e) {
       }
+    };
+  }
+  var agentStepsSel = $("agentStepsSel");
+  if (agentStepsSel) {
+    agentStepsSel.value = String(settings.agentMaxSteps || 50);
+    agentStepsSel.onchange = () => {
+      settings.agentMaxSteps = Number(agentStepsSel.value) || 50;
+      saveSettings();
+    };
+  }
+  var agentRepairSel = $("agentRepairSel");
+  if (agentRepairSel) {
+    agentRepairSel.value = String(settings.agentRepairRounds ?? 3);
+    agentRepairSel.onchange = () => {
+      settings.agentRepairRounds = Number(agentRepairSel.value);
+      saveSettings();
     };
   }
   function agentTodosSave(todos) {
@@ -43009,34 +43033,44 @@
       readCache.set(path, d.content);
       return d.content;
     }
+    async function batchPart(a) {
+      if (a.type === "read") {
+        const c = await readForAgent(a.path);
+        return c == null ? "READ failed: " + a.path + " does not exist yet. You may create it with WRITE." : "Content of " + a.path + ":\n```\n" + c.slice(0, 8e3) + "\n```";
+      }
+      if (a.type === "search") {
+        const d = await postJson(
+          "/api/search",
+          { query: a.query }
+        );
+        const ms = (d.matches || []).slice(0, 20);
+        return "Search results for " + a.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)");
+      }
+      if (a.type === "list") {
+        const fr = await fetch("/api/files");
+        const fd = await fr.json();
+        let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
+        if (a.path) names = names.filter((p) => p === a.path || p.startsWith(a.path + "/"));
+        return "Files" + (a.path ? " under " + a.path : "") + ":\n" + names.slice(0, 120).join("\n");
+      }
+      if (a.type === "todo") {
+        todos = addAgentTodo(todos, a.text);
+        return "Plan item added: " + a.text;
+      }
+      if (a.type === "stepdone") {
+        todos = completeAgentTodo(todos, a.text);
+        return "Plan item marked done: " + a.text;
+      }
+      return agentToolText(a);
+    }
     async function runBatch(acts) {
-      const parts = [];
-      for (const a of acts) {
-        if (a.type === "read") {
-          const c = await readForAgent(a.path);
-          parts.push(c == null ? "READ failed: " + a.path + " does not exist yet. You may create it with WRITE." : "Content of " + a.path + ":\n```\n" + c.slice(0, 8e3) + "\n```");
-        } else if (a.type === "search") {
-          const d = await postJson(
-            "/api/search",
-            { query: a.query }
-          );
-          const ms = (d.matches || []).slice(0, 20);
-          parts.push("Search results for " + a.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)"));
-        } else if (a.type === "list") {
-          const fr = await fetch("/api/files");
-          const fd = await fr.json();
-          let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
-          if (a.path) names = names.filter((p) => p === a.path || p.startsWith(a.path + "/"));
-          parts.push("Files" + (a.path ? " under " + a.path : "") + ":\n" + names.slice(0, 120).join("\n"));
-        } else if (a.type === "todo") {
-          todos = addAgentTodo(todos, a.text);
-          parts.push("Plan item added: " + a.text);
-        } else if (a.type === "stepdone") {
-          todos = completeAgentTodo(todos, a.text);
-          parts.push("Plan item marked done: " + a.text);
-        } else {
-          parts.push(await agentToolText(a));
-        }
+      const pure = acts.every((a) => a.type !== "todo" && a.type !== "stepdone");
+      let parts;
+      if (pure) {
+        parts = await Promise.all(acts.map(batchPart));
+      } else {
+        parts = [];
+        for (const a of acts) parts.push(await batchPart(a));
       }
       persist();
       renderAgentTodos(todos, checkpoints);
@@ -43157,14 +43191,41 @@
     if (memText)
       addMsg("SYSTEM", "\u{1F4DA} Agent primed with project memory (GhostRecall + error memory).");
     const messages = [
-      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") + (memText ? "\n\nProject memory for this task:\n" + memText.slice(0, 8e3) : "") + (opts.plan ? "\n\nApproved plan:\n" + opts.plan : "") },
+      { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") + (memText ? "\n\nProject memory for this task:\n" + memText.slice(0, 8e3) : "") + (opts.plan ? "\n\nApproved plan:\n" + opts.plan : "") + /* Cycle 6 I6: state the run's real budget when
+         the user's setting moves it off the default. */
+      ((Number(settings.agentMaxSteps) || 50) !== AGENT_MAX_STEPS ? "\n\nYour step budget for this run is " + (Number(settings.agentMaxSteps) || 50) + " actions." : "") },
       { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") + (todos.length ? "\nPlan items: " + todos.map((t2, i2) => i2 + 1 + ". " + t2.text).join(" | ") : "") }
     ];
     snapshot("task start", 0);
     let outcome = "cap";
     let summary = "";
     let nudges = 0;
-    for (let step = 1; step <= AGENT_MAX_STEPS; step++) {
+    let repairs = 0;
+    let lastSig = "";
+    let sigCount = 0;
+    let lastBad = [];
+    const repairCap = Math.max(0, Math.min(
+      5,
+      Number(settings.agentRepairRounds ?? 3) || 0
+    ));
+    async function doneGate() {
+      if (!staged.size || repairs >= repairCap) return true;
+      const notes = [];
+      for (const [p, c] of staged)
+        notes.push(await agentCheckOne(p, c));
+      const bad = notes.filter((n) => n.includes("PROBLEM"));
+      lastBad = bad;
+      if (!bad.length) return true;
+      repairs++;
+      addMsg("SYSTEM", "\u{1F6E0} DONE held: " + bad.length + " staged check(s) failing (repair round " + repairs + "/" + repairCap + ")");
+      messages.push({ role: "user", content: "DONE refused: your staged changes fail their automatic checks:\n" + bad.join("\n") + "\nFix them with WRITE or EDIT, then finish with DONE again." });
+      return false;
+    }
+    const stepCap = Math.max(10, Math.min(
+      120,
+      Number(settings.agentMaxSteps) || 50
+    ));
+    for (let step = 1; step <= stepCap; step++) {
       if (thermalWatchdog() === "stop") {
         addMsg("SYSTEM", "\u{1F321} Agent stopped: the device reached severe heat. (Thermal guard.)");
         agentStop = true;
@@ -43173,7 +43234,9 @@
         outcome = "stopped";
         break;
       }
-      addMsg("SYSTEM", "\u{1F916} step " + step + "/" + AGENT_MAX_STEPS);
+      addMsg("SYSTEM", "\u{1F916} step " + step + "/" + stepCap);
+      if (step > 1 && step % 10 === 1)
+        addMsg("SYSTEM", "\u{1F4CA} " + (step - 1) + " steps in, " + Math.round((Date.now() - agentT0) / 1e3) + "s elapsed, " + staged.size + " file(s) staged, " + repairs + " repair round(s) used.");
       let reply = "";
       try {
         const compacted = compactAgentMessages(
@@ -43181,7 +43244,8 @@
           agentStateSummary(
             Object.fromEntries(staged),
             [...deletions],
-            todos
+            todos,
+            lastBad
           )
         );
         reply = await collectChat(compacted, 2048);
@@ -43194,6 +43258,12 @@
       const batch = parseAgentBatch(reply);
       if (batch.length > 1) {
         addMsg("SYSTEM", "\u{1F9FA} Batch of " + batch.length + " actions: " + batch.map((a) => a.type.toUpperCase()).join(", "));
+        for (const a of batch)
+          trail.push({
+            step,
+            type: a.type,
+            target: a.path || a.query || a.tool || ""
+          });
         const out = await runBatch(batch);
         messages.push({ role: "user", content: "Batch results:\n" + out.slice(0, 16e3) + "\nContinue with the next action (or a batch of read-only actions)." });
         continue;
@@ -43204,6 +43274,17 @@
         type: act.type,
         target: act.path || act.command || act.query || act.server || ""
       });
+      const sig = act.type + "|" + (act.path || "") + "|" + (act.command || "") + "|" + (act.query || "");
+      if (sig === lastSig) sigCount++;
+      else {
+        lastSig = sig;
+        sigCount = 1;
+      }
+      if (sigCount >= 4) {
+        addMsg("SYSTEM", "\u{1F501} Agent stopped: the same action repeated " + sigCount + " times in a row (" + act.type + "). Nothing was written.");
+        outcome = "looping";
+        break;
+      }
       if (act.type === "read") {
         const content2 = await readForAgent(act.path);
         addMsg("SYSTEM", "\u{1F4D6} READ " + act.path);
@@ -43319,6 +43400,7 @@
         const notes = [];
         for (const [p, c] of staged)
           notes.push(await agentCheckOne(p, c));
+        lastBad = notes.filter((n) => n.includes("PROBLEM"));
         if (!notes.length) notes.push("nothing staged to check");
         addMsg("SYSTEM", "\u{1F50D} CHECK\n" + notes.join("\n"));
         messages.push({ role: "user", content: "Check results:\n" + notes.join("\n") + "\nFix any problems with another WRITE or EDIT, or finish with DONE." });
@@ -43382,9 +43464,11 @@
         const t2 = await agentToolText(act);
         messages.push({ role: "user", content: t2 + "\nContinue." });
       } else if (act.type === "done") {
-        outcome = "done";
-        summary = act.summary;
-        break;
+        if (await doneGate()) {
+          outcome = "done";
+          summary = act.summary;
+          break;
+        }
       } else if (act.type === "ask") {
         addMsg("GHOST", "\u2753 " + act.question);
         outcome = "asked";
@@ -43398,7 +43482,15 @@
         }
         messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, REVERSE, ECO, VERIFY, TEST, GIT, MCP, DONE, or ASK - or a batch of read-only actions, one per line." });
       }
+      if (sigCount === 3)
+        messages.push({ role: "user", content: "Warning: you have repeated the same action 3 times. If it is not producing new information, change approach or finish with DONE." });
     }
+    if (repairs)
+      trail.push({
+        step: 0,
+        type: "repairs",
+        target: repairs + " repair round(s)"
+      });
     saveTrail(task, trail, (Date.now() - agentT0) / 1e3);
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
@@ -43415,11 +43507,11 @@
       addMsg("SYSTEM", "Agent stopped by you. Nothing was written - the staged changes stay saved as a resumable task (Chat options: Resume agent task).");
       persist();
     } else if (outcome === "cap") {
-      addMsg("SYSTEM", "Agent hit the " + AGENT_MAX_STEPS + "-step cap.");
+      addMsg("SYSTEM", "Agent hit the " + stepCap + "-step cap.");
     }
     if ((outcome === "done" || outcome === "cap") && (staged.size || deletions.size)) {
       agentActiveClear();
-      addMsg("GHOST", "\u{1F916} " + (summary || "Task run complete") + " - review the " + staged.size + " file change(s)" + (deletions.size ? " and " + deletions.size + " deletion(s)" : "") + " below. Nothing is saved until you approve.");
+      addMsg("GHOST", "\u{1F916} " + (summary || "Task run complete") + " - review the " + staged.size + " file change(s)" + (deletions.size ? " and " + deletions.size + " deletion(s)" : "") + " below. Nothing is saved until you approve. (Run: " + trail.filter((t2) => t2.step > 0).length + " step(s), " + repairs + " repair round(s), " + Math.round((Date.now() - agentT0) / 1e3) + "s.)");
       openAgentReview({
         staged,
         deletions,
@@ -43737,6 +43829,19 @@
       }
       loadFiles();
       addMsg("SYSTEM", "Agent changes applied: " + n + " file(s) saved" + (nd ? ", " + nd + " deleted" : "") + (ckptPath ? ". Undo point saved: " + ckptPath + " (Chat options: Checkpoints)." : "."));
+      try {
+        const vd = await postJson("/api/verify/run", {});
+        if (vd && !vd.error && vd.checks) {
+          const probs = vd.checks.problems || [];
+          addMsg("SYSTEM", "\u{1F50D} Post-apply verify: " + vd.evidence.level + " - " + vd.checks.checked + " checked, " + probs.length + " problem(s); tests " + vd.tests.passed + "/" + vd.tests.total + " passed.");
+          if (probs.length)
+            askGhostWith(
+              "Fix the verify problems",
+              "The applied changes left " + probs.length + " verify problem(s): " + probs.slice(0, 5).map((p) => p.path + ":" + (p.line || 1) + " " + (p.message || "")).join("; ") + ". Fix them."
+            );
+        }
+      } catch (e) {
+      }
     };
     refreshApply();
     box.appendChild(applyRow);

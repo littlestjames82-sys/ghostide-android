@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.88.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 2: budgets and batching depth",
+   "summary": "The agent's budgets are yours to set: Chat options gains a step budget (25 to 100) that the loop, its banner and the model's own briefing all honor, plus the repair-round control for the DONE gate. Batched actions now appear individually in run replays instead of vanishing into one step, pure-read batches execute concurrently instead of one by one, a meter line reports progress every ten steps, and when a long run's context is compacted, the summary carries the open check problems so the agent never forgets what it was in the middle of fixing."
+  },
+  {
+   "version": "2.87.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 1: the self-repair loop",
+   "summary": "The agent now repairs its own work. Saying DONE with staged changes first runs every staged file's automatic check; failures refuse DONE and come back for fixing, up to a repair-round limit you control in settings. Applying reviewed changes runs the full verify pipeline on disk automatically and drafts a fix task if problems remain. The VERIFY action reports the problems themselves, repeated identical actions are detected (a warning at three, a stop at four), and every run ends with its accounting: steps, repair rounds, seconds."
+  },
+  {
    "version": "2.86.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 5 audit batch 4: leak sweep, approval rails, caps, rendering honesty, version ritual - cycle complete",
