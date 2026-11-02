@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.69.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 3: signer, honesty labels, pack pins, body caps, malformed input - two fixes",
+   "summary": "Audit release with two real fixes, both caught by probing the new data-pack panel before it ever reached a phone: it asked a list route that does not exist and read summary fields the view route never sends, so it would always have claimed there were no packs. It now uses the real routes and response shapes, verified end to end. The pack view's traversal pin refuses the same seven attack-shaped names as delete, malformed request bodies earn clean 400s with the server unharmed, and the signing certificate lineage is verified on the previous build."
+  },
+  {
    "version": "2.68.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 3 audit batch 2: parity, canary hunt, sink census, bundle pins",

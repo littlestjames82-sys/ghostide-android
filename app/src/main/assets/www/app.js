@@ -37801,7 +37801,7 @@
     const box = studioPanel("Data packs");
     let d;
     try {
-      d = await postJson("/api/eco/datapack/list", {});
+      d = await postJson("/api/eco/datapacks", {});
     } catch (e) {
       box.textContent = "Could not reach the server.";
       return;
@@ -37812,7 +37812,8 @@
       box.textContent = "No data packs in this workspace yet. Open a data file and use Pack to build one.";
       return;
     }
-    for (const name2 of packs) {
+    for (const pack of packs) {
+      const name2 = pack.name;
       const row = document.createElement("div");
       row.className = "todorow";
       const lab = document.createElement("span");
@@ -37828,7 +37829,7 @@
             "/api/eco/datapack/view",
             { name: name2 }
           );
-          box.textContent = v.error || (v.file || "PROMPT.md") + ":\n\n" + (v.text || "(empty)");
+          box.textContent = v.error || (v.output || "(empty pack summary)");
         } catch (e) {
           box.textContent = "Could not reach the server.";
         }

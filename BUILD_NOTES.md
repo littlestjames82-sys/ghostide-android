@@ -2963,6 +2963,12 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.69.0 (versionCode 174) - Nov 1, 2026 - Campaign Cycle 3 audit batch 3 (A11-A15, A13 deepened, 2 fixes)
+- A11 PASS (live): v2.68 APK signer cert SHA-256 8ea8684a3476785530435c... - lineage unbroken. A12 PASS: terminal honesty label intact. A14 PASS: 64MB body cap intact at read_json. A15 PASS (live): malformed JSON to /api/file and /api/eco/replay/get earns clean 400s; health answers normally after.
+- A13 PASS DEEPENED + 2 FIXES (the audit earning its keep): all 7 traversal-shaped names refused by the pack VIEW pin, same as delete; a real pack builds, lists and views end to end. But probing Cycle 3's own pack-list panel (C3-I17, shipped in v2.66 which was never installed) found it called /api/eco/datapack/list - a route that exists on neither server (the real route is /api/eco/datapacks, entries are {name, files, mtime} objects) - and read v.file/v.text from a view route that returns {ok, output}. The panel would always have shown "no packs". Both fixed to the real contracts and re-probed live.
+- Proof: version gate 2.69.0/174; DOM-stub gate passes; run-all 96/96 (new cycle3-audit3-harness 6/6); build self-checks green.
+- Built APK: 20,460,138 B, md5 77fbc075c12df6c75f776c2496a1b5dc, versionCode 174, same signer (8ea8684a).
+
 ## v2.68.0 (versionCode 173) - Nov 1, 2026 - Campaign Cycle 3 audit batch 2 (A6-A10)
 - A6 PASS: route parity for all Cycle 3 routes (devices both servers; replay POST both; atomic writes both). A7 PASS (live): fixture canary (sk-canary-12345 in a sibling server's env) absent from servers, sessions, eco/info, devices and health outputs; the servers list carries env NAMES only (client.py sorts keys, never values).
 - A8 PASS: sink census unchanged - 100 lines / 101 innerHTML occurrences, exactly the Cycle 2 count; every Cycle 3 UI addition used textContent/createElement.
