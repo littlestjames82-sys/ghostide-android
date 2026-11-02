@@ -2963,6 +2963,16 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.73.0 (versionCode 178) - Nov 2, 2026 - Campaign Cycle 4 batch 3 (C4-I11-I15)
+- C4-I11 history rows size each snapshot against the current document (smaller/larger/same). The planned undoable-restore work was verified unnecessary: restore loads into the editor and nothing writes until Save, and saving snapshots the prior version first.
+- C4-I12 agent priming counts test files (test dirs, test_*.py, *.test/*.spec) and reports either way.
+- C4-I13 eco catalog head names the bundle generation.
+- C4-I14 pack view renders in place with a Copy pack summary button.
+- C4-I15 board panel lists every project in the model.
+- Process note: one harness pin failed on first run because it expected a string the escaped source never contains ("\n\nTests: ") - the pin was corrected to the measured source, feature untouched.
+- Proof: version gate 2.73.0/178; DOM-stub gate passes; run-all 100/100 (new cycle4-batch3-harness 5/5); build self-checks green.
+- Built APK: 20,460,138 B, md5 f5690b3e913d74381309a9ae5b8b111d, versionCode 178, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.72.0 (versionCode 177) - Nov 2, 2026 - Campaign Cycle 4 batch 2 (C4-I6-I10)
 - C4-I6 Approve Deny all: confirm, then per-id deny loop with a denied-of-total report; executes nothing by construction (deny is the non-executing decision).
 - C4-I7 verify history: retention 5 -> 12; each line marks the problem trend vs the previous run.

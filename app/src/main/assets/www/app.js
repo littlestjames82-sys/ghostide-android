@@ -37415,6 +37415,12 @@
     head.className = "dim";
     head.textContent = proj.name + " - board column: " + proj.column + ". " + (proj.column_reason || "");
     box.appendChild(head);
+    for (const p of (d.projects || []).slice(1)) {
+      const row = document.createElement("div");
+      row.className = "dim";
+      row.textContent = p.name + " - board column: " + p.column + ".";
+      box.appendChild(row);
+    }
     const gitRow = document.createElement("div");
     gitRow.className = "todorow";
     const gitB = document.createElement("button");
@@ -37886,7 +37892,31 @@
             "/api/eco/datapack/view",
             { name: name2 }
           );
-          box.textContent = v.error || (v.output || "(empty pack summary)");
+          box.textContent = "";
+          const head = document.createElement("div");
+          head.className = "dim";
+          head.textContent = name2;
+          box.appendChild(head);
+          const cp = document.createElement("button");
+          cp.className = "ghostbtn";
+          cp.textContent = "\u{1F4CB} Copy pack summary";
+          cp.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(
+                v.output || ""
+              );
+              cp.textContent = "\u2713 Copied";
+              setTimeout(() => {
+                cp.textContent = "\u{1F4CB} Copy pack summary";
+              }, 1200);
+            } catch (e2) {
+              alert("Clipboard was not available here.");
+            }
+          };
+          if (!v.error) box.appendChild(cp);
+          const pre = document.createElement("pre");
+          pre.textContent = v.error || (v.output || "(empty pack summary)");
+          box.appendChild(pre);
         } catch (e) {
           box.textContent = "Could not reach the server.";
         }
@@ -38307,6 +38337,11 @@
     ecoHead.className = "dim";
     ecoHead.textContent = tools.length + " tools in the catalog. Ready tools run here against this workspace.";
     $("todoResults").appendChild(ecoHead);
+    fetch("/api/eco/info").then((r2) => r2.json()).then((d) => {
+      if (d && d.generation)
+        ecoHead.textContent += " Bundle generation " + d.generation + ".";
+    }).catch(() => {
+    });
     try {
       const runs = JSON.parse(localStorage.getItem(
         "ghostide.ecoRuns"
@@ -41741,7 +41776,9 @@
     for (const e of d.entries) {
       const row = document.createElement("div");
       row.className = "findRow";
-      row.textContent = "\u{1F558} " + fmtSnapTs(e.ts) + "  \xB7  " + Math.max(1, Math.round(e.size / 1024)) + " KB";
+      const now = view ? view.state.doc.length : 0;
+      const delta = now ? e.size === now ? " \xB7 same size as now" : e.size < now ? " \xB7 " + Math.max(1, Math.round((now - e.size) / 1024)) + " KB smaller than now" : " \xB7 " + Math.max(1, Math.round((e.size - now) / 1024)) + " KB larger than now" : "";
+      row.textContent = "\u{1F558} " + fmtSnapTs(e.ts) + "  \xB7  " + Math.max(1, Math.round(e.size / 1024)) + " KB" + delta;
       row.onclick = async () => {
         const rr = await fetch("/api/history/file?path=" + encodeURIComponent(currentFile) + "&ts=" + encodeURIComponent(e.ts));
         const dd = await rr.json();
@@ -42770,6 +42807,16 @@
       const gs = await (await fetch("/api/git/status")).json();
       if (gs && gs.branch)
         memText += "\n\nGit: on branch " + gs.branch + ", " + (gs.changes || []).length + " changed file(s) not yet committed.";
+    } catch (e) {
+    }
+    try {
+      const fl = await (await fetch("/api/files")).json();
+      const paths = (fl.files || []).filter((f) => f.type === "file").map((f) => f.path);
+      const tests = paths.filter((p) => /(^|\/)(tests?|__tests__)\//.test(p) || /(^|\/)test_[^/]*\.py$/.test(p) || /(_test|\.test|\.spec)\.[a-z]+$/.test(p));
+      if (tests.length)
+        memText += "\n\nTests: " + tests.length + " test file(s) in this workspace (e.g. " + tests[0] + "). Keep them passing.";
+      else
+        memText += "\n\nTests: no test files found in this workspace.";
     } catch (e) {
     }
     if (memText)

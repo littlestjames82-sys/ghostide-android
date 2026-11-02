@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.73.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 3: informed snapshots, test-aware agent, catalog generation, pack copy, full board",
+   "summary": "Local history now sizes each snapshot against the file as it stands, so restoring is an informed pick. The agent's project priming counts the workspace's test files and says whether there are tests to keep passing. The ecosystem catalog names its bundle generation up top. Viewing a data pack keeps the list intact and offers a copy button for the summary. And the board panel lists every project in the model, not just the first."
+  },
+  {
    "version": "2.72.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 4 batch 2: deny-all, verify trends, grouped find, persistent filter, What's new",
