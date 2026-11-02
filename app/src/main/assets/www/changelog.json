@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.68.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 2: parity, canary hunt, sink census, bundle pins",
+   "summary": "Audit release, no new features. Route parity holds for everything Cycle 3 added, on both servers. A canary secret planted in a fixture server's environment appears in none of the servers, sessions, ecosystem, devices or health outputs. The HTML sink census is unchanged from Cycle 2 - every Cycle 3 screen addition used safe text rendering. A burst of twelve rapid saves against the new atomic write path landed last-write-wins with no temporary files left behind, and the bundle pins match the audited gate exactly."
+  },
+  {
+   "version": "2.67.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 1: pairing, pins, approval rails re-run and deepened",
+   "summary": "Audit release, no new features. The pairing gate, path pins, queue-first approval rails and hash binding all re-verified against the Cycle 3 surface. The new per-server MCP restart and paired-devices routes were probed live on a two-server fixture: restarting one server left the other serving from its live session, the restarted one respawned cleanly, and the devices readout carried roles and expiry only - no token material anywhere in the payload."
+  },
+  {
    "version": "2.66.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 3 batch 4: board Git jump, palette actions, replay elapsed times, build readout, harness runner",

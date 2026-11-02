@@ -2963,6 +2963,21 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.68.0 (versionCode 173) - Nov 1, 2026 - Campaign Cycle 3 audit batch 2 (A6-A10)
+- A6 PASS: route parity for all Cycle 3 routes (devices both servers; replay POST both; atomic writes both). A7 PASS (live): fixture canary (sk-canary-12345 in a sibling server's env) absent from servers, sessions, eco/info, devices and health outputs; the servers list carries env NAMES only (client.py sorts keys, never values).
+- A8 PASS: sink census unchanged - 100 lines / 101 innerHTML occurrences, exactly the Cycle 2 count; every Cycle 3 UI addition used textContent/createElement.
+- A9 PASS: bundle pins at e13 exact (29 tools, ghostmcp 0.3.2, ghostdata 0.1.1, zero failed suites). A10 PASS: version gate intact.
+- Extra probe (A14's new ground): 12 rapid saves through the atomic path - last-write-wins (v11), zero temp litter.
+- Proof: version gate 2.68.0/173; DOM-stub gate passes; run-all 95/95 (new cycle3-audit2-harness 5/5 - two of its first-draft pins were wrong about where env_names lives and the occurrence count; pins corrected to the measured truth, product code untouched); build self-checks green.
+- Built APK: 20,460,138 B, md5 87c5c0122ac35ea192b39f1954837bce, versionCode 173, same signer (8ea8684a).
+
+## v2.67.0 (versionCode 172) - Nov 1, 2026 - Campaign Cycle 3 audit batch 1 (A1-A5, deepened)
+- A1 PASS: pair gate precedes routing in both verbs. A2 PASS: new routes pinned (devices fixed path, daemon drop by name). A3 PASS: queue-first rails intact.
+- A4 PASS DEEPENED (live, two-server fixture): per-server restart dropped ONLY the named session; the other server kept serving from its live session; the dropped one respawned on next use. MCP still executes only inside approve_decide.
+- A5 PASS DEEPENED (live + source): /api/pair/devices emits role/issued/expires only (handler iterates token VALUES, never reads keys out; payload scan found zero token-shaped strings); hash binding unchanged.
+- Proof: version gate 2.67.0/172; DOM-stub gate passes; run-all 94/94 (new cycle3-audit1-harness 7/7); build self-checks green. No upload for audit intermediates - v2.70 is the Cycle 3 delivery candidate.
+- Built APK: 20,460,138 B, md5 1bcfc98abcd8cd72051aabae24aea46f, versionCode 172, same signer (8ea8684a).
+
 ## v2.66.0 (versionCode 171) - Nov 1, 2026 - Campaign Cycle 3 batch 4 (C3-I16-I20)
 - C3-I16 board panel gains an Open Git panel button (closes the panel, opens the drawer Git view).
 - C3-I17 palette actions: Restart MCP sessions (restart, then reopen the panel) and View data packs (new pack-list panel, View buttons on the pinned route).
