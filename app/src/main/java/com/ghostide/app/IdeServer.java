@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.57.0";
+    static final String VERSION = "2.58.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -3320,6 +3320,22 @@ public final class IdeServer {
                 bodyOut = bodyOut.substring(0, 60000);
             sendJson(out, "{\"ok\":true,\"output\":"
                 + Json.quote(bodyOut) + "}");
+            return;
+        }
+        if (path.equals("/api/mcp/sessions")
+                && method.equals("POST")) {
+            // Cycle 2 I15: the phone holds no persistent
+            // sessions (one-shot CLI); same shape as the
+            // desktop so the Settings line renders.
+            sendJson(out, "{\"sessions\":[]}");
+            return;
+        }
+        if (path.equals("/api/mcp/restart")
+                && method.equals("POST")) {
+            // Cycle 2 I15: on the phone, restart means
+            // dropping the MCP list cache.
+            mcpListCache.clear();
+            sendJson(out, "{\"ok\":true}");
             return;
         }
         if (path.equals("/api/mcp/servers")

@@ -150,6 +150,22 @@ fi
 
 echo '[8/8] verify'
 "$BT/apksigner" verify --print-certs "$APKDIR/ghostide.apk" | head -3
+# Cycle 2 I20: staged-asset self-check. The bundle inside
+# the signed APK must byte-match the web sources; a stale
+# or half-copied asset fails the build loudly instead of
+# shipping a phone that runs yesterday's UI.
+echo '[self-check] staged assets vs web sources'
+SC_DIR=$(mktemp -d)
+for f in app.js changelog.json index.html style.css; do
+  (cd "$SC_DIR" && unzip -o -q "$APKDIR/ghostide.apk" "assets/www/$f")
+  if ! cmp -s "$SC_DIR/assets/www/$f" "$WS/ghost-ide/web/$f"; then
+    echo "SELF-CHECK FAILED: assets/www/$f differs from web/$f" >&2
+    rm -rf "$SC_DIR"
+    exit 1
+  fi
+done
+rm -rf "$SC_DIR"
+echo '[self-check] staged assets match'
 cp "$APKDIR/ghostide.apk" $WS/your_files/ghostide.apk
 cp "$APKDIR/ghostide.apk" "$APKDIR/ghostide-v1.0.1.apk"
 ls -la "$APKDIR/ghostide.apk" $WS/your_files/ghostide.apk

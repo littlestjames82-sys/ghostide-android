@@ -33195,6 +33195,8 @@
         };
       } else {
         el.textContent = fileIcon(f.path) + " " + baseName;
+        if (watchChanged.has(f.path))
+          el.textContent += " \u25CF";
         if (f.path === currentFile) el.classList.add("active");
         el.onclick = () => openFile(f.path);
       }
@@ -33392,6 +33394,7 @@
     loadFiles();
   }
   async function openFile(path, skipGuard) {
+    watchChanged.delete(path);
     if (window.innerWidth <= 900) setDrawer(false);
     if (/\.(db|sqlite3?)$/i.test(path)) {
       openDbStudio(path);
@@ -37184,6 +37187,7 @@
       renderWorktrees();
     };
   var watchBase = null;
+  var watchChanged = /* @__PURE__ */ new Set();
   function watchSnapshot(files) {
     const m = /* @__PURE__ */ new Map();
     for (const f of files)
@@ -37239,6 +37243,13 @@
           reloaded.push(p);
         else changed.push(p);
       }
+      for (const entry of changed) {
+        const p = entry.replace(/ \((new|gone)\)$/, "");
+        if (entry.endsWith(" (gone)")) watchChanged.delete(p);
+        else watchChanged.add(p);
+      }
+      for (const p of reloaded) watchChanged.delete(p);
+      if (changed.length || reloaded.length) loadFiles();
       if (reloaded.length && reloaded.includes(currentFile))
         watchNote = "\u21BB Reloaded " + currentFile.split("/").pop() + " (changed on disk)";
       const feed = $("watchFeed");
@@ -37330,6 +37341,17 @@
     head.className = "dim";
     head.textContent = proj.name + " - board column: " + proj.column + ". " + (proj.column_reason || "");
     box.appendChild(head);
+    try {
+      const lg = await (await fetch("/api/git/log")).json();
+      const top2 = (lg.commits || [])[0];
+      if (top2) {
+        const lc = document.createElement("div");
+        lc.className = "dim";
+        lc.textContent = "Last commit: " + top2.hash + " " + top2.subject;
+        box.appendChild(lc);
+      }
+    } catch (e) {
+    }
     const groups = {
       "Verified": [],
       "Attention": [],
@@ -37850,7 +37872,9 @@
   var termAskBtn = $("termAsk");
   if (termAskBtn)
     termAskBtn.onclick = () => askGhostWith(
-      "Explain this terminal output and what to do about it:",
+      /* Cycle 2 I19: the REPL shares this pane (and these
+         buttons, from I9); name the output for the mode. */
+      termMode === "repl" ? "Explain this REPL output and what to do about it:" : "Explain this terminal output and what to do about it:",
       $("termOut").textContent
     );
   var _openMcpPanelC2 = openMcpPanel;
@@ -37899,6 +37923,30 @@
         el.textContent = "unavailable";
       }
     });
+  async function refreshMcpInfo() {
+    const el = $("setMcpInfo");
+    if (!el) return;
+    try {
+      const d = await postJson("/api/mcp/sessions", {});
+      const ss = d && d.sessions || [];
+      el.textContent = ss.length ? ss.map((s) => s.server + " (" + s.calls + " call" + (s.calls === 1 ? "" : "s") + ")").join(", ") : "none live";
+    } catch (e) {
+      el.textContent = "unavailable";
+    }
+  }
+  var setMcpRestartBtn = $("setMcpRestart");
+  if (setMcpRestartBtn)
+    setMcpRestartBtn.onclick = async () => {
+      setMcpRestartBtn.disabled = true;
+      try {
+        await postJson("/api/mcp/restart", {});
+      } catch (e) {
+      }
+      await refreshMcpInfo();
+      setMcpRestartBtn.disabled = false;
+    };
+  if (settingsBtnEl)
+    settingsBtnEl.addEventListener("click", refreshMcpInfo);
   var runFixBtn = $("runFix");
   if (runFixBtn)
     runFixBtn.onclick = () => {
@@ -40816,6 +40864,14 @@
     { title: "Reference docs", run: () => $("toolRefdocs").click() },
     { title: "Macros", run: () => $("toolMacros").click() },
     { title: "Verify pipeline", run: () => $("toolVerify").click() },
+    { title: "Approve queue", run: () => $("toolApprove").click() },
+    { title: "Ecosystem board", run: () => $("toolBoard").click() },
+    { title: "Ecosystem tools", run: () => $("toolEco").click() },
+    { title: "MCP servers", run: () => $("toolMcp").click() },
+    { title: "Session replay", run: () => $("toolReplay").click() },
+    { title: "Recipes shelf", run: () => $("toolRecipes").click() },
+    { title: "Leads", run: () => $("toolLeads").click() },
+    { title: "QuoteShot", run: () => $("toolQuote").click() },
     { title: "Big-screen mode", run: () => $("toolBigscreen").click() },
     { title: "Keyboard shortcuts", run: () => $("toolKeys").click() },
     { title: "Export app state", run: () => $("toolStateExport").click() },

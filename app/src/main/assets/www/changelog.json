@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.58.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 batch 4: board freshness, Settings MCP control, palette openers, tree change dots, build self-check - Cycle 2 improvements complete",
+   "summary": "The Ecosystem board now shows the project's last commit under its header. Settings gains an MCP sessions readout with a Restart sessions button (the desktop drops its persistent daemon sessions; the phone clears its list cache). The command palette can open every campaign panel directly. Files the watcher sees change on disk carry a dot in the tree until you open them. Two planned items turned out to be already covered and are recorded as verified: the chat auto-scroll toggle (it exists in Settings and the message paths honor it) and REPL slice/ask (the REPL shares the terminal pane, so its buttons already work; the Ask wording is now mode-aware). Finally the build itself now refuses to finish if the APK's bundled web assets differ from the sources, byte for byte."
+  },
+  {
    "version": "2.57.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 2 batch 3: watch jumps, verify history, eco search, render history, pack management",
