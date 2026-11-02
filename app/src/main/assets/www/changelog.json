@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.60.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 audit batch 2: A6-A10 re-run with the secrets audit deepened",
+   "summary": "The secrets audit went hunting this time: a canary secret planted in a fixture workspace was chased through every output Cycle 2 added - the ecosystem board, the pack list, MCP session readouts and the bundle info - and through a data file whose column header was the canary itself. Every output came back clean, and the header redaction added this cycle held in the integrated path. Parity checks confirm the new routes exist on both servers with matching shapes, the new display sinks all use text-safe rendering, and the bundled tool set is unchanged at its audited pins. No findings; no code changes beyond the version."
+  },
+  {
    "version": "2.59.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 2 audit batch 1: A1-A5 re-run against the Cycle 2 surface",
