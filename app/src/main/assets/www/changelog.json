@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.59.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 audit batch 1: A1-A5 re-run against the Cycle 2 surface",
+   "summary": "The first Cycle 2 audit sweep re-tests the approval and boundary guarantees against everything Cycle 2 added. Pairing still gates every route before routing, including the new pack, session and restart routes. The pack-delete name pin refused six traversal shapes in live probes. The agent's run, delete and MCP branches still check the approval policy first, MCP execution still happens only inside the approve-decide path (the new persistent-session daemon sits below it and cannot be reached without a decision), and the queue's hash binding is untouched - the kind filter added this cycle is display-only. No findings; no code changes beyond the version."
+  },
+  {
    "version": "2.58.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 2 batch 4: board freshness, Settings MCP control, palette openers, tree change dots, build self-check - Cycle 2 improvements complete",
