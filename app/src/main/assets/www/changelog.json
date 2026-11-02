@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.70.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 4: concurrency hammer, timeouts, shapes, labels - Cycle 3 complete",
+   "summary": "The closing audit of Cycle 3. Ten parallel MCP calls with server restarts fired into the middle all answered cleanly, parallel approval reads stayed valid, every subprocess path keeps its timeout bound, and response shapes stayed consistent across both servers. One clarity fix: the file tree's two change markers (changed on disk, uncommitted in git) finally carry a legend under the Files heading. Cycle 3 is complete: twenty improvements and twenty audits, with three real bugs found by the audits and fixed in the same cycle."
+  },
+  {
    "version": "2.69.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 3 audit batch 3: signer, honesty labels, pack pins, body caps, malformed input - two fixes",
