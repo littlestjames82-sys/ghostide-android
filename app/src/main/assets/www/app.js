@@ -33197,6 +33197,8 @@
         el.textContent = fileIcon(f.path) + " " + baseName;
         if (watchChanged.has(f.path))
           el.textContent += " \u25CF";
+        if (gitDirtyPaths.has(f.path))
+          el.textContent += " \u25C6";
         if (f.path === currentFile) el.classList.add("active");
         el.onclick = () => openFile(f.path);
       }
@@ -35505,6 +35507,9 @@
         return;
       }
       $("gitBranch").textContent = d.branch || "";
+      gitDirtyPaths.clear();
+      for (const c of d.changes || [])
+        if (c.path) gitDirtyPaths.add(c.path);
       const scopeEl = $("gitScopeLine");
       if (scopeEl)
         scopeEl.textContent = d.scope_line ? "Last Scope: " + d.scope_line : "";
@@ -37188,6 +37193,7 @@
     };
   var watchBase = null;
   var watchChanged = /* @__PURE__ */ new Set();
+  var gitDirtyPaths = /* @__PURE__ */ new Set();
   function watchSnapshot(files) {
     const m = /* @__PURE__ */ new Map();
     for (const f of files)
@@ -37523,6 +37529,26 @@
         $("dataOut").textContent = "The packs list failed to reach the server.";
       }
     };
+  var dataPackViewBtn = $("dataPackView");
+  if (dataPackViewBtn)
+    dataPackViewBtn.onclick = async () => {
+      const name2 = prompt(
+        "Pack name to view (exact, e.g. data-pack-sales):",
+        ""
+      );
+      if (!name2) return;
+      try {
+        const d = await postJson(
+          "/api/eco/datapack/view",
+          { name: name2 }
+        );
+        $("dataTitle").textContent = "\u{1F441} " + name2;
+        $("dataOut").textContent = d.error || d.output || "(empty pack summary)";
+        $("dataPane").classList.remove("hidden");
+      } catch (e) {
+        $("dataOut").textContent = "The pack view failed to reach the server.";
+      }
+    };
   var runSliceBtn = $("runSlice");
   if (runSliceBtn)
     runSliceBtn.onclick = async () => {
@@ -37547,6 +37573,21 @@
       "Explain this output and what to do about it:",
       $("runOut").textContent
     );
+  var runCopyBtn = $("runCopy");
+  if (runCopyBtn)
+    runCopyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(
+          $("runTitle").textContent || ""
+        );
+        runCopyBtn.textContent = "\u2713 Copied";
+        setTimeout(() => {
+          runCopyBtn.textContent = "\u{1F4CB} Copy summary";
+        }, 1200);
+      } catch (e) {
+        alert("Clipboard was not available here.");
+      }
+    };
   function saveTrail(task, trail) {
     if (!trail || !trail.length) return;
     postJson("/api/eco/replay/save", { task, trail }).catch(() => {
@@ -37589,10 +37630,34 @@
     rendersBtn.className = "ghostbtn";
     rendersBtn.textContent = "Recent renders";
     rendersBtn.onclick = async () => {
-      box.textContent = await studioCall(
-        "ghostrecipes",
-        "renders"
-      );
+      const out2 = await studioCall("ghostrecipes", "renders");
+      let renders = null;
+      try {
+        renders = JSON.parse(out2);
+      } catch (e) {
+      }
+      if (!Array.isArray(renders)) {
+        box.textContent = out2;
+        return;
+      }
+      box.textContent = "";
+      const rh = document.createElement("div");
+      rh.className = "dim";
+      rh.textContent = renders.length ? renders.length + " render(s) in .ghostide, newest first. Open reads the checklist." : "No renders yet in this workspace.";
+      box.appendChild(rh);
+      for (const r of renders) {
+        const row = document.createElement("div");
+        row.className = "todorow";
+        const lab = document.createElement("span");
+        lab.textContent = r.name + " - " + r.size + " B";
+        row.appendChild(lab);
+        const ob = document.createElement("button");
+        ob.className = "ghostbtn";
+        ob.textContent = "Open";
+        ob.onclick = () => openFile(".ghostide/" + r.name);
+        row.appendChild(ob);
+        box.appendChild(row);
+      }
     };
     box.appendChild(rendersBtn);
     for (const r of items) {
@@ -37869,6 +37934,34 @@
       }
       termSliceBtn.disabled = false;
     };
+  var termRunFileBtn = $("termRunFile");
+  if (termRunFileBtn)
+    termRunFileBtn.onclick = async () => {
+      if (!currentFile) {
+        alert("Open a file first.");
+        return;
+      }
+      const text = view.state.doc.toString();
+      if (text.length > 2e4) {
+        alert("That file is over 20,000 characters - run it in pieces instead.");
+        return;
+      }
+      termRunFileBtn.disabled = true;
+      try {
+        const d = await postJson("/api/repl", { input: text });
+        const out = $("termOut");
+        out.textContent += d.output || "";
+        out.scrollTop = out.scrollHeight;
+      } catch (e) {
+        alert("The REPL run failed to reach the server.");
+      }
+      termRunFileBtn.disabled = false;
+    };
+  var termClearBtn = $("termClear");
+  if (termClearBtn)
+    termClearBtn.onclick = () => {
+      $("termOut").textContent = "";
+    };
   var termAskBtn = $("termAsk");
   if (termAskBtn)
     termAskBtn.onclick = () => askGhostWith(
@@ -37889,6 +37982,29 @@
         (s) => s.server + " (" + s.calls + " calls)"
       ).join(", ");
       todoResults.appendChild(note);
+      for (const s of d.sessions) {
+        const row = document.createElement("div");
+        row.className = "todorow";
+        const lab = document.createElement("span");
+        lab.textContent = s.server + " session";
+        row.appendChild(lab);
+        const rb = document.createElement("button");
+        rb.className = "ghostbtn";
+        rb.textContent = "Restart";
+        rb.onclick = async () => {
+          rb.disabled = true;
+          try {
+            await postJson(
+              "/api/mcp/restart",
+              { server: s.server }
+            );
+          } catch (e) {
+          }
+          openMcpPanel();
+        };
+        row.appendChild(rb);
+        todoResults.appendChild(row);
+      }
     } catch (e) {
     }
   };
@@ -37947,6 +38063,19 @@
     };
   if (settingsBtnEl)
     settingsBtnEl.addEventListener("click", refreshMcpInfo);
+  async function refreshPairInfo() {
+    const el = $("setPairInfo");
+    if (!el) return;
+    try {
+      const d = await (await fetch("/api/pair/devices")).json();
+      const devs = d && d.devices || [];
+      el.textContent = devs.length ? devs.map((x) => x.role + " until " + new Date(x.expires * 1e3).toLocaleTimeString()).join(", ") : "none paired";
+    } catch (e) {
+      el.textContent = "unavailable";
+    }
+  }
+  if (settingsBtnEl)
+    settingsBtnEl.addEventListener("click", refreshPairInfo);
   var runFixBtn = $("runFix");
   if (runFixBtn)
     runFixBtn.onclick = () => {
@@ -37968,6 +38097,22 @@
       if (tg) tg.checked = true;
       if (ta) ta.focus();
     };
+  function noteEcoRun(tool, ok) {
+    try {
+      const key = "ghostide.ecoRuns";
+      const runs = JSON.parse(localStorage.getItem(key) || "[]");
+      runs.unshift({
+        tool,
+        ok: !!ok,
+        at: Date.now()
+      });
+      localStorage.setItem(
+        key,
+        JSON.stringify(runs.slice(0, 8))
+      );
+    } catch (e) {
+    }
+  }
   async function openEco() {
     hideTools();
     $("todoTitle").textContent = "Ecosystem tools";
@@ -37986,6 +38131,18 @@
     ecoHead.className = "dim";
     ecoHead.textContent = tools.length + " tools in the catalog. Ready tools run here against this workspace.";
     $("todoResults").appendChild(ecoHead);
+    try {
+      const runs = JSON.parse(localStorage.getItem(
+        "ghostide.ecoRuns"
+      ) || "[]");
+      if (runs.length) {
+        const rh = document.createElement("div");
+        rh.className = "dim";
+        rh.textContent = "Recent runs: " + runs.map((r2) => r2.tool + (r2.ok ? "" : " (failed)")).join(", ");
+        $("todoResults").appendChild(rh);
+      }
+    } catch (e) {
+    }
     const ecoSearch = document.createElement("input");
     ecoSearch.type = "search";
     ecoSearch.placeholder = "Filter tools\u2026";
@@ -38021,6 +38178,7 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ tool: t2.id })
             })).json();
+            noteEcoRun(t2.name, !rr.error);
             $("todoResults").textContent = rr.error || t2.name + " report:\n\n" + (rr.output || "(no output)");
           } catch (e) {
             $("todoResults").textContent = "The run failed to reach the server.";
@@ -38048,6 +38206,7 @@
               "/api/eco/toolrun",
               { tool: t2.id, path }
             );
+            noteEcoRun(t2.name, !rr.error);
             $("todoResults").textContent = rr.error || t2.name + " report:\n\n" + (rr.output || "(no output)");
           } catch (e) {
             $("todoResults").textContent = "The run failed to reach the server.";
@@ -40420,6 +40579,8 @@
     hideTools();
     termMode = mode;
     $("termPane").classList.remove("hidden");
+    const rf = $("termRunFile");
+    if (rf) rf.style.display = mode === "repl" ? "" : "none";
     if (mode === "repl") {
       $("termTitle").textContent = "Python REPL \xB7 session stays alive between lines";
       $("termCwd").textContent = "";
@@ -42403,6 +42564,12 @@
       const bd = await postJson("/api/eco/board", {});
       const line = boardSummaryLine(bd);
       if (line) memText += "\n\nStudio board: " + line + ".";
+    } catch (e) {
+    }
+    try {
+      const gs = await (await fetch("/api/git/status")).json();
+      if (gs && gs.branch)
+        memText += "\n\nGit: on branch " + gs.branch + ", " + (gs.changes || []).length + " changed file(s) not yet committed.";
     } catch (e) {
     }
     if (memText)

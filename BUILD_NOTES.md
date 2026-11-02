@@ -2953,6 +2953,26 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: 89/89 harness files (new cycle2-audit4-harness 5/5); build self-check green.
 - Built APK: 20,456,043 B, md5 74db8f50755167efe16a082111108347, versionCode 167, same signer (8ea8684a). Device pass is Ryan's: install over v2.61.0 - this one closes Cycle 2.
 
+## v2.63.0 (versionCode 168) - Nov 1, 2026 - Campaign Cycle 3 batch 1 (C3-I1-I5)
+- C3-I1 per-server MCP restart: GhostMCP 0.3.1 adds the daemon "drop" verb (session closed, call count reset); /api/mcp/restart accepts {server} (desktop drops one session via the daemon; phone clears only that server's list-cache keys, cfg|verb|server); MCP panel sessions gain per-server Restart rows. Live-proven: call (spawn), drop (sessions empty), recall (respawn) - spawns +2 exactly.
+- C3-I2 paired devices: GET /api/pair/devices both servers (desktop PAIR_TOKENS metadata; phone PairHub.deviceMeta) - role + issued + expires only; Settings gains a Paired devices line. First probe caught a _time NameError (module imports plain `time`; _time is a function-local alias elsewhere) - fixed and re-probed before shipping.
+- C3-I3 agent priming gains a Git line (branch + changes count from /api/git/status).
+- C3-I4 pack viewer: /api/eco/datapack/view both servers, same namespace pin as delete (traversal refused live); Data pane View pack button shows PROMPT.md (fallback: first .md in the pack).
+- C3-I5 renders JSON: studio renders verb returns [{name,size,mtime}] on both servers; Recipes shelf lists renders with Open buttons (openFile into .ghostide).
+- Eco bundle generation e12 (stamp .ready-e12): gate GREEN for all 29 packages, GhostMCP 0.3.1 (15 tests). Bundled zip verified from the APK: 0.3.1 + drop verb present.
+- Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
+- Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
+
+## v2.64.0 (versionCode 169) - Nov 1, 2026 - Campaign Cycle 3 batch 2 (C3-I6-I10)
+- C3-I6 git-dirty tree markers: refreshGit fills gitDirtyPaths from /api/git/status changes; file rows append " ◆" (watch dots stay " ●"); markers converge one refresh behind the fetch.
+- C3-I7 REPL Run file: button shown only in repl mode; sends the editor's current doc (unsaved included, 20k cap) to /api/repl. Live-proven: multi-line program (def + 2 prints) executed as one block, correct output.
+- C3-I8 eco run history: noteEcoRun on both Run paths (localStorage, last 8, failures marked); panel head shows Recent runs.
+- C3-I9 Copy summary: Run pane button copies runTitle (Verify's one-line verdict) with a transient Copied state.
+- C3-I10 terminal Clear: empties termOut only; session state untouched (distinct from Session reset).
+- Maintenance: cycle2-audit2-harness's A9 pin updated 0.3.0 -> 0.3.1 for ghostmcp (Cycle 3 I1's gated bump) - the suite caught its own stale expectation, which is the harness working as designed.
+- Proof: esbuild clean; DOM-stub gate passes; 91/91 harness files (new cycle3-batch2-harness 5/5); build self-check green.
+- Built APK: 20,456,042 B, md5 c76b58523085a2be56cc24728767a585, versionCode 169, same signer (8ea8684a). Push confirmations in this window: v2.62 IDE repos EMPTY (65816ee5, 5b2e21f4), ghostmcp 0.3.1 EMPTY (649829cd). Device pass is Ryan's: install over v2.63.0.
+
 ### Cycle 2 posture note (consolidated, v2.55-v2.62)
 Improvements (v2.55-v2.58): persistent MCP sessions via the GhostMCP 0.3.0 serve daemon (fixture-proven 3 requests = 1 spawn; one-shot fallback with cooldown; Settings readout + restart), phone MCP list-cache parity, GhostData 0.1.1 KEY=VALUE header redaction (the Cycle 1 A7 observation, closed), GhostConsole fixtures made clock-relative (the ~Nov 7 rot permanently defused, suite 103/103), board-aware agent priming, replay export, approve kind filter, watch jump links + tree change dots, verify on-device history, eco panel filter, studio render history, datapack list/delete (namespace-pinned), board last-commit line, palette panel openers, and the build.sh staged-asset self-check (I20) that makes every later release prove its own bundle. Two planned items (auto-scroll toggle, REPL slice/ask) were verified as pre-existing coverage and recorded as such rather than rebuilt.
 Audits (v2.59-v2.62): A1-A20 re-run against the changed surface, all PASS, no code fixes required - the cycle's one real security-relevant change (the daemon) sits below the approval rails (A4) and serializes under lock (A17 hammer: 10 parallel calls, 1 spawn, 0 errors). A7 deepened into a live canary hunt across the board, datapack, session and info outputs plus a canary-header CSV - all clean. A2's pin probed with six traversal shapes. Standing residuals unchanged from Cycle 1: file writes are snapshot-recoverable rather than atomic (accepted), the static web shell is ungated while every API route is pair-gated (documented), and REA/GhostHands-Mobile device proofs remain Ryan's on-phone passes.

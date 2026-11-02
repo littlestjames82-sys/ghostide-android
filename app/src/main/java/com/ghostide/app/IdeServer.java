@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.62.0";
+    static final String VERSION = "2.64.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2379,6 +2379,23 @@ public final class IdeServer {
             sendJson(out, PairHub.peersJson());
             return;
         }
+        if (path.equals("/api/pair/devices")) {
+            // Cycle 3 I2: paired guests, metadata only.
+            StringBuilder db = new StringBuilder(
+                "{\"devices\":[");
+            int di = 0;
+            for (String[] meta : PairHub.deviceMeta()) {
+                if (di++ > 0) db.append(',');
+                db.append("{\"role\":")
+                    .append(Json.quote(meta[0]))
+                    .append(",\"issued\":").append(meta[1])
+                    .append(",\"expires\":").append(meta[2])
+                    .append("}");
+            }
+            db.append("]}");
+            sendJson(out, db.toString());
+            return;
+        }
         if (path.equals("/api/todos")) {
             // Tools pack: TODO/FIXME/XXX/HACK scan (native).
             String[] kinds = {"TODO", "FIXME", "XXX", "HACK"};
@@ -2971,7 +2988,9 @@ public final class IdeServer {
         // GhostScope and GhostMCP to the bundle.
         // v2.47.0 (generation e9) updates GhostMCP to
         // 0.2.0 (resources + prompts) in the same zip.
-        File stamp = new File(dir, ".ready-e11");
+        // v2.63.0 (generation e12) updates GhostMCP to
+        // 0.3.1 (per-server session drop) in the same zip.
+        File stamp = new File(dir, ".ready-e12");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -3333,8 +3352,24 @@ public final class IdeServer {
         if (path.equals("/api/mcp/restart")
                 && method.equals("POST")) {
             // Cycle 2 I15: on the phone, restart means
-            // dropping the MCP list cache.
-            mcpListCache.clear();
+            // dropping the MCP list cache. Cycle 3 I1:
+            // with a server name, only that server's
+            // cached lists drop.
+            Map<String, Object> rd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String only = Json.str(rd, "server", "");
+            synchronized (mcpListCache) {
+                if (only.isEmpty()) {
+                    mcpListCache.clear();
+                } else {
+                    java.util.Iterator<String> kit =
+                        mcpListCache.keySet().iterator();
+                    while (kit.hasNext()) {
+                        if (kit.next().endsWith("|" + only))
+                            kit.remove();
+                    }
+                }
+            }
             sendJson(out, "{\"ok\":true}");
             return;
         }
@@ -5168,6 +5203,59 @@ public final class IdeServer {
             sendJson(out, "{\"ok\":true}");
             return;
         }
+        if (path.equals("/api/eco/datapack/view")
+                && method.equals("POST")) {
+            // Cycle 3 I4: read a pack's prompt summary;
+            // same namespace pin as delete.
+            Map<String, Object> vd = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String vname = Json.str(vd, "name", "");
+            if (!vname.matches("data-pack-[A-Za-z0-9_.-]+")
+                    || vname.contains("..")) {
+                sendJson(out, 400, "{\"error\":\"not a "
+                    + "pack name\"}");
+                return;
+            }
+            File pack = new File(
+                new File(workspace, ".ghostide"), vname);
+            if (!pack.isDirectory()) {
+                sendJson(out, 400, "{\"error\":\"no such "
+                    + "pack\"}");
+                return;
+            }
+            File doc = new File(pack, "PROMPT.md");
+            if (!doc.isFile()) {
+                doc = null;
+                File[] mds = pack.listFiles();
+                if (mds != null) {
+                    for (File cand : mds) {
+                        if (cand.isFile() && cand.getName()
+                                .endsWith(".md")) {
+                            doc = cand;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (doc == null || !doc.isFile()) {
+                sendJson(out, 400, "{\"error\":\"the pack "
+                    + "has no readable summary\"}");
+                return;
+            }
+            String text;
+            try {
+                text = readFile(doc);
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":\"could "
+                    + "not read the pack summary\"}");
+                return;
+            }
+            if (text.length() > 40000)
+                text = text.substring(0, 40000);
+            sendJson(out, "{\"ok\":true,\"output\":"
+                + Json.quote(text) + "}");
+            return;
+        }
         if (path.equals("/api/eco/board")
                 && method.equals("POST")) {
             // E17: GhostConsole's board model for this
@@ -5281,23 +5369,22 @@ public final class IdeServer {
                                 a.lastModified());
                         }
                     });
-                if (rs.isEmpty())
-                    return "No renders yet in this "
-                        + "workspace.";
-                StringBuilder rb = new StringBuilder();
-                java.text.SimpleDateFormat fmt =
-                    new java.text.SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm");
+                // Cycle 3 I5: JSON, matching the desktop,
+                // so the shelf can offer Open per render.
+                StringBuilder rb = new StringBuilder("[");
                 int shown = 0;
                 for (File f : rs) {
                     if (shown++ >= 20) break;
-                    if (rb.length() > 0) rb.append("\n");
-                    rb.append(f.getName()).append(" - ")
-                        .append(f.length()).append(" B - ")
-                        .append(fmt.format(
-                            new java.util.Date(
-                                f.lastModified())));
+                    if (shown > 1) rb.append(",");
+                    rb.append("{\"name\":")
+                        .append(Json.quote(f.getName()))
+                        .append(",\"size\":")
+                        .append(f.length())
+                        .append(",\"mtime\":")
+                        .append(f.lastModified() / 1000)
+                        .append("}");
                 }
+                rb.append("]");
                 return rb.toString();
             }
             if (verb.equals("list")) {

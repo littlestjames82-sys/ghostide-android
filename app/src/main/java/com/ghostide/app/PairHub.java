@@ -72,6 +72,26 @@ final class PairHub {
         ISSUED.clear();
     }
 
+    /* Cycle 3 I2: paired guests as metadata only -
+       role + issue + expiry epochs (seconds). Token
+       values never leave the server. */
+    static java.util.List<String[]> deviceMeta() {
+        java.util.List<String[]> out =
+            new java.util.ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (Map.Entry<String, Long> e : ISSUED.entrySet()) {
+            long issued = e.getValue();
+            if (now - issued > TOKEN_TTL_MS) continue;
+            String role = TOKENS.get(e.getKey());
+            out.add(new String[]{
+                role == null ? "guest" : role,
+                String.valueOf(issued / 1000),
+                String.valueOf(
+                    (issued + TOKEN_TTL_MS) / 1000)});
+        }
+        return out;
+    }
+
     static final int MAX_FAILS = 5;
     static final long WINDOW_MS = 600_000L;
     static final long LOCK_MS = 600_000L;

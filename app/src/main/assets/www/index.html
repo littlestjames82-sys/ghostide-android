@@ -130,6 +130,7 @@ setTimeout(function () {
     <div id="runPane" class="hidden">
       <div class="run-head"><span id="runTitle">Output</span>
         <span><button id="runSlice" title="GhostLogs: slice this output into an incident pack (error windows, duplicates collapsed)">🔪 Slice log</button>
+        <button id="runCopy" title="Copy the one-line summary (the pane title) to the clipboard">📋 Copy summary</button>
         <button id="runAsk" title="Put this output in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
         <button id="runFix" title="After a Verify run: draft an agent fix task from the gaps it found (fills the chat box, never sends)">🛠 Draft fix task</button>
         <button id="runClose">✕</button></span></div>
@@ -139,6 +140,7 @@ setTimeout(function () {
       <div class="run-head"><span id="dataTitle">Data view</span>
         <span><button id="dataPack" title="GhostData: build the full pack (manifest, prompt summary, bounded sample) into .ghostide">📦 Pack</button>
         <button id="dataPacks" title="List the packs in this workspace and delete one by name">🗂 Packs</button>
+        <button id="dataPackView" title="Read a pack's prompt summary by its exact name">👁 View pack</button>
         <button id="dataAsk" title="Put this report in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
         <button id="dataClose">✕</button></span></div>
       <pre id="dataOut"></pre>
@@ -147,6 +149,8 @@ setTimeout(function () {
       <div class="run-head"><span><span id="termTitle">Terminal · workspace folder · local shell (unsandboxed)</span> <span id="termCwd"></span></span>
         <span><button id="termSlice" title="GhostLogs: slice the terminal output into an incident pack">🔪 Slice log</button>
         <button id="termAsk" title="Put the terminal output in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
+        <button id="termRunFile" title="REPL only: run the current file in this REPL session">▶ Run file</button>
+        <button id="termClear" title="Clear the pane output (the session itself keeps running)">🧹 Clear</button>
         <button id="termReset">↺ Session</button>
         <button id="termClose">✕</button></span></div>
       <pre id="termOut"></pre>
@@ -920,6 +924,7 @@ setTimeout(function () {
     <span id="setUpdateOut"></span></p>
   <p class="dim">Ecosystem bundle: <span id="setEcoInfo">…</span></p>
   <p class="dim">MCP sessions: <span id="setMcpInfo">…</span> <button id="setMcpRestart" title="Drop every persistent MCP session (desktop) and clear the phone's list cache">Restart sessions</button></p>
+  <p class="dim">Paired devices: <span id="setPairInfo">…</span></p>
   <p class="dim">Desktop AI model (Qwen2.5-Coder-7B, 4.7 GB, optional):
     <span id="setModelDlOut"></span>
     <button id="setModelDlBtn">Download 7B model</button></p>
