@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.70.0";
+    static final String VERSION = "2.72.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -1993,6 +1993,8 @@ public final class IdeServer {
                         return;
                     }
                     String branch = "";
+                    int ahead = 0;
+                    int behind = 0;
                     StringBuilder ch = new StringBuilder();
                     for (String ln : gr.stdout.split("\n")) {
                         if (ln.startsWith("## ")) {
@@ -2000,6 +2002,9 @@ public final class IdeServer {
                             int dots = b.indexOf("...");
                             branch = (dots >= 0
                                 ? b.substring(0, dots) : b).trim();
+                            // Cycle 4 I1: [ahead N, behind M]
+                            ahead = headerCount(ln, "ahead ");
+                            behind = headerCount(ln, "behind ");
                         } else if (ln.length() > 3) {
                             if (ch.length() > 0) ch.append(",");
                             ch.append("{\"index\":")
@@ -2033,7 +2038,9 @@ public final class IdeServer {
                         } catch (Exception ignored) {}
                     }
                     sendJson(out, "{\"repo\":true,\"branch\":"
-                        + Json.quote(branch) + ",\"changes\":["
+                        + Json.quote(branch) + ",\"ahead\":"
+                        + ahead + ",\"behind\":" + behind
+                        + ",\"changes\":["
                         + ch + "],\"scope_line\":"
                         + Json.quote(scopeLine) + "}");
                     return;
@@ -7095,6 +7102,23 @@ public final class IdeServer {
 
     private static List<String> gitArgs(String... a) {
         return GitSupport.gitArgs(a);
+    }
+
+    // Cycle 4 I1: read "ahead 3" style counts out of a
+    // git branch header line; 0 when absent.
+    private static int headerCount(String line, String key) {
+        int i = line.indexOf(key);
+        if (i < 0) return 0;
+        int j = i + key.length();
+        int v = 0;
+        boolean any = false;
+        while (j < line.length()
+                && Character.isDigit(line.charAt(j))) {
+            v = v * 10 + (line.charAt(j) - '0');
+            j++;
+            any = true;
+        }
+        return any ? v : 0;
     }
 
     private static String trimTo(String s, int n) {

@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.72.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 2: deny-all, verify trends, grouped find, persistent filter, What's new",
+   "summary": "The approval queue can now deny everything waiting in one confirmed pass, which executes nothing by construction. Verify history keeps twelve runs and marks whether problems went down, up or stayed level. Plain find groups its matches under per-file headers with counts. The file filter survives restarts. And Settings gains a What's new button that reads the changelog bundled in the app, so this list is now viewable on the device itself."
+  },
+  {
+   "version": "2.71.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 1: git ahead/behind, folder counts, word count, persistent history, terminal copy",
+   "summary": "Cycle 4 opens with small everyday wins. The Git panel now shows how far the branch sits from its upstream (ahead/behind arrows, hidden when even). Folders in the file tree carry their file counts. Selecting text shows its word count in the status bar alongside lines and characters. Terminal and REPL history survives closing the app, keeping the last fifty entries on the device. And the terminal pane can copy its output, like the Run pane already could."
+  },
+  {
    "version": "2.70.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 3 audit batch 4: concurrency hammer, timeouts, shapes, labels - Cycle 3 complete",

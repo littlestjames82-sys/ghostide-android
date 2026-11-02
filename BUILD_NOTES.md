@@ -2963,6 +2963,26 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.72.0 (versionCode 177) - Nov 2, 2026 - Campaign Cycle 4 batch 2 (C4-I6-I10)
+- C4-I6 Approve Deny all: confirm, then per-id deny loop with a denied-of-total report; executes nothing by construction (deny is the non-executing decision).
+- C4-I7 verify history: retention 5 -> 12; each line marks the problem trend vs the previous run.
+- C4-I8 plain find groups matches under counted per-file headers (indexed search was already grouped).
+- C4-I9 file filter persists to localStorage and restores at boot.
+- C4-I10 Settings What's new: renders the bundled changelog top 6 in a panel; /changelog.json live-proven on the desktop server (the phone serves the same bundled asset).
+- Scouting honesty: font size, word wrap and Quick Open recents were picked for this batch, verified as already implemented, and replaced before building.
+- Proof: version gate 2.72.0/177; DOM-stub gate passes; run-all 99/99 (new cycle4-batch2-harness 5/5); build self-checks green.
+- Built APK: 20,460,139 B, md5 494e75f39cdc78dd1a0388b551df8273, versionCode 177, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.71.0 (versionCode 176) - Nov 2, 2026 - Campaign Cycle 4 batch 1 (C4-I1-I5)
+- C4-I1 git ahead/behind: the porcelain branch header's [ahead N, behind M] parsed on both servers (desktop regex; Java headerCount helper), shown by the branch name with zeros hidden. Live-proven both ways: real upstream fixture reported ahead 1; no-upstream fixture reported honest zeros.
+- C4-I2 tree folder rows show descendant file counts, computed from the already-fetched list (O(n^2) worst case on huge trees - fine at IDE scale, noted honestly).
+- C4-I3 status bar selection stat gains word count (sliceString + \S+ count at the cursor listener).
+- C4-I4 terminal/REPL history persists to localStorage (last 50, shared list, both runTerm call sites funnel through noteTermHistory - a sed slip briefly made the helper recursive; caught by grep verification before building).
+- C4-I5 terminal Copy button (termOut to clipboard, same pattern as runCopy).
+- Proof: version gate 2.71.0/176; DOM-stub gate passes; run-all 98/98 (new cycle4-batch1-harness 5/5); build self-checks green.
+- Built APK: 20,460,139 B, md5 155ed23e94cc7d3406496191ddf23e5e, versionCode 176, same signer (8ea8684a). NO UPLOAD (Ryan's standing rule after the v2.66/v2.70 declines); the APK waits on disk.
+- Push confirmations caught up in this window: v2.69 EMPTY (19886cea, 8b858add), v2.70 EMPTY (e0eca438, 40b8469e) - Cycle 3 fully pushed.
+
 ## v2.70.0 (versionCode 175) - Nov 1, 2026 - Campaign Cycle 3 audit batch 4 (A16-A20, A17 deepened) - CYCLE 3 COMPLETE
 - A16 PASS: timeout census clean (13 subprocess.run windows all bounded; helpers eco 120 / mcp 50 / git 30 / term 30; daemon requests carry the 50s default with per-request deadline refresh; the new drop verb rides the same request path).
 - A17 PASS DEEPENED (live): 10 parallel MCP calls with 2 per-server restarts fired into the middle - 10/10 answered, 0 errors, exactly 1 spawn; 10 parallel approve-list reads all valid JSON, store uncorrupted. (Batch 1 proved the deterministic half: a mid-life drop respawns cleanly on next use.)
