@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.74.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 4: upstream-aware agent, output saving, MCP refresh, richer About, health dot",
+   "summary": "The agent's priming now includes how far the branch sits from its upstream. The Run pane can save its full output as a log file. MCP tools can be refreshed past the phone's five-minute cache when a server's tools change. Settings About counts the workspace's files. And a health dot in the header polls the server every minute while the app is visible, green when it answers and red with an explanation when it does not. Cycle 4's twenty improvements are complete; the audits follow."
+  },
+  {
    "version": "2.73.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 4 batch 3: informed snapshots, test-aware agent, catalog generation, pack copy, full board",

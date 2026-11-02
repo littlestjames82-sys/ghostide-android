@@ -56,6 +56,7 @@ setTimeout(function () {
     <span id="modelPill" class="pill down">model: checking…</span>
     <span id="updatePill" class="pill hidden" title="An update is available">⬆ update</span>
     <span id="pairChip" class="pill hidden" title="Pair mode">👥</span>
+    <span id="healthDot" class="pill" title="Server health: checking…">●</span>
     <button id="startModelBtn" class="hidden">Start model</button>
     <button id="runBtn" class="primary" title="Run the current file (desktop)">▶ Run</button>
     <button id="voiceBtn" title="Dictate into the editor (phone)" aria-label="Voice dictation">🎤</button>
@@ -132,6 +133,7 @@ setTimeout(function () {
       <div class="run-head"><span id="runTitle">Output</span>
         <span><button id="runSlice" title="GhostLogs: slice this output into an incident pack (error windows, duplicates collapsed)">🔪 Slice log</button>
         <button id="runCopy" title="Copy the one-line summary (the pane title) to the clipboard">📋 Copy summary</button>
+        <button id="runSave" title="Download the full pane output as a .log file">💾 Save output</button>
         <button id="runAsk" title="Put this output in the chat box so you can ask Ghost about it">💬 Ask Ghost</button>
         <button id="runFix" title="After a Verify run: draft an agent fix task from the gaps it found (fills the chat box, never sends)">🛠 Draft fix task</button>
         <button id="runClose">✕</button></span></div>

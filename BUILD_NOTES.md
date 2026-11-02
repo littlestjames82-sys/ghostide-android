@@ -2963,6 +2963,15 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.74.0 (versionCode 179) - Nov 2, 2026 - Campaign Cycle 4 batch 4 (C4-I16-I20) - CYCLE 4 IMPROVEMENTS COMPLETE
+- C4-I16 agent priming reports upstream distance (fields from I1); the scouted first pick (pair revoke-all) was already shipped since v2.32, frontend and both servers.
+- C4-I17 Run pane Save output downloads the full pane text as a timestamped .log.
+- C4-I18 MCP tools Refresh: refresh:true end to end; Java mcpListBody gains a refresh overload that skips the cache read but still stores the fresh result; desktop daemon ignores the flag (always live). Compiled clean under the framework-only javac (no lambdas).
+- C4-I19 Settings About appends the workspace file count.
+- C4-I20 header health dot: 60s visible-only polling of /api/health; green title carries version+workspace, red title explains the outage.
+- Proof: version gate 2.74.0/179; DOM-stub gate passes; run-all 101/101 (new cycle4-batch4-harness 5/5); build self-checks green.
+- Built APK: 20,460,137 B, md5 4ca4ef9567ad60086cb9615d841e3070, versionCode 179, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.73.0 (versionCode 178) - Nov 2, 2026 - Campaign Cycle 4 batch 3 (C4-I11-I15)
 - C4-I11 history rows size each snapshot against the current document (smaller/larger/same). The planned undoable-restore work was verified unnecessary: restore loads into the editor and nothing writes until Save, and saving snapshots the prior version first.
 - C4-I12 agent priming counts test files (test dirs, test_*.py, *.test/*.spec) and reports either way.
