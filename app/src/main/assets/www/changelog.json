@@ -3,6 +3,24 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.94.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 4: leak sweep, approval rails, caps, the new loop rails - Agentic Cycle complete",
+   "summary": "The Agentic Cycle closes with its new machinery audited as well as the old: no secret-shaped strings in the shipped sources, one approval route per server, the sub-run's read-only whitelist proven by the absence of any write path in its dispatch, the scratchpad confined to its one pinned file, the queue unable to run two agents at once, and stop always beating pause. Twenty improvements and twenty audits are complete."
+  },
+  {
+   "version": "2.93.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 3: signer, census, pins, wording, JSON guard, DONE-gate rail",
+   "summary": "The signing certificate is verified live on the shipped package and the route census is unchanged, since the Agentic Cycle added no server routes. The new rail audit proves the self-repair gate cannot be bypassed: inside the agent loop there is exactly one road to a finished run and it passes through the gate, whose refusal is bounded by the repair cap rather than infinite."
+  },
+  {
+   "version": "2.92.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 2: timeouts, lineage, sink census, bundle freshness",
+   "summary": "Timeouts and signing lineage re-proven, the ecosystem stamp is consistent, and two freshness facts worth stating plainly: the shipped bundle provably contains this cycle's agent features, and its HTML-sink census is unchanged at 101 - every new surface, from the status pill to the notes viewer, renders through safe text APIs only."
+  },
+  {
    "version": "2.91.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 6 audit batch 1: pairing, traversal, atomic writes, secret sweep, bundle pins",

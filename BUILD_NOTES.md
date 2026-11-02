@@ -2963,6 +2963,17 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.93.0 (versionCode 198) - Nov 2, 2026 - Campaign Cycle 6 audit batch 3 (A11-A15 + DONE-gate rail)
+- A11 signer verified live on the v2.92 APK (8ea8684a). A12 census unchanged 137/127 (the cycle added no routes). A13 datapack pins unchanged. A14 delta wording honest. A15 malformed JSON live-probed this cycle (clean {error}, health up).
+- NEW RAIL: DONE-gate exclusivity proven by slice analysis - runAgent's body contains exactly one outcome="done" assignment and it sits behind `if (await doneGate())`; repairCap is clamped 0..5 at read time and the gate opens at the cap (bounded refusal by design, stated in the campaign file).
+- Proof: version gate 2.93.0/198; esbuild exit 0; DOM-stub gate passes; run-all 120/120 (new cycle6-audit3-harness 5/5); build self-checks green; badging verified; asset carries doneGate.
+- Built APK: md5 7922f150718ca23241f3abb393733fb7, versionCode 198, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.92.0 (versionCode 197) - Nov 2, 2026 - Campaign Cycle 6 audit batch 2 (A6-A10)
+- A6 timeouts intact. A7 lineage constants intact. A8 sink census 101 on the bundle carrying all twenty agentic features. A9 stamp e13 consistent. A10 freshness: runExplore/agentPillShow/doneGate all present in the built bundle. (Signer also verified live on this APK during the ritual - 8ea8684a - feeding A11.)
+- Proof: version gate 2.92.0/197; esbuild exit 0; DOM-stub gate passes; run-all 119/119 (new cycle6-audit2-harness 5/5); build self-checks green; badging verified.
+- Built APK: md5 36f9530f785b9f951b853861b1a21c8b, versionCode 197, signer 8ea8684a verified live. NO UPLOAD per standing rule.
+
 ## v2.91.0 (versionCode 196) - Nov 2, 2026 - Campaign Cycle 6 audit batch 1 (A1-A5)
 - A1 pair gate intact. A2 traversal + commit hash pin intact (flag-shaped hash refused live). A3 atomic writes intact. A4 canary sweep live on v2.90 code: 0 hits on git/status, health, eco/info, files, git/log. A5 eco pins unchanged (e13 / 29 / ghostmcp 0.3.2); full gate re-run this cycle.
 - Proof: version gate 2.91.0/196; esbuild exit 0; DOM-stub gate passes; run-all 118/118 (new cycle6-audit1-harness 5/5); build self-checks green; badging verified; asset carries the current frontend.
