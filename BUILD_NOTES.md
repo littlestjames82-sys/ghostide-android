@@ -2963,6 +2963,15 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.65.0 (versionCode 170) - Nov 1, 2026 - Campaign Cycle 3 batch 3 (C3-I11-I15)
+- C3-I11 atomic writes (A14 residual CLOSED): desktop /api/file = snapshot, same-dir temp, os.replace; Java writeFile = temp sibling + ATOMIC_MOVE with rename fallback. A crash mid-save can no longer leave a torn file on either server.
+- C3-I12 build.sh self-check extended into the bundle: eco.zip tool count must equal the gate state (29) and bundled ghostmcp/ghostdata versions must match the pins, else the build FAILS. Fired green on this build.
+- C3-I13 daemon idle reaping (GhostMCP 0.3.2): sessions idle over 1800s close lazily on the next daemon touch (drops born/used bookkeeping with them); eco bundle generation e13, gate GREEN 29/29 (ghostmcp 18 tests).
+- C3-I14 approve rows show the wait from GhostApprove's ingested_at ("waiting 3m" / "waiting 2h").
+- C3-I15 sessions readout: daemon returns age_s + idle_s per session; MCP panel shows age + idle, Settings shows idle. Daemon behaviors (drop, reap, fields) are covered by new GhostMCP suite tests (test_serve_cycle3.py, suite 15 -> 18) plus a live probe (spawn, reap at a shortened limit, clean respawn).
+- Proof: version gate 2.65.0/170; esbuild clean; DOM-stub gate passes; 92/92 harness files (new cycle3-batch3-harness 6/6); build self-checks green in-run including the new eco pin check.
+- Built APK: 20,456,043 B, md5 5018f133cc825f5af3646fd50d2a9744, versionCode 170, same signer (8ea8684a). Prior pushes confirmed in this window: v2.63 IDE repos EMPTY (afa28a71, 7d33ef17), v2.64 IDE repos EMPTY (80ded971, 77479af5), ghostmcp 0.3.1 EMPTY (3f07f74d and 649829cd). Device pass is Ryan's: install over v2.64.0.
+
 ## v2.64.0 (versionCode 169) - Nov 1, 2026 - Campaign Cycle 3 batch 2 (C3-I6-I10)
 - C3-I6 git-dirty tree markers: refreshGit fills gitDirtyPaths from /api/git/status changes; file rows append " ◆" (watch dots stay " ●"); markers converge one refresh behind the fetch.
 - C3-I7 REPL Run file: button shown only in repl mode; sends the editor's current doc (unsaved included, 20k cap) to /api/repl. Live-proven: multi-line program (def + 2 prints) executed as one block, correct output.

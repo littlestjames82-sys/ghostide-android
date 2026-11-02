@@ -165,6 +165,32 @@ for f in app.js changelog.json index.html style.css; do
   fi
 done
 rm -rf "$SC_DIR"
+# Cycle 3 I12: the eco bundle inside the APK must match
+# the gate's pins - tool count plus the versions of the
+# tools the current cycle touched.
+echo '[self-check] eco bundle vs gate pins'
+python3 - "$APKDIR/ghostide.apk" "$WS/ghost-ide/tools/eco-bundle-state.json" << 'PYEOF'
+import io, json, sys, zipfile
+apk = zipfile.ZipFile(sys.argv[1])
+state = json.load(open(sys.argv[2]))["tools"]
+eco = zipfile.ZipFile(io.BytesIO(apk.read("assets/eco.zip")))
+tops = sorted({n.split("/")[0] for n in eco.namelist()
+               if "/" in n})
+if len(tops) != len(state):
+    print("SELF-CHECK FAILED: eco.zip holds %d tools, "
+          "gate state has %d" % (len(tops), len(state)))
+    sys.exit(1)
+for tool in ("ghostmcp", "ghostdata"):
+    init = eco.read(tool + "/__init__.py").decode()
+    want = state[tool]["version"]
+    if want not in init:
+        print("SELF-CHECK FAILED: bundled %s is not %s"
+              % (tool, want))
+        sys.exit(1)
+print("[self-check] eco bundle matches gate pins "
+      "(%d tools)" % len(tops))
+PYEOF
+if [ $? -ne 0 ]; then exit 1; fi
 echo '[self-check] staged assets match'
 cp "$APKDIR/ghostide.apk" $WS/your_files/ghostide.apk
 cp "$APKDIR/ghostide.apk" "$APKDIR/ghostide-v1.0.1.apk"

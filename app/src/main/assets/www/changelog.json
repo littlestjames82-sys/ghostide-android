@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.65.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 batch 3: atomic writes, bundle self-check, idle reaping, queue wait times, session ages",
+   "summary": "The hardening batch closes the oldest open note in the audit book: file saves are now atomic on both servers (temporary file plus rename, snapshots still taken first), so a crash mid-save can no longer leave a torn file. The build's self-check now reaches into the bundled tool zip and refuses to ship if its tool count or key versions drift from the audited pins. MCP sessions idle for thirty minutes are reaped instead of holding processes forever, approval requests show how long they have been waiting, and session readouts show age and idle time. The daemon behaviors are covered by new tests in GhostMCP's own suite."
+  },
+  {
    "version": "2.64.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 3 batch 2: git-dirty tree markers, REPL run-file, eco run history, copy summary, terminal clear",

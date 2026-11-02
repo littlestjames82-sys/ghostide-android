@@ -37046,7 +37046,18 @@
       row.className = "todorow";
       row.dataset.kind = kindOf(it);
       const label = document.createElement("span");
-      label.textContent = it.action + " - risk " + it.risk + " - " + (it.summary || "");
+      let ageTxt = "";
+      if (it.ingested_at) {
+        const t2 = Date.parse(it.ingested_at);
+        if (!isNaN(t2)) {
+          const m = Math.max(
+            0,
+            Math.round((Date.now() - t2) / 6e4)
+          );
+          ageTxt = " - waiting " + (m < 60 ? m + "m" : Math.round(m / 60) + "h");
+        }
+      }
+      label.textContent = it.action + " - risk " + it.risk + ageTxt + " - " + (it.summary || "");
       row.appendChild(label);
       for (const dec2 of ["approve", "deny"]) {
         const b = document.createElement("button");
@@ -37979,7 +37990,7 @@
       const note = document.createElement("div");
       note.className = "dim";
       note.textContent = "Live sessions: " + d.sessions.map(
-        (s) => s.server + " (" + s.calls + " calls)"
+        (s) => s.server + " (" + s.calls + " calls" + (s.age_s != null ? ", " + Math.round(s.age_s / 60) + "m old, idle " + Math.round((s.idle_s || 0) / 60) + "m" : "") + ")"
       ).join(", ");
       todoResults.appendChild(note);
       for (const s of d.sessions) {
@@ -38045,7 +38056,7 @@
     try {
       const d = await postJson("/api/mcp/sessions", {});
       const ss = d && d.sessions || [];
-      el.textContent = ss.length ? ss.map((s) => s.server + " (" + s.calls + " call" + (s.calls === 1 ? "" : "s") + ")").join(", ") : "none live";
+      el.textContent = ss.length ? ss.map((s) => s.server + " (" + s.calls + " call" + (s.calls === 1 ? "" : "s") + (s.idle_s != null ? ", idle " + Math.round(s.idle_s / 60) + "m" : "") + ")").join(", ") : "none live";
     } catch (e) {
       el.textContent = "unavailable";
     }

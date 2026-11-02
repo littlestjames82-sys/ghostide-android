@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.64.0";
+    static final String VERSION = "2.65.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2990,7 +2990,9 @@ public final class IdeServer {
         // 0.2.0 (resources + prompts) in the same zip.
         // v2.63.0 (generation e12) updates GhostMCP to
         // 0.3.1 (per-server session drop) in the same zip.
-        File stamp = new File(dir, ".ready-e12");
+        // v2.65.0 (generation e13) updates GhostMCP to
+        // 0.3.2 (idle reaping, session age/idle) too.
+        File stamp = new File(dir, ".ready-e13");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -4993,6 +4995,13 @@ public final class IdeServer {
                     "yyyy-MM-dd'T'HH:mm:ss",
                     java.util.Locale.US).format(
                         new java.util.Date()));
+            // Cycle 3 I18: run wall-clock when measured.
+            Object elObj = sd.get("elapsed_s");
+            if (elObj instanceof Number) {
+                int el = ((Number) elObj).intValue();
+                if (el >= 0 && el <= 86400)
+                    recMap.put("elapsed_s", el);
+            }
             recMap.put("trail", clean);
             writeFile(rec, jsonWrite(recMap));
             sendJson(out, "{\"ok\":true,\"id\":"
@@ -5045,7 +5054,13 @@ public final class IdeServer {
                                 .append(Json.quote(String.valueOf(
                                     rec.get("saved_at"))))
                                 .append(",\"steps\":")
-                                .append(steps).append('}');
+                                .append(steps);
+                            Object elL = rec.get("elapsed_s");
+                            if (elL instanceof Number)
+                                sb.append(",\"elapsed_s\":")
+                                    .append(((Number) elL)
+                                        .intValue());
+                            sb.append('}');
                         } catch (Exception ignored) {}
                     }
                 }
@@ -6682,9 +6697,33 @@ public final class IdeServer {
     }
 
     private static void writeFile(File f, String content) throws IOException {
-        FileOutputStream o = new FileOutputStream(f);
-        o.write(content.getBytes(StandardCharsets.UTF_8));
-        o.close();
+        // Cycle 3 I11: atomic write - temp sibling, then
+        // an atomic move where the filesystem supports
+        // it, so a crash mid-save never leaves a torn
+        // file. Mirrors the desktop; snapshots remain
+        // the recovery layer. Closes the A14 residual.
+        File tmp = new File(f.getParentFile(),
+            "." + f.getName() + ".tmp-ghostide");
+        FileOutputStream o = new FileOutputStream(tmp);
+        try {
+            o.write(content.getBytes(
+                StandardCharsets.UTF_8));
+        } finally {
+            o.close();
+        }
+        try {
+            java.nio.file.Files.move(tmp.toPath(),
+                f.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption
+                    .REPLACE_EXISTING);
+        } catch (Exception e) {
+            if (!tmp.renameTo(f)) {
+                tmp.delete();
+                throw new IOException(
+                    "could not move the new file into place");
+            }
+        }
     }
 
     private void collectAllFiles(File dir, List<File> out) {
