@@ -2963,6 +2963,25 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.80.0 (versionCode 185) - Nov 2, 2026 - Campaign Cycle 5 batch 2 (C5-I6-I10)
+- C5-I6 Settings Copy settings (preferences JSON; the object was audited first - no credentials live in it).
+- C5-I7 tree order toggle (server / A-Z), persisted as ghostide.treeSort; sorting is a render-order copy, collapse logic untouched.
+- C5-I8 board Ask Ghost (summary-line prefill, never sends).
+- C5-I9 approval queue free-text filter (targets data-kind rows only, so the filter bar itself never hides).
+- C5-I10 Git panel copy-status (last live payload kept by refreshGit; honest alert when no status is loaded yet).
+- Proof: version gate 2.80.0/185; DOM-stub gate passes; run-all 107/107 (new cycle5-batch2-harness 5/5); build self-checks green.
+- Built APK: md5 c5680052445954a2fe67b52dfadbd40d, versionCode 185, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.79.0 (versionCode 184) - Nov 2, 2026 - Campaign Cycle 5 batch 1 (C5-I1-I5)
+- C5-I1 CI FIX (headline): ghostide-android's frontend CI job had failed in ~10s across Nov 1 (21 failures reported) while JVM/probe jobs passed. Cause proven by local simulation of the CI layout: campaign3-ui-harness and campaign4-ui-harness read IdeServer.java from ~/workspace/ghostide-apk-build, which the CI layout never created - both crash with no RESULT line (job fail); with the tree linked they pass 8/8 and 7/7. Fix in .github/workflows/ci.yml: the frontend job now checks out ghostide-android and symlinks it as ~/workspace/ghostide-apk-build. The push spec already carries ci.yml, so the fix ships with this release; the next android-repo push is the live proof.
+- C5-I2 priming workspace shape (files/folders/largest file, sub-KB honest wording, reusing the C4-I12 listing fetch).
+- C5-I3 What's New show-all (renderEntries refactor; default stays newest 6).
+- C5-I4 health dot tap opens Settings.
+- C5-I5 MCP resources/prompts refresh parity (Java list-verbs branch honors refresh; panel Refresh re-renders through the fresh cache).
+- Suite event: the first full run failed cycle4-batch2's I10 pin - C5-I3's refactor changed the pinned literal while preserving behavior; the pin was updated to the new measured form with a comment, restoring 106/106. (Harness-only change; the APK built in this release is unaffected.)
+- Proof: version gate 2.79.0/184; DOM-stub gate passes; run-all 106/106 (new cycle5-batch1-harness 5/5 after one escaped-string pin correction); build self-checks green.
+- Built APK: md5 02bda370d22be3c030483fbdca1d72e9, versionCode 184, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.78.0 (versionCode 183) - Nov 2, 2026 - Campaign Cycle 4 audit batch 4 (A16-A20, A17 deepened) - CYCLE 4 COMPLETE
 - A16 PASS: timeout census unchanged (13 subprocess.run windows, 0 unbounded; helpers eco 120 / mcp 50 / git 30 / term 30).
 - A17 PASS DEEPENED (live): 6 enqueued approvals on the fixture server, 6 parallel list reads (all valid JSON), 6 parallel deny decides - every decide answered executed:false and the store ledger carries one coherent denied event per request (ground truth read from ledger.jsonl after the list route's status vocabulary proved to be its own pre-existing quirk, unrelated to Cycle 4).

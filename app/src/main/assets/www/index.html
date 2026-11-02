@@ -69,14 +69,14 @@ setTimeout(function () {
 </header>
 <main>
   <aside id="files" aria-label="Files panel">
-    <div class="panel-head"><span id="filesHeadTxt">FILES</span> <span><button id="wsBtn" title="Open a different folder (desktop)" aria-label="Open a different folder">📂</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
+    <div class="panel-head"><span id="filesHeadTxt">FILES</span> <span><button id="wsBtn" title="Open a different folder (desktop)" aria-label="Open a different folder">📂</button> <button id="treeSortBtn" title="Toggle the file tree order: server order or A-Z">⇅</button> <button id="newFileBtn" title="New file">+ New</button></span></div>
     <input id="fileFilter" type="text" placeholder="Filter files…">
     <div id="wsPath" class="hint"></div>
     <div id="watchFeed" class="dim"></div>
     <div class="dim">● changed on disk · ◆ uncommitted in git</div>
     <div id="fileTree"></div>
     <div id="gitPanel">
-      <div class="panel-head"><span id="gitHeadTxt">GIT</span> <span id="gitBranch" class="tag"></span></div>
+      <div class="panel-head"><span id="gitHeadTxt">GIT</span> <span id="gitBranch" class="tag"></span> <button id="gitCopyStatus" title="Copy a one-line status summary (branch, distance, change count)">📋</button></div>
       <div id="gitChanges" class="dim">checking…</div>
       <div class="git-commit">
         <input id="commitMsg" placeholder="Commit message">
@@ -926,6 +926,7 @@ setTimeout(function () {
   <p class="dim">App version <span id="setVersion">…</span>
     <button id="setUpdateBtn">Check for updates</button>
     <button id="setWhatsNew">What's new</button>
+    <button id="setCopySettings">Copy settings</button>
     <span id="setUpdateOut"></span></p>
   <p class="dim">Ecosystem bundle: <span id="setEcoInfo">…</span></p>
   <p class="dim">MCP sessions: <span id="setMcpInfo">…</span> <button id="setMcpRestart" title="Drop every persistent MCP session (desktop) and clear the phone's list cache">Restart sessions</button></p>

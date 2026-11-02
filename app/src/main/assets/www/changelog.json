@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.80.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 2: settings copy, tree sort, board Ask, queue text filter, git status copy",
+   "summary": "Settings can copy its own preferences JSON (that object holds no keys or tokens, so the copy is safe to share for troubleshooting). The file tree gains an order toggle between the server's walk order and A-Z. The board panel can ask Ghost about the board. The approval queue gains a free-text filter beside its kind buttons. And the Git panel copies a one-line status summary: branch, upstream distance, and change count."
+  },
+  {
+   "version": "2.79.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 1: CI repair, workspace-shape priming, full changelog, tappable health dot, resources refresh",
+   "summary": "Cycle 5 opens with a repair outside the app: the Android repo's CI frontend job had been failing within seconds for weeks because two test harnesses read a file from a sibling repo the CI layout never provided. The workflow now links that repo in, proven by simulating the CI layout both ways. In the app: the agent's priming learns the workspace's shape (file and folder counts, largest file), What's New can show the entire bundled changelog, the health dot opens Settings when tapped, and MCP resources refresh past the cache just like tools."
+  },
+  {
    "version": "2.78.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 4 audit batch 4: concurrency, timeouts, shapes, labels - Cycle 4 complete",

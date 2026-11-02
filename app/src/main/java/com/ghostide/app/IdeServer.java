@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.78.0";
+    static final String VERSION = "2.80.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -3474,8 +3474,11 @@ public final class IdeServer {
             if (verb.equals("resources")
                     || verb.equals("prompts")) {
                 // Cycle 2 I2: list verbs ride the cache.
+                // Cycle 5 I5: the refresh flag applies
+                // here too, not just to tools.
                 McpListResult lr = mcpListBody(verb,
-                    Json.str(d, "server", ""), cfg);
+                    Json.str(d, "server", ""), cfg,
+                    Boolean.TRUE.equals(d.get("refresh")));
                 if (lr.error != null) {
                     sendJson(out, 400, "{\"error\":"
                         + Json.quote(lr.error) + "}");

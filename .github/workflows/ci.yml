@@ -23,6 +23,10 @@ jobs:
         with:
           repository: littlestjames82-sys/ghost-ide
           path: ghost-ide
+      - uses: actions/checkout@v4
+        with:
+          repository: littlestjames82-sys/ghostide-android
+          path: ghostide-android
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -30,6 +34,11 @@ jobs:
         run: |
           mkdir -p ~/workspace
           ln -s "$GITHUB_WORKSPACE/ghost-ide" ~/workspace/ghost-ide
+          # Cycle 5 I1: the campaign UI harnesses read
+          # IdeServer.java from the android tree; without
+          # it they crashed and failed this job in ~10s
+          # while every other job passed.
+          ln -s "$GITHUB_WORKSPACE/ghostide-android" ~/workspace/ghostide-apk-build
       - name: Build the bundle
         working-directory: ghost-ide
         run: |
