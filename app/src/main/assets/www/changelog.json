@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.89.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 3: sub-runs and agent memory",
+   "summary": "The agent can now delegate and remember. EXPLORE hands a focused question to a bounded read-only sub-run that can only read and search, and brings back a summary. NOTE appends to the agent's own scratchpad in the workspace, and every new run's briefing now includes those notes plus what the last recorded run did, so the agent stops starting from zero. The scratchpad is yours to inspect and clear from Chat options."
+  },
+  {
    "version": "2.88.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 6 (Agentic) batch 2: budgets and batching depth",

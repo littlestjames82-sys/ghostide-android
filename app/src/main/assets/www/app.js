@@ -36420,6 +36420,36 @@
     if (menuTarget) openSplit(menuTarget.path);
   };
   $("ckptBtn").onclick = () => openCheckpointsPanel();
+  var agentNotesBtn = $("agentNotesBtn");
+  if (agentNotesBtn)
+    agentNotesBtn.onclick = async () => {
+      const box = studioPanel("Agent notes");
+      let content2 = "";
+      try {
+        const r = await fetch("/api/file?path=" + encodeURIComponent(".ghostide/agent-notes.md"));
+        const d = await r.json();
+        if (!d.error) content2 = d.content || "";
+      } catch (e) {
+      }
+      box.textContent = "";
+      const pre = document.createElement("pre");
+      pre.textContent = content2.trim() ? content2 : "(no agent notes yet - the agent writes them with its NOTE action)";
+      box.appendChild(pre);
+      if (content2.trim()) {
+        const clr = document.createElement("button");
+        clr.className = "ghostbtn";
+        clr.textContent = "Clear notes";
+        clr.onclick = async () => {
+          await postJson(
+            "/api/file",
+            { path: ".ghostide/agent-notes.md", content: "" }
+          );
+          pre.textContent = "(notes cleared)";
+          clr.remove();
+        };
+        box.appendChild(clr);
+      }
+    };
   $("agentResumeBtn").onclick = () => {
     const active = agentActiveLoad();
     if (!active || !active.task) {
@@ -42472,6 +42502,12 @@
     "MCP <server> <tool> <json-args> - call a tool on a",
     "  configured MCP server; your briefing lists the servers",
     "  and tools available, if any",
+    "EXPLORE <question> - delegate a focused read-only",
+    "  question to a sub-run (it can only read and search);",
+    "  its summary comes back to you as the result",
+    "NOTE <text> - append one line to your own scratchpad",
+    "  (.ghostide/agent-notes.md), which your briefing",
+    "  includes on future runs in this workspace",
     "Depending on the user's approval policy, RUN and DELETE",
     "may go to an approval queue instead of happening; the",
     "result message will say so when it does.",
@@ -42698,6 +42734,10 @@
     if (m) return { type: "test", path: m[1] || "" };
     m = text.match(/^\s*GIT\s+(status|diff|log)\s*$/im);
     if (m) return { type: "git", what: m[1].toLowerCase() };
+    m = text.match(/^\s*EXPLORE\s+(.+)$/m);
+    if (m) return { type: "explore", question: m[1].trim() };
+    m = text.match(/^\s*NOTE\s+(.+)$/m);
+    if (m) return { type: "note", text: m[1].trim() };
     m = text.match(/^\s*MCP\s+(\S+)\s+(\S+)(?:\s+(\{[\s\S]*\}))?\s*$/m);
     if (m) {
       let args = {};
@@ -42731,7 +42771,7 @@
     "git",
     "context"
   ];
-  var AGENT_BATCH_BLOCK = /^\s*(WRITE|EDIT|RUN|DELETE|DONE|ASK|CHECK|VERIFY|TEST|MCP)\b/;
+  var AGENT_BATCH_BLOCK = /^\s*(WRITE|EDIT|RUN|DELETE|DONE|ASK|CHECK|VERIFY|TEST|MCP|EXPLORE|NOTE)\b/;
   function parseAgentLine(line) {
     const t2 = (line || "").trim();
     if (!t2) return null;
@@ -43076,6 +43116,101 @@
       renderAgentTodos(todos, checkpoints);
       return parts.join("\n\n");
     }
+    const EXPLORE_RULES = [
+      "You are a read-only explorer for a larger agent task.",
+      "Answer the question using only: READ, SEARCH, LIST,",
+      "REVERSE, ECO, GIT, CONTEXT (one action per reply, or a",
+      "batch of read-only actions, one per line). You cannot",
+      "write, run, delete, or call MCP tools. Finish with",
+      "DONE <a compact summary answering the question, with",
+      "file paths and line-level facts, no speculation>."
+    ].join("\n");
+    async function runExplore(question3) {
+      const msgs = [
+        { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + EXPLORE_RULES },
+        { role: "user", content: "Question: " + question3 }
+      ];
+      let nudged = 0;
+      for (let s = 1; s <= 6; s++) {
+        if (agentStop) return "(explore stopped)";
+        let reply = "";
+        try {
+          reply = await collectChat(msgs, 1024);
+        } catch (e) {
+          return "(explore failed: model call error)";
+        }
+        msgs.push({ role: "assistant", content: reply });
+        const batch = parseAgentBatch(
+          reply,
+          [
+            "read",
+            "search",
+            "list",
+            "reverse",
+            "eco",
+            "git",
+            "context"
+          ]
+        );
+        if (batch.length > 1) {
+          const out = await runBatch(batch);
+          msgs.push({ role: "user", content: "Batch results:\n" + out.slice(0, 12e3) + "\nContinue or finish with DONE <summary>." });
+          continue;
+        }
+        const a = parseAgentActionFull(reply);
+        if (a.type === "done")
+          return "Explore summary: " + (a.summary || "(no summary given)");
+        if (a.type === "read") {
+          const c = await readForAgent(a.path);
+          msgs.push({ role: "user", content: c == null ? "READ failed: " + a.path + " does not exist." : "Content of " + a.path + ":\n```\n" + c.slice(0, 8e3) + "\n```" });
+        } else if (a.type === "search") {
+          const d = await postJson(
+            "/api/search",
+            { query: a.query }
+          );
+          const ms = (d.matches || []).slice(0, 20);
+          msgs.push({ role: "user", content: "Search results for " + a.query + ":\n" + (ms.length ? ms.map((x) => x.path + ":" + x.line + " " + x.text).join("\n") : "(no matches)") });
+        } else if (a.type === "list") {
+          const fr = await fetch("/api/files");
+          const fd = await fr.json();
+          let names = (fd.files || []).filter((x) => x.type === "file").map((x) => x.path);
+          if (a.path) names = names.filter((p) => p === a.path || p.startsWith(a.path + "/"));
+          msgs.push({ role: "user", content: "Files:\n" + names.slice(0, 120).join("\n") });
+        } else if (["reverse", "eco", "git", "context"].includes(a.type)) {
+          msgs.push({
+            role: "user",
+            content: await agentToolText(a)
+          });
+        } else {
+          nudged++;
+          if (nudged > 1)
+            return "(explore produced no summary)";
+          msgs.push({ role: "user", content: "Read-only actions only, and no nested EXPLORE. Use READ, SEARCH, LIST, REVERSE, ECO, GIT or CONTEXT, then DONE <summary>." });
+        }
+      }
+      return "(explore hit its 6-step cap without a summary)";
+    }
+    async function noteAppend(text) {
+      const path = ".ghostide/agent-notes.md";
+      let cur2 = "";
+      try {
+        const r = await fetch("/api/file?path=" + encodeURIComponent(path));
+        const d2 = await r.json();
+        if (!d2.error) cur2 = d2.content || "";
+      } catch (e) {
+      }
+      let next = cur2 + "- " + text + "\n";
+      if (next.length > 8e3) {
+        const tail = next.slice(next.length - 7500);
+        const nl = tail.indexOf("\n");
+        next = "(older notes trimmed to the 8 KB cap)\n" + (nl > 0 ? tail.slice(nl + 1) : tail);
+      }
+      const d = await postJson(
+        "/api/file",
+        { path, content: next }
+      );
+      return !d.error;
+    }
     function snapshot(label, step) {
       const cp = makeAgentCheckpoint(
         checkpoints.length + 1,
@@ -43123,6 +43258,21 @@
       const es = Object.entries(emStore()).slice(-5);
       if (es.length)
         memText += "\n\nError memory (past errors and what fixed them):\n" + es.map(([sig, v]) => sig + " -> " + (v && v.fix ? v.fix : JSON.stringify(v).slice(0, 200))).join("\n");
+    } catch (e) {
+    }
+    try {
+      const nr = await fetch("/api/file?path=" + encodeURIComponent(".ghostide/agent-notes.md"));
+      const nd = await nr.json();
+      if (!nd.error && nd.content && nd.content.trim())
+        memText += "\n\nYour agent notes from earlier runs (your own scratchpad):\n" + nd.content.slice(-1500);
+    } catch (e) {
+    }
+    try {
+      const lr = await fetch("/api/eco/replay/list");
+      const ld = await lr.json();
+      const last2 = (ld.sessions || [])[0];
+      if (last2)
+        memText += '\n\nYour last recorded run in this workspace: "' + String(last2.task || "").slice(0, 120) + '" (' + (last2.saved_at || "") + ", " + (last2.steps || 0) + " recorded step(s)).";
     } catch (e) {
     }
     try {
@@ -43272,7 +43422,7 @@
       trail.push({
         step,
         type: act.type,
-        target: act.path || act.command || act.query || act.server || ""
+        target: act.path || act.command || act.query || act.server || act.question || (act.text ? act.text.slice(0, 60) : "") || ""
       });
       const sig = act.type + "|" + (act.path || "") + "|" + (act.command || "") + "|" + (act.query || "");
       if (sig === lastSig) sigCount++;
@@ -43453,6 +43603,15 @@
             content: t2 + "\nContinue."
           });
         }
+      } else if (act.type === "explore") {
+        addMsg("SYSTEM", "\u{1F9ED} EXPLORE " + act.question);
+        const t2 = await runExplore(act.question);
+        addMsg("SYSTEM", "\u{1F9ED} " + t2.slice(0, 300));
+        messages.push({ role: "user", content: t2 + "\nContinue the main task." });
+      } else if (act.type === "note") {
+        const ok = await noteAppend(act.text);
+        addMsg("SYSTEM", "\u{1F5D2} NOTE " + (ok ? "saved to your scratchpad" : "FAILED to save"));
+        messages.push({ role: "user", content: ok ? "Note saved. It will be in your briefing on future runs in this workspace. Continue." : "Saving the note failed. Continue without it." });
       } else if ([
         "reverse",
         "eco",
@@ -43480,7 +43639,7 @@
           outcome = "failed";
           break;
         }
-        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, REVERSE, ECO, VERIFY, TEST, GIT, MCP, DONE, or ASK - or a batch of read-only actions, one per line." });
+        messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, REVERSE, ECO, VERIFY, TEST, GIT, MCP, EXPLORE, NOTE, DONE, or ASK - or a batch of read-only actions, one per line." });
       }
       if (sigCount === 3)
         messages.push({ role: "user", content: "Warning: you have repeated the same action 3 times. If it is not producing new information, change approach or finish with DONE." });
