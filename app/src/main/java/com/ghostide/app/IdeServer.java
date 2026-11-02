@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.55.0";
+    static final String VERSION = "2.57.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2971,7 +2971,7 @@ public final class IdeServer {
         // GhostScope and GhostMCP to the bundle.
         // v2.47.0 (generation e9) updates GhostMCP to
         // 0.2.0 (resources + prompts) in the same zip.
-        File stamp = new File(dir, ".ready-e10");
+        File stamp = new File(dir, ".ready-e11");
         if (stamp.isFile()) return true;
         java.util.zip.ZipInputStream zin = null;
         try {
@@ -3157,6 +3157,66 @@ public final class IdeServer {
         return null;
     }
 
+    // Cycle 2 I2: MCP list cache parity with the desktop
+    // (5 minutes, keyed by config path + verb + server,
+    // invalidated when the config file changes). Calls
+    // are never cached.
+    private static class McpListResult {
+        String body; String error;
+    }
+
+    private final java.util.Map<String, Object[]> mcpListCache =
+        new java.util.HashMap<>();
+
+    private McpListResult mcpListBody(String verb, String server,
+            File cfg) throws Exception {
+        String key = cfg.getAbsolutePath() + "|" + verb
+            + "|" + server;
+        long now = System.currentTimeMillis();
+        long cfgMtime = cfg.lastModified();
+        synchronized (mcpListCache) {
+            Object[] hit = mcpListCache.get(key);
+            if (hit != null
+                    && now - (Long) hit[1] < 300000
+                    && (Long) hit[2] == cfgMtime) {
+                McpListResult ok = new McpListResult();
+                ok.body = (String) hit[0];
+                return ok;
+            }
+        }
+        ProcResult r = runEcoCli("ghostmcp",
+            Arrays.asList(verb, "--config",
+                cfg.getAbsolutePath(), "--server", server), 50);
+        String stdout = r.stdout == null ? "" : r.stdout.trim();
+        Map<String, Object> obj = null;
+        for (String ln : stdout.split("\n")) {
+            String t = ln.trim();
+            if (t.startsWith("{")) {
+                try {
+                    obj = Json.obj(Json.parse(t));
+                } catch (Exception ignored) {}
+            }
+        }
+        McpListResult out2 = new McpListResult();
+        if (obj != null && obj.get("error") != null) {
+            out2.error = String.valueOf(obj.get("error"));
+            return out2;
+        }
+        if (obj == null || r.code == 2) {
+            String err = r.stderr == null ? ""
+                : r.stderr.trim();
+            out2.error = "GhostMCP could not run: "
+                + err.substring(0, Math.min(300, err.length()));
+            return out2;
+        }
+        out2.body = jsonWrite(obj);
+        synchronized (mcpListCache) {
+            mcpListCache.put(key, new Object[]{out2.body,
+                now, cfgMtime});
+        }
+        return out2;
+    }
+
     private void sendMcpResult(java.io.OutputStream out,
             ProcResult r) throws Exception {
         String stdout = r.stdout == null ? "" : r.stdout.trim();
@@ -3286,11 +3346,14 @@ public final class IdeServer {
             }
             Map<String, Object> d = Json.obj(Json.parse(
                 new String(body, StandardCharsets.UTF_8)));
-            ProcResult r = runEcoCli("ghostmcp",
-                Arrays.asList("tools", "--config",
-                    cfg.getAbsolutePath(), "--server",
-                    Json.str(d, "server", "")), 50);
-            sendMcpResult(out, r);
+            McpListResult lr = mcpListBody("tools",
+                Json.str(d, "server", ""), cfg);
+            if (lr.error != null) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(lr.error) + "}");
+                return;
+            }
+            sendJson(out, lr.body);
             return;
         }
         if (path.equals("/api/mcp/call")
@@ -3340,7 +3403,16 @@ public final class IdeServer {
                 Json.str(d, "server", "")));
             if (verb.equals("resources")
                     || verb.equals("prompts")) {
-                // list verbs take nothing further
+                // Cycle 2 I2: list verbs ride the cache.
+                McpListResult lr = mcpListBody(verb,
+                    Json.str(d, "server", ""), cfg);
+                if (lr.error != null) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote(lr.error) + "}");
+                    return;
+                }
+                sendJson(out, lr.body);
+                return;
             } else if (verb.equals("resource")) {
                 argv.add("--uri");
                 argv.add(Json.str(d, "uri", ""));
@@ -5000,6 +5072,86 @@ public final class IdeServer {
                 + Json.quote(bodyOut) + "}");
             return;
         }
+        if (path.equals("/api/eco/datapacks")
+                && method.equals("POST")) {
+            // Cycle 2 I13: the packs this workspace holds.
+            File giDir = new File(workspace, ".ghostide");
+            File[] dirs = giDir.listFiles();
+            StringBuilder sb2 = new StringBuilder(
+                "{\"packs\":[");
+            java.util.List<File> found =
+                new java.util.ArrayList<>();
+            if (dirs != null) {
+                for (File dd : dirs) {
+                    if (dd.isDirectory() && dd.getName()
+                            .startsWith("data-pack-"))
+                        found.add(dd);
+                }
+            }
+            java.util.Collections.sort(found,
+                new java.util.Comparator<File>() {
+                    @Override public int compare(File a,
+                            File b) {
+                        return Long.compare(
+                            b.lastModified(),
+                            a.lastModified());
+                    }
+                });
+            int fi = 0;
+            for (File dd : found) {
+                int count = 0;
+                File[] inner = dd.listFiles();
+                java.util.Deque<File> stack =
+                    new java.util.ArrayDeque<>();
+                if (inner != null)
+                    for (File f0 : inner) stack.push(f0);
+                while (!stack.isEmpty()) {
+                    File cur = stack.pop();
+                    if (cur.isFile()) count++;
+                    else {
+                        File[] sub = cur.listFiles();
+                        if (sub != null)
+                            for (File f0 : sub)
+                                stack.push(f0);
+                    }
+                }
+                if (fi++ > 0) sb2.append(',');
+                sb2.append("{\"name\":")
+                    .append(Json.quote(dd.getName()))
+                    .append(",\"files\":").append(count)
+                    .append(",\"mtime\":")
+                    .append(dd.lastModified() / 1000)
+                    .append("}");
+            }
+            sb2.append("]}");
+            sendJson(out, sb2.toString());
+            return;
+        }
+        if (path.equals("/api/eco/datapack/delete")
+                && method.equals("POST")) {
+            // Cycle 2 I13: remove one pack; the name is
+            // pinned to the data-pack- namespace inside
+            // .ghostide, nothing else can be named.
+            Map<String, Object> dd2 = Json.obj(Json.parse(
+                new String(body, StandardCharsets.UTF_8)));
+            String name = Json.str(dd2, "name", "");
+            if (!name.matches("data-pack-[A-Za-z0-9_.-]+")
+                    || name.contains("..")) {
+                sendJson(out, 400, "{\"error\":\"not a "
+                    + "pack name\"}");
+                return;
+            }
+            File target = new File(
+                new File(workspace, ".ghostide"), name);
+            if (!target.isDirectory()) {
+                sendJson(out, 400, "{\"error\":\"no such "
+                    + "pack\"}");
+                return;
+            }
+            deleteRecursive(target);
+            sendJson(out, "{\"ok\":true}");
+            return;
+        }
         if (path.equals("/api/eco/board")
                 && method.equals("POST")) {
             // E17: GhostConsole's board model for this
@@ -5090,6 +5242,48 @@ public final class IdeServer {
         if (tool.equals("ghostrecipes")) {
             String lib = new File(workspace, "recipes")
                 .getAbsolutePath();
+            if (verb.equals("renders")) {
+                // Cycle 2 I12: render history, newest first.
+                File[] all = giDir.listFiles();
+                java.util.List<File> rs =
+                    new java.util.ArrayList<>();
+                if (all != null) {
+                    for (File f : all) {
+                        if (f.isFile() && f.getName()
+                                .startsWith("recipe-")
+                                && f.getName()
+                                    .endsWith(".md"))
+                            rs.add(f);
+                    }
+                }
+                java.util.Collections.sort(rs,
+                    new java.util.Comparator<File>() {
+                        @Override public int compare(File a,
+                                File b) {
+                            return Long.compare(
+                                b.lastModified(),
+                                a.lastModified());
+                        }
+                    });
+                if (rs.isEmpty())
+                    return "No renders yet in this "
+                        + "workspace.";
+                StringBuilder rb = new StringBuilder();
+                java.text.SimpleDateFormat fmt =
+                    new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm");
+                int shown = 0;
+                for (File f : rs) {
+                    if (shown++ >= 20) break;
+                    if (rb.length() > 0) rb.append("\n");
+                    rb.append(f.getName()).append(" - ")
+                        .append(f.length()).append(" B - ")
+                        .append(fmt.format(
+                            new java.util.Date(
+                                f.lastModified())));
+                }
+                return rb.toString();
+            }
             if (verb.equals("list")) {
                 return ecoStudioRun(tool, Arrays.asList(
                     "list", "--library", lib, "--json"));

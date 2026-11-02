@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.57.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 batch 3: watch jumps, verify history, eco search, render history, pack management",
+   "summary": "Files that change on disk in the watch feed are now tap-to-open links instead of plain text. Verify keeps a five-run history on the device, shown under each new report. The ecosystem catalog gains a live filter box. The Recipes shelf can list its render history (the checklist files renders wrote, newest first), and the Data pane gains pack management: list the workspace's GhostData packs and delete one by exact name, with the delete route pinned to the pack namespace on both servers - a traversal name is refused, which the fixture probes confirmed live."
+  },
+  {
+   "version": "2.56.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 2 batch 2: cache parity, header redaction, smarter priming, replay export, queue filter",
+   "summary": "The phone's MCP lists now cache like the desktop's (five minutes, invalidated when the config file changes; calls are never cached). GhostData 0.1.1 closes the audit observation from Cycle 1: a KEY=VALUE file read as data used to print the secret in its header name - headers now render as KEY=<redacted> in schemas and packs. The agent's priming picks up a one-line summary of the studio board, so it knows what else is verified or needs attention before it starts. Recorded agent runs can be exported as a markdown transcript, and the approve queue gains a filter bar (Run / Delete / MCP / Write) when more than one request is waiting."
+  },
+  {
    "version": "2.55.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 2 batch 1: persistent MCP sessions, sessions readout, durable test fixtures",
