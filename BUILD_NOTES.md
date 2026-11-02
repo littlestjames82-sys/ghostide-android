@@ -2963,6 +2963,20 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.91.0 (versionCode 196) - Nov 2, 2026 - Campaign Cycle 6 audit batch 1 (A1-A5)
+- A1 pair gate intact. A2 traversal + commit hash pin intact (flag-shaped hash refused live). A3 atomic writes intact. A4 canary sweep live on v2.90 code: 0 hits on git/status, health, eco/info, files, git/log. A5 eco pins unchanged (e13 / 29 / ghostmcp 0.3.2); full gate re-run this cycle.
+- Proof: version gate 2.91.0/196; esbuild exit 0; DOM-stub gate passes; run-all 118/118 (new cycle6-audit1-harness 5/5); build self-checks green; badging verified; asset carries the current frontend.
+- Built APK: md5 2c006f6a96304f1aaf8e3755814d1d5f, versionCode 196, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.90.0 (versionCode 195) - Nov 2, 2026 - Campaign Cycle 6 (Agentic) batch 4 (C6-I16-I20) - IMPROVEMENTS COMPLETE
+- C6-I16 agent status pill (fixed, any view; step + task; tap -> Chat). Styling in style.css with #agentPill:not(.hidden){display:flex} - an inline display:flex would have defeated the plain .hidden rule and the pill could never hide.
+- C6-I17 pause: pill toggle sets agentPause; the ACT loop waits between steps (400 ms poll) and Stop breaks out of the wait immediately. PLAN runs show the pill but do not pause (their loop has no wait yet - noted honestly; the pill's Stop works for plans via agentStop).
+- C6-I18 queue: send-while-busy pushes to agentQueue with a receipt message; runAgent drains FIFO at its end into fresh runs. Explicit entry points (Resume, Act-on-plan) do not queue.
+- C6-I19 sequential batches check agentStop between actions and truncate with a "(batch stopped by the user)" part the model sees.
+- C6-I20 accounting (steps/repairs/seconds) added to the plain Done line; the staged-changes line already carried it (I5).
+- Proof: version gate 2.90.0/195; esbuild exit 0; DOM-stub gate passes; run-all 117/117 (new cycle6-batch4-harness 5/5); build self-checks green; badging verified; asset carries agentPillShow.
+- Built APK: md5 d53b556f5f6dd6189ad6fabbfcef343a, versionCode 195, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.89.0 (versionCode 194) - Nov 2, 2026 - Campaign Cycle 6 (Agentic) batch 3 (C6-I11-I15)
 - C6-I11 EXPLORE: bounded (6-step) read-only sub-run inside runAgent; dispatch whitelist = read/search/list + reverse/eco/git/context via agentToolText + read-only batches (parseAgentBatch with an explicit allowed list). No write/run/delete/MCP/nested-EXPLORE branches exist in its dispatch - delegation cannot widen authority. DONE returns the summary as the observation.
 - C6-I12 NOTE: appends to .ghostide/agent-notes.md via the file route (app state, the handoff/checkpoint precedent - not staged project changes), 8 KB cap with an honest trim marker.
