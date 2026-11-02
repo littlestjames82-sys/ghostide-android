@@ -2963,6 +2963,15 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.66.0 (versionCode 171) - Nov 1, 2026 - Campaign Cycle 3 batch 4 (C3-I16-I20)
+- C3-I16 board panel gains an Open Git panel button (closes the panel, opens the drawer Git view).
+- C3-I17 palette actions: Restart MCP sessions (restart, then reopen the panel) and View data packs (new pack-list panel, View buttons on the pinned route).
+- C3-I18 replay elapsed: both agent runners pass their T0 into saveTrail -> elapsed_s on the record (bounded 0..86400 on both servers; shown as "took Xm Ys" only when present; nothing backfilled). FOUND + FIXED en route (real bug, predates the campaign): the frontend POSTs replay list/get but the desktop only served them via GET, so the desktop Replay panel silently showed zero runs since E16 - POST twins added mirroring the phone; traversal still refused (400, live-proven). Full chain live-proven: timed save lists 187, untimed has no field, POST list/get answer, atomic save leaves no temp litter.
+- C3-I19 Settings "This build" line from /api/health (version, workspace, model + model name); both servers' health shapes already matched, no server change needed.
+- C3-I20 tools/harness/run-all.mjs: one-command suite with a summary and a failure exit code; on its first runs it caught two stale pins (campaign1 saveTrail shape, C2-A9 ghostmcp version), both updated with reasons recorded. The release ritual now uses run-all.
+- Proof: version gate 2.66.0/171; esbuild clean; DOM-stub gate passes; run-all 93/93; build self-checks green including the eco pin check.
+- Built APK: 20,460,139 B, md5 07fd17f23249ffec56a1659ba9396a55, versionCode 171, same signer (8ea8684a). Device pass is Ryan's: install over v2.65.0.
+
 ## v2.65.0 (versionCode 170) - Nov 1, 2026 - Campaign Cycle 3 batch 3 (C3-I11-I15)
 - C3-I11 atomic writes (A14 residual CLOSED): desktop /api/file = snapshot, same-dir temp, os.replace; Java writeFile = temp sibling + ATOMIC_MOVE with rename fallback. A crash mid-save can no longer leave a torn file on either server.
 - C3-I12 build.sh self-check extended into the bundle: eco.zip tool count must equal the gate state (29) and bundled ghostmcp/ghostdata versions must match the pins, else the build FAILS. Fired green on this build.

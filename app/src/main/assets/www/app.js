@@ -37358,6 +37358,18 @@
     head.className = "dim";
     head.textContent = proj.name + " - board column: " + proj.column + ". " + (proj.column_reason || "");
     box.appendChild(head);
+    const gitRow = document.createElement("div");
+    gitRow.className = "todorow";
+    const gitB = document.createElement("button");
+    gitB.className = "ghostbtn";
+    gitB.textContent = "Open Git panel";
+    gitB.onclick = () => {
+      $("todoPanel").classList.add("hidden");
+      const vg = $("viewGit");
+      if (vg) vg.click();
+    };
+    gitRow.appendChild(gitB);
+    box.appendChild(gitRow);
     try {
       const lg = await (await fetch("/api/git/log")).json();
       const top2 = (lg.commits || [])[0];
@@ -37599,9 +37611,12 @@
         alert("Clipboard was not available here.");
       }
     };
-  function saveTrail(task, trail) {
+  function saveTrail(task, trail, elapsedS) {
     if (!trail || !trail.length) return;
-    postJson("/api/eco/replay/save", { task, trail }).catch(() => {
+    const body = { task, trail };
+    if (typeof elapsedS === "number" && elapsedS >= 0)
+      body.elapsed_s = Math.round(elapsedS);
+    postJson("/api/eco/replay/save", body).catch(() => {
     });
   }
   async function studioCall(tool, verb, arg) {
@@ -37782,6 +37797,46 @@
     }
     box.appendChild(out);
   }
+  async function openPackListPanel() {
+    const box = studioPanel("Data packs");
+    let d;
+    try {
+      d = await postJson("/api/eco/datapack/list", {});
+    } catch (e) {
+      box.textContent = "Could not reach the server.";
+      return;
+    }
+    box.textContent = "";
+    const packs = d && d.packs || [];
+    if (!packs.length) {
+      box.textContent = "No data packs in this workspace yet. Open a data file and use Pack to build one.";
+      return;
+    }
+    for (const name2 of packs) {
+      const row = document.createElement("div");
+      row.className = "todorow";
+      const lab = document.createElement("span");
+      lab.textContent = name2;
+      row.appendChild(lab);
+      const vb = document.createElement("button");
+      vb.className = "ghostbtn";
+      vb.textContent = "View";
+      vb.onclick = async () => {
+        vb.disabled = true;
+        try {
+          const v = await postJson(
+            "/api/eco/datapack/view",
+            { name: name2 }
+          );
+          box.textContent = v.error || (v.file || "PROMPT.md") + ":\n\n" + (v.text || "(empty)");
+        } catch (e) {
+          box.textContent = "Could not reach the server.";
+        }
+      };
+      row.appendChild(vb);
+      box.appendChild(row);
+    }
+  }
   async function openReplayPanel() {
     const box = studioPanel("Session replay");
     let d;
@@ -37800,7 +37855,9 @@
       const row = document.createElement("div");
       row.className = "todorow";
       const label = document.createElement("span");
-      label.textContent = (s.saved_at || "") + " - " + String(s.task || "").slice(0, 60) + " (" + s.steps + " steps)";
+      label.textContent = (s.saved_at || "") + " - " + String(s.task || "").slice(0, 60) + " (" + s.steps + " steps" + /* Cycle 3 I18: the run's wall-clock, when the
+         record carries it (older runs do not). */
+      (typeof s.elapsed_s === "number" ? ", took " + (s.elapsed_s < 60 ? s.elapsed_s + "s" : Math.floor(s.elapsed_s / 60) + "m " + s.elapsed_s % 60 + "s") : "") + ")";
       row.appendChild(label);
       const rerun = document.createElement("button");
       rerun.className = "ghostbtn";
@@ -38087,6 +38144,18 @@
   }
   if (settingsBtnEl)
     settingsBtnEl.addEventListener("click", refreshPairInfo);
+  async function refreshAbout() {
+    const el = $("setAbout");
+    if (!el) return;
+    try {
+      const d = await (await fetch("/api/health")).json();
+      el.textContent = "GhostIDE " + (d.version || "?") + " \xB7 workspace " + (d.workspace || "?") + " \xB7 model " + (d.model || "?") + (d.modelName ? " (" + d.modelName + ")" : "");
+    } catch (e) {
+      el.textContent = "unavailable";
+    }
+  }
+  if (settingsBtnEl)
+    settingsBtnEl.addEventListener("click", refreshAbout);
   var runFixBtn = $("runFix");
   if (runFixBtn)
     runFixBtn.onclick = () => {
@@ -41040,6 +41109,11 @@
     { title: "Ecosystem board", run: () => $("toolBoard").click() },
     { title: "Ecosystem tools", run: () => $("toolEco").click() },
     { title: "MCP servers", run: () => $("toolMcp").click() },
+    { title: "Restart MCP sessions", run: async () => {
+      await postJson("/api/mcp/restart", {});
+      openMcpPanel();
+    } },
+    { title: "View data packs", run: () => openPackListPanel() },
     { title: "Session replay", run: () => $("toolReplay").click() },
     { title: "Recipes shelf", run: () => $("toolRecipes").click() },
     { title: "Leads", run: () => $("toolLeads").click() },
@@ -42828,7 +42902,7 @@
         messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, WRITE, EDIT, RUN, DELETE, TODO, STEP_DONE, CHECK, REVERSE, ECO, VERIFY, TEST, GIT, MCP, DONE, or ASK - or a batch of read-only actions, one per line." });
       }
     }
-    saveTrail(task, trail);
+    saveTrail(task, trail, (Date.now() - agentT0) / 1e3);
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
     agentRunning = false;
@@ -43028,7 +43102,7 @@
         messages.push({ role: "user", content: "That reply had no action. Reply with exactly one action: READ, SEARCH, LIST, TODO, DONE, or ASK." });
       }
     }
-    saveTrail(task, trail);
+    saveTrail(task, trail, (Date.now() - planT0) / 1e3);
     sendBtn.textContent = "Send";
     sendBtn.onclick = oldSend;
     agentRunning = false;

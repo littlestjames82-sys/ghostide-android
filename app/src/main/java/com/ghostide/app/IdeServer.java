@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.65.0";
+    static final String VERSION = "2.66.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }

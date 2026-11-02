@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.66.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 batch 4: board Git jump, palette actions, replay elapsed times, build readout, harness runner",
+   "summary": "The last improvement batch also repairs a quiet old bug: the desktop Replay panel has shown zero runs since it shipped because it asks by POST and the desktop only answered GET - it now answers both, like the phone always did. Replay entries record how long a run took, shown only when it was actually measured. The ecosystem board jumps straight to the Git panel, the command palette can restart MCP sessions and browse data packs, Settings names the exact build and workspace, and the whole proof suite runs under one command that fails loudly if anything regresses."
+  },
+  {
    "version": "2.65.0",
    "date": "Nov 1, 2026",
    "goal": "Campaign Cycle 3 batch 3: atomic writes, bundle self-check, idle reaping, queue wait times, session ages",
