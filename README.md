@@ -1,3 +1,5 @@
+![GhostIDE — a circuit-trace ghost over a phone running a code editor](docs/images/banner.png)
+
 # GhostIDE for Android 👻
 
 **A mobile-first, AI-powered software development environment

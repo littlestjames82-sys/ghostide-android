@@ -3,6 +3,8 @@
 How the app is put together, and why. Everything here
 describes the current release (3.10.0).
 
+![GhostIDE architecture: shared WebView frontend, Java loopback server, llama.cpp / CPython / git runtimes, and the 29-tool ecosystem bundle](images/architecture.svg)
+
 ## One app, four layers
 
 ```

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="560" viewBox="0 0 920 560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="920" height="560" fill="#0d0e13"/>
+  <text x="40" y="44" fill="#e6e6e6" font-size="22" font-weight="bold">GhostIDE for Android — architecture</text>
+  <text x="40" y="68" fill="#9a9ab0" font-size="13">One app, four layers. Everything below the UI runs on the device.</text>
+
+  <!-- Layer 1: frontend -->
+  <rect x="40" y="92" width="840" height="86" rx="10" fill="#16181d" stroke="#8b7cf0" stroke-width="1.5"/>
+  <text x="64" y="124" fill="#e6e6e6" font-size="16" font-weight="bold">WebView frontend — assets/www</text>
+  <text x="64" y="148" fill="#9a9ab0" font-size="13">The SAME bundle as the desktop edition: editor · chat · agent UI · git panel · tool panels</text>
+  <text x="64" y="168" fill="#9a9ab0" font-size="13">One behavior pack drives both editions, so they cannot silently drift.</text>
+
+  <!-- Layer 2: server -->
+  <rect x="40" y="202" width="840" height="86" rx="10" fill="#16181d" stroke="#3ddc84" stroke-width="1.5"/>
+  <text x="64" y="234" fill="#e6e6e6" font-size="16" font-weight="bold">IdeServer.java — loopback HTTP API (127.0.0.1)</text>
+  <text x="64" y="258" fill="#9a9ab0" font-size="13">130+ routes: files · git (GitSupport) · search · eco tools · MCP · verify · backups · pairing (PairHub)</text>
+  <text x="64" y="278" fill="#9a9ab0" font-size="13">BackupCrypto AES-256-GCM · ZipGuard · atomic writes on every route</text>
+
+  <!-- Layer 3: runtimes -->
+  <rect x="40" y="312" width="264" height="92" rx="10" fill="#16181d" stroke="#565670" stroke-width="1.5"/>
+  <text x="60" y="344" fill="#e6e6e6" font-size="15" font-weight="bold">llama.cpp via JNI</text>
+  <text x="60" y="368" fill="#9a9ab0" font-size="12.5">LlamaBrain · Qwen2.5-Coder</text>
+  <text x="60" y="388" fill="#9a9ab0" font-size="12.5">0.5B / 1.5B / 3B / 7B, offline</text>
+
+  <rect x="328" y="312" width="264" height="92" rx="10" fill="#16181d" stroke="#565670" stroke-width="1.5"/>
+  <text x="348" y="344" fill="#e6e6e6" font-size="15" font-weight="bold">CPython 3.14 runtime</text>
+  <text x="348" y="368" fill="#9a9ab0" font-size="12.5">Runs workspace Python and</text>
+  <text x="348" y="388" fill="#9a9ab0" font-size="12.5">the ecosystem tools in-app</text>
+
+  <rect x="616" y="312" width="264" height="92" rx="10" fill="#16181d" stroke="#565670" stroke-width="1.5"/>
+  <text x="636" y="344" fill="#e6e6e6" font-size="15" font-weight="bold">Bundled git 2.56</text>
+  <text x="636" y="368" fill="#9a9ab0" font-size="12.5">Full daily git client behind</text>
+  <text x="636" y="388" fill="#9a9ab0" font-size="12.5">server-side input pins</text>
+
+  <!-- Layer 4: eco bundle -->
+  <rect x="40" y="428" width="840" height="86" rx="10" fill="#16181d" stroke="#565670" stroke-width="1.5"/>
+  <text x="64" y="460" fill="#e6e6e6" font-size="16" font-weight="bold">Ecosystem bundle — eco.zip, generation e13</text>
+  <text x="64" y="484" fill="#9a9ab0" font-size="13">29 Ghost tools extracted to filesDir on first run and executed for real against the workspace —</text>
+  <text x="64" y="504" fill="#9a9ab0" font-size="13">never reimplementations. The bundle only builds when every tool's own tests pass (2,871 at e13).</text>
+
+  <!-- connectors -->
+  <line x1="460" y1="178" x2="460" y2="202" stroke="#8b7cf0" stroke-width="2"/>
+  <line x1="460" y1="288" x2="460" y2="312" stroke="#3ddc84" stroke-width="2"/>
+  <line x1="460" y1="404" x2="460" y2="428" stroke="#565670" stroke-width="2"/>
+</svg>
