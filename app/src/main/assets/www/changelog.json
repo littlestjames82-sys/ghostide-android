@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.04.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 2: code folding, completed",
+   "summary": "Code folding actually works now. The Fold all and Unfold all buttons existed before, but the folding machinery underneath them was never switched on, so they quietly did nothing; the fold state, the gutter arrows, and the keyboard shortcuts are all wired now, in the split pane as well as the main editor, and the gutter can be hidden in Settings without losing the shortcuts."
+  },
+  {
+   "version": "3.03.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 1: editor diagnostics",
+   "summary": "The editor now shows syntax problems where you write. As you type, save, or switch files, the current text is checked and a broken line is marked in the gutter with the checker's own message, while a chip in the status bar names the line and takes you straight to it. It can be switched off in Settings, and it never blocks typing or saving when a check cannot run."
+  },
+  {
    "version": "3.02.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 7 audit batch 4: leak sweep, approval rails, caps, flow rails - Flow Cycle complete",

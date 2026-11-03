@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "3.02.0";
+    static final String VERSION = "3.05.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -2220,6 +2220,39 @@ public final class IdeServer {
                     sendJson(out, sb.toString());
                     return;
                 }
+                if (path.equals("/api/git/tags")) {
+                    // Cycle 8 I11: the tag list.
+                    ProcResult gr = gitRun(gitArgs("tag",
+                        "--list",
+                        "--format=%(refname:short)"
+                        + "%09%(objectname:short)"));
+                    StringBuilder sb = new StringBuilder(
+                        "{\"tags\":[");
+                    if (gr.code == 0) {
+                        boolean first = true;
+                        for (String line
+                                : gr.stdout.split("\n")) {
+                            if (line.trim().isEmpty())
+                                continue;
+                            int tab = line.indexOf('\t');
+                            String nm = tab >= 0
+                                ? line.substring(0, tab)
+                                : line;
+                            String tgt = tab >= 0
+                                ? line.substring(tab + 1) : "";
+                            if (!first) sb.append(",");
+                            first = false;
+                            sb.append("{\"name\":")
+                              .append(Json.quote(nm))
+                              .append(",\"target\":")
+                              .append(Json.quote(tgt))
+                              .append("}");
+                        }
+                    }
+                    sb.append("]}");
+                    sendJson(out, sb.toString());
+                    return;
+                }
                 if (path.equals("/api/git/branches")) {
                     // Cycle 7 I1: the branch list.
                     ProcResult gr = gitRun(gitArgs("branch",
@@ -2311,6 +2344,71 @@ public final class IdeServer {
                             300));
                     sendJson(out, "{\"ok\":true,\"output\":"
                         + Json.quote(gr.stdout.trim()) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/tag")
+                        && method.equals("POST")) {
+                    // Cycle 8 I11: create / delete a tag;
+                    // name pin mirrors the branch pin.
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String action = Json.str(gd, "action", "");
+                    String name = Json.str(gd, "name", "")
+                        .trim();
+                    boolean okName = name.matches(
+                        "[A-Za-z0-9][A-Za-z0-9._/-]*")
+                        && !name.contains("..")
+                        && !name.endsWith("/")
+                        && !name.endsWith(".lock");
+                    if (!okName)
+                        throw new IOException("bad tag name");
+                    List<String> args;
+                    if (action.equals("create")) {
+                        args = gitArgs("tag", name);
+                        String th = Json.str(gd, "hash", "")
+                            .trim();
+                        if (!th.isEmpty()) {
+                            if (!th.matches("[0-9a-f]{7,40}"))
+                                throw new IOException(
+                                    "bad commit hash");
+                            args.add(th);
+                        }
+                    } else if (action.equals("delete")) {
+                        args = gitArgs("tag", "-d", name);
+                    } else {
+                        throw new IOException(
+                            "unknown tag action");
+                    }
+                    ProcResult gr = gitRun(args);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            gr.stderr.isEmpty()
+                                ? gr.stdout : gr.stderr, 300));
+                    sendJson(out, "{\"ok\":true}");
+                    return;
+                }
+                if (path.equals("/api/git/amend")
+                        && method.equals("POST")) {
+                    // Cycle 8 I13: amend HEAD.
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String msg = Json.str(gd, "message", "")
+                        .trim();
+                    List<String> args = gitArgs("commit",
+                        "--amend");
+                    if (!msg.isEmpty()) {
+                        args.add("-m");
+                        args.add(msg.length() > 200
+                            ? msg.substring(0, 200) : msg);
+                    } else {
+                        args.add("--no-edit");
+                    }
+                    ProcResult gr = gitRun(args);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            gr.stderr.isEmpty()
+                                ? gr.stdout : gr.stderr, 300));
+                    sendJson(out, "{\"ok\":true}");
                     return;
                 }
                 if (path.equals("/api/git/stash")

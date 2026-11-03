@@ -2963,6 +2963,17 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v3.04.0 (versionCode 209) - Nov 2, 2026 - Campaign Cycle 8 (Craft) batch 2 (C8-I6-I10)
+- The batch's finding: Fold all / Unfold all buttons and the foldAll import shipped long ago, but codeFolding() was in no extension list, so the commands had no fold state and silently did nothing. C8-I6 wires codeFolding() + foldGutter() via foldComp (state always present; gutter toggleable). C8-I7 foldKeymap in the main editor. C8-I8 Settings toggle reconfiguring both panes. C8-I9 the split pane's separate extension list gained fold + diag compartments and the keymap (it does not inherit baseExtensions - the same trap as any future compartment). C8-I10 the dead buttons are alive by construction.
+- Proof: version gate 3.04.0/209; esbuild exit 0; DOM-stub gate passes; run-all 131/131 (new cycle8-batch2-harness 5/5, incl. slice checks on both extension lists); build self-checks green; badging verified; asset carries foldGutter.
+- Built APK: md5 7e0b996984fee5e9e17e3e6e8434bc55, versionCode 209, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v3.03.0 (versionCode 208) - Nov 2, 2026 - Campaign Cycle 8 (Craft) batch 1 (C8-I1-I5)
+- C8-I1 lintGutter from @codemirror/lint (already installed, never imported) wired via diagComp, the established compartment pattern with its TDZ discipline. C8-I2 live syntax diagnostics: /api/check-content over current editor text, 1200 ms debounce, first problem mapped to an error diagnostic clamped to the doc. C8-I3 status-bar chip (line + message title, tap jumps). C8-I4 Settings toggle reconfigures both panes and clears diagnostics + chip when off. C8-I5 triggers: edit (debounced), save, tab activation; all failures silent by design.
+- The DOM-stub bundle gate passing with the new import is the batch's load-bearing proof: a bad CM import is exactly the class of bug that killed v1.5.0/v1.6.0 at startup.
+- Proof: version gate 3.03.0/208; esbuild exit 0; DOM-stub gate passes; run-all 130/130 (new cycle8-batch1-harness 5/5); build self-checks green; badging verified; asset carries refreshDiagnostics.
+- Built APK: md5 2e653a3da6325da42ea0f94fb8e6a513, versionCode 208, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v3.02.0 (versionCode 207) - Nov 2, 2026 - Campaign Cycle 7 audit batch 4 (A16-A20 + flow rails 2) - CYCLE 7 COMPLETE
 - A16 leak sweep zero. A17 one decide route per server. A18 caps re-pinned (search pattern 200 both servers, notes 8000, show 20000). A19 new surfaces textContent-rendered (A8 census held). A20 ritual held.
 - Rails 2: PLAN pause proven inside runPlan's own loop body (slice check, not just the shared flag); agent git surface proven read-only by negative space (agentToolText fetches branches/stash, contains no call to the mutating branch/stash routes).

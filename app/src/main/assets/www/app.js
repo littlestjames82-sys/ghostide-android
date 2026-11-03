@@ -22986,6 +22986,11 @@
   function maybeEnableLint(state, effects) {
     return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of(lintExtensions));
   }
+  function setDiagnostics(state, diagnostics) {
+    return {
+      effects: maybeEnableLint(state, [setDiagnosticsEffect.of(diagnostics)])
+    };
+  }
   var setDiagnosticsEffect = /* @__PURE__ */ StateEffect.define();
   var togglePanel2 = /* @__PURE__ */ StateEffect.define();
   var movePanelSelection = /* @__PURE__ */ StateEffect.define();
@@ -23461,6 +23466,145 @@
     }
     return sev;
   }
+  var LintGutterMarker = class extends GutterMarker {
+    constructor(diagnostics) {
+      super();
+      this.diagnostics = diagnostics;
+      this.severity = maxSeverity(diagnostics);
+    }
+    toDOM(view2) {
+      let elt2 = document.createElement("div");
+      elt2.className = "cm-lint-marker cm-lint-marker-" + this.severity;
+      let diagnostics = this.diagnostics;
+      let diagnosticsFilter = view2.state.facet(lintGutterConfig).tooltipFilter;
+      if (diagnosticsFilter)
+        diagnostics = diagnosticsFilter(diagnostics, view2.state);
+      if (diagnostics.length)
+        elt2.onmouseover = () => gutterMarkerMouseOver(view2, elt2, diagnostics);
+      return elt2;
+    }
+  };
+  function trackHoverOn(view2, marker) {
+    let mousemove = (event) => {
+      let rect = marker.getBoundingClientRect();
+      if (event.clientX > rect.left - 10 && event.clientX < rect.right + 10 && event.clientY > rect.top - 10 && event.clientY < rect.bottom + 10)
+        return;
+      for (let target = event.target; target; target = target.parentNode) {
+        if (target.nodeType == 1 && target.classList.contains("cm-tooltip-lint"))
+          return;
+      }
+      window.removeEventListener("mousemove", mousemove);
+      if (view2.state.field(lintGutterTooltip))
+        view2.dispatch({ effects: setLintGutterTooltip.of(null) });
+    };
+    window.addEventListener("mousemove", mousemove);
+  }
+  function gutterMarkerMouseOver(view2, marker, diagnostics) {
+    function hovered() {
+      let line = view2.elementAtHeight(marker.getBoundingClientRect().top + 5 - view2.documentTop);
+      const linePos = view2.coordsAtPos(line.from);
+      if (linePos) {
+        view2.dispatch({ effects: setLintGutterTooltip.of({
+          pos: line.from,
+          above: false,
+          clip: false,
+          create() {
+            return {
+              dom: diagnosticsTooltip(view2, diagnostics),
+              getCoords: () => marker.getBoundingClientRect()
+            };
+          }
+        }) });
+      }
+      marker.onmouseout = marker.onmousemove = null;
+      trackHoverOn(view2, marker);
+    }
+    let { hoverTime } = view2.state.facet(lintGutterConfig);
+    let hoverTimeout = setTimeout(hovered, hoverTime);
+    marker.onmouseout = () => {
+      clearTimeout(hoverTimeout);
+      marker.onmouseout = marker.onmousemove = null;
+    };
+    marker.onmousemove = () => {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(hovered, hoverTime);
+    };
+  }
+  function markersForDiagnostics(doc2, diagnostics) {
+    let byLine = /* @__PURE__ */ Object.create(null);
+    for (let diagnostic of diagnostics) {
+      let line = doc2.lineAt(diagnostic.from);
+      (byLine[line.from] || (byLine[line.from] = [])).push(diagnostic);
+    }
+    let markers = [];
+    for (let line in byLine) {
+      markers.push(new LintGutterMarker(byLine[line]).range(+line));
+    }
+    return RangeSet.of(markers, true);
+  }
+  var lintGutterExtension = /* @__PURE__ */ gutter({
+    class: "cm-gutter-lint",
+    markers: (view2) => view2.state.field(lintGutterMarkers),
+    widgetMarker: (view2, widget, block) => {
+      let diagnostics = [];
+      view2.state.field(lintGutterMarkers).between(block.from, block.to, (from, to, value) => {
+        if (from > block.from && from < block.to)
+          diagnostics.push(...value.diagnostics);
+      });
+      return diagnostics.length ? new LintGutterMarker(diagnostics) : null;
+    }
+  });
+  var lintGutterMarkers = /* @__PURE__ */ StateField.define({
+    create() {
+      return RangeSet.empty;
+    },
+    update(markers, tr) {
+      markers = markers.map(tr.changes);
+      let diagnosticFilter = tr.state.facet(lintGutterConfig).markerFilter;
+      for (let effect of tr.effects) {
+        if (effect.is(setDiagnosticsEffect)) {
+          let diagnostics = effect.value;
+          if (diagnosticFilter)
+            diagnostics = diagnosticFilter(diagnostics || [], tr.state);
+          markers = markersForDiagnostics(tr.state.doc, diagnostics.slice(0));
+        }
+      }
+      return markers;
+    }
+  });
+  var setLintGutterTooltip = /* @__PURE__ */ StateEffect.define();
+  var lintGutterTooltip = /* @__PURE__ */ StateField.define({
+    create() {
+      return null;
+    },
+    update(tooltip, tr) {
+      if (tooltip && tr.docChanged)
+        tooltip = hideTooltip(tr, tooltip) ? null : { ...tooltip, pos: tr.changes.mapPos(tooltip.pos) };
+      return tr.effects.reduce((t2, e) => e.is(setLintGutterTooltip) ? e.value : t2, tooltip);
+    },
+    provide: (field) => showTooltip.from(field)
+  });
+  var lintGutterTheme = /* @__PURE__ */ EditorView.baseTheme({
+    ".cm-gutter-lint": {
+      width: "1.4em",
+      "& .cm-gutterElement": {
+        padding: ".2em"
+      }
+    },
+    ".cm-lint-marker": {
+      width: "1em",
+      height: "1em"
+    },
+    ".cm-lint-marker-info": {
+      content: /* @__PURE__ */ svg(`<path fill="#aaf" stroke="#77e" stroke-width="6" stroke-linejoin="round" d="M5 5L35 5L35 35L5 35Z"/>`)
+    },
+    ".cm-lint-marker-warning": {
+      content: /* @__PURE__ */ svg(`<path fill="#fe8" stroke="#fd7" stroke-width="6" stroke-linejoin="round" d="M20 6L37 35L3 35Z"/>`)
+    },
+    ".cm-lint-marker-error": {
+      content: /* @__PURE__ */ svg(`<circle cx="20" cy="20" r="15" fill="#f87" stroke="#f43" stroke-width="6"/>`)
+    }
+  });
   var lintHover = /* @__PURE__ */ hoverTooltip(lintTooltip, { hideOn: hideTooltip });
   var lintExtensions = [
     lintState,
@@ -23473,6 +23617,18 @@
     lintHover,
     baseTheme5
   ];
+  var lintGutterConfig = /* @__PURE__ */ Facet.define({
+    combine(configs) {
+      return combineConfig(configs, {
+        hoverTime: 300,
+        markerFilter: null,
+        tooltipFilter: null
+      });
+    }
+  });
+  function lintGutter(config2 = {}) {
+    return [lintGutterConfig.of(config2), lintGutterMarkers, lintGutterExtension, lintGutterTheme, lintGutterTooltip];
+  }
 
   // node_modules/codemirror/dist/index.js
   var basicSetup = /* @__PURE__ */ (() => [
@@ -32946,6 +33102,14 @@
   function wsExt() {
     return settings.whitespace ? highlightWhitespace() : [];
   }
+  var diagComp = new Compartment();
+  function diagExt() {
+    return settings.diag === false ? [] : lintGutter();
+  }
+  var foldComp = new Compartment();
+  function foldExt() {
+    return settings.fold === false ? codeFolding() : [codeFolding(), foldGutter()];
+  }
   var view = new EditorView({
     parent: $("editor"),
     state: EditorState.create({
@@ -32995,6 +33159,9 @@
       wrapComp.of(wrapExt()),
       indentComp.of(indentExt()),
       wsComp.of(wsExt()),
+      diagComp.of(diagExt()),
+      foldComp.of(foldExt()),
+      keymap.of(foldKeymap),
       EditorView.updateListener.of((u) => {
         if (u.selectionSet || u.docChanged) {
           const head = u.state.selection.main.head;
@@ -33027,6 +33194,7 @@
             renderTabs();
           }
           if (currentFile) queueDraftSave();
+          if (currentFile) queueDiagnostics();
           if (currentFile) queueAutosave();
         }
       })
@@ -33417,6 +33585,7 @@
     loadFiles();
     noteRecentFile(path);
     updateCrumbs();
+    refreshDiagnostics();
   }
   function closeTab(p) {
     const i2 = tabOrder.indexOf(p);
@@ -33570,6 +33739,58 @@
   function getJson(url) {
     return fetch(url).then((r) => r.json());
   }
+  var diagTimer = null;
+  var diagProblem = null;
+  function queueDiagnostics() {
+    clearTimeout(diagTimer);
+    diagTimer = setTimeout(refreshDiagnostics, 1200);
+  }
+  async function refreshDiagnostics() {
+    const chip = $("diagChip");
+    if (!currentFile || settings.diag === false) {
+      diagProblem = null;
+      if (chip) chip.classList.add("hidden");
+      return;
+    }
+    const path = currentFile;
+    try {
+      const d = await postJson("/api/check-content", {
+        path,
+        content: view.state.doc.toString()
+      });
+      if (path !== currentFile) return;
+      let diags = [];
+      diagProblem = null;
+      if (d && d.ok === false && d.line) {
+        const ln = Math.max(
+          1,
+          Math.min(d.line, view.state.doc.lines)
+        );
+        const line = view.state.doc.line(ln);
+        diags = [{
+          from: line.from,
+          to: line.to,
+          severity: "error",
+          message: d.message || "syntax problem"
+        }];
+        diagProblem = {
+          line: ln,
+          message: d.message || "syntax problem"
+        };
+      }
+      view.dispatch(setDiagnostics(view.state, diags));
+      if (chip) {
+        if (diagProblem) {
+          chip.textContent = "\u26A0 line " + diagProblem.line;
+          chip.title = diagProblem.message;
+          chip.classList.remove("hidden");
+        } else {
+          chip.classList.add("hidden");
+        }
+      }
+    } catch (e) {
+    }
+  }
   async function saveFile() {
     if (!currentFile) return;
     if (settings.trimOnSave) {
@@ -33603,6 +33824,7 @@
     } catch (e) {
     }
     setSaveState("saved \u2713 " + (/* @__PURE__ */ new Date()).toLocaleTimeString());
+    refreshDiagnostics();
     if (settings.formatOnSave) {
       const d = await postJson("/api/format", { path: currentFile });
       if (d.formatted) {
@@ -36305,6 +36527,12 @@
       wrapComp.of(wrapExt()),
       indentComp.of(indentExt()),
       wsComp.of(wsExt()),
+      /* Cycle 8 I9: the split pane gets the same
+         compartments - it has its own extension list
+         and would otherwise silently miss the cycle. */
+      diagComp.of(diagExt()),
+      foldComp.of(foldExt()),
+      keymap.of(foldKeymap),
       langFor(path || ""),
       keymap.of([
         { key: "Mod-s", run: () => {
@@ -37071,6 +37299,35 @@
     settings.wrap = e.target.checked;
     saveSettings();
     const eff = { effects: wrapComp.reconfigure(wrapExt()) };
+    view.dispatch(eff);
+    if (splitView) splitView.dispatch(eff);
+  };
+  $("setDiag").checked = settings.diag !== false;
+  $("setDiag").onchange = (e) => {
+    settings.diag = e.target.checked;
+    saveSettings();
+    const eff = { effects: diagComp.reconfigure(diagExt()) };
+    view.dispatch(eff);
+    if (splitView) splitView.dispatch(eff);
+    if (!settings.diag) {
+      diagProblem = null;
+      view.dispatch(setDiagnostics(view.state, []));
+      const chip = $("diagChip");
+      if (chip) chip.classList.add("hidden");
+    } else {
+      refreshDiagnostics();
+    }
+  };
+  var diagChipBtn = $("diagChip");
+  if (diagChipBtn)
+    diagChipBtn.onclick = () => {
+      if (diagProblem) jumpToLine(diagProblem.line);
+    };
+  $("setFold").checked = settings.fold !== false;
+  $("setFold").onchange = (e) => {
+    settings.fold = e.target.checked;
+    saveSettings();
+    const eff = { effects: foldComp.reconfigure(foldExt()) };
     view.dispatch(eff);
     if (splitView) splitView.dispatch(eff);
   };
