@@ -3,6 +3,24 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.10.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) audit batch 4: cycle close",
+   "summary": "The Craft cycle closes clean. Final pass: no leaked key material anywhere in the shipped sources, approval decisions still ride their single route, every size cap holds, pairing tokens still expire, and the agent's view of tags is read-only like the rest of its git surface, with tagging and amending reachable from exactly one human-facing control each. The two new status-bar chips were also verified not to interfere with each other."
+  },
+  {
+   "version": "3.09.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 3: census, pins, and the new git rails",
+   "summary": "Third audit pass: the route census sits exactly where this cycle deliberately put it (three new git routes, nothing else), the tag name rules match the branch rules character for character on both servers, amending is a plain amend with no force flags anywhere near it, and a narrowed test run can only ever select from the files the discoverer found. The signing certificate was re-verified live on the shipped APK."
+  },
+  {
+   "version": "3.08.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 2: timeouts, bundle hygiene, ecosystem gate",
+   "summary": "Second audit pass: the ecosystem bundle gate was re-run in full and all 29 bundled tools are green, the editor's HTML-sink count is unchanged (a new screen this cycle tried to add one and was caught and rewritten during development), timeouts and signing are untouched, and the folding and diagnostics extensions were verified to be pure view state that makes no network calls of their own."
+  },
+  {
    "version": "3.07.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 8 audit batch 1: access, traversal, leak checks re-run",

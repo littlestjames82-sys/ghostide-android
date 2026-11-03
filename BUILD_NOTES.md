@@ -2963,6 +2963,19 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v3.09.0 (versionCode 214) - Nov 2, 2026 - Campaign Cycle 8 audit batch 3 (A11-A15 + craft rails 1)
+- A11-A15 re-derived: signer constant in build.sh (and live-verified on the v3.08 APK in this batch: SHA-256 8ea8684a3476785530435c4d7289383977766702d6c2fe1baede7fad7bec8bea), census at the deliberate Cycle 8 level 144/134, datapack pins unchanged, history delta wording honest, body cap intact.
+- Craft rails part 1: the tag name pin mirrors the branch pin on both servers; amend is a plain --amend with no force/reset flags; single-test runs select only from discover_tests() output (a name can narrow, never invent, a target).
+- Proof: version gate 3.09.0/214; esbuild exit 0; DOM-stub gate passes; run-all 136/136 (new cycle8-audit3-harness 8/8); build self-checks green; badging verified.
+- Built APK: md5 fc02cf155353ca52b2eb6d7c6f6dfa87, versionCode 214, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v3.08.0 (versionCode 213) - Nov 2, 2026 - Campaign Cycle 8 audit batch 2 (A6-A10 + craft rail 2)
+- A6-A10 re-derived: timeouts intact (120/50/30), push modes + signer are script constants, sink census exactly 101 on the craft bundle, extraction stamp e13, bundle freshness carries all four craft markers.
+- The eco bundle gate was re-run standalone for this batch: GATE GREEN for all 29 packages (it took ~20 minutes of wall time under heavy unrelated VM load; every package's own suite passed, ghostmcp 18/18 at 0.3.2).
+- Craft rail 2: the fold/diagnostics extension bodies contain no fetch or postJson - pure view state, pinned by slice.
+- Proof: version gate 3.08.0/213; esbuild exit 0; DOM-stub gate passes; run-all 135/135 (new cycle8-audit2-harness 6/6); build self-checks green; badging verified.
+- Built APK: md5 9d9755fa68a57b86cd8dac07ea0af282, versionCode 213, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v3.07.0 (versionCode 212) - Nov 2, 2026 - Campaign Cycle 8 audit batch 1 (A1-A5 + craft rail 1)
 - A1-A5 re-derived on current code: pair gate count still exactly 2 (the three new routes live inside it), traversal + hash pins intact, atomic writes both servers, canary absent from sources, eco pins (29 tools / ghostmcp 0.3.2 / e13).
 - Live evidence: canary sweep on the a7 fixture server (v3.06 code) over health, git/tags (new), tests/discover, eco/info - 0 hits x4; malformed JSON to /api/git/tag returned a clean parse error; unknown route returned the JSON 404; health stayed up.
