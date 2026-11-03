@@ -2963,6 +2963,17 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v3.01.0 (versionCode 206) - Nov 2, 2026 - Campaign Cycle 7 audit batch 3 (A11-A15 + flow rails 1)
+- A11 signer verified live on the v3.00 APK (8ea8684a). A12 census 141/131 (Cycle 7's deliberate level). A13 datapack pins unchanged. A14 delta wording honest. A15 malformed JSON live-probed this cycle.
+- Rails 1: branch name pin byte-identical in shape on both servers incl. current-branch delete refusal on both; stash refs rebuilt from pinned indexes on both (desktop rejects bool indexes explicitly, Java rejects non-integral and out-of-range).
+- Proof: version gate 3.01.0/206; esbuild exit 0; DOM-stub gate passes; run-all 128/128 (new cycle7-audit3-harness 6/6); build self-checks green; badging verified.
+- Built APK: md5 f7c8f559fea7c8112b3382a844b07ff5, versionCode 206, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v3.00.0 (versionCode 205) - Nov 2, 2026 - Campaign Cycle 7 audit batch 2 (A6-A10)
+- A6 timeouts intact. A7 lineage constants intact. A8 sink census 101 on the bundle carrying all Flow features. A9 stamp e13 consistent. A10 freshness: renderBranches/renderStashes/findJump/pendingPos all present in the built bundle. (Signer also verified live on this APK during the ritual - 8ea8684a - feeding A11.)
+- Proof: version gate 3.00.0/205; esbuild exit 0; DOM-stub gate passes; run-all 127/127 (new cycle7-audit2-harness 5/5); build self-checks green; badging verified.
+- Built APK: md5 7d9905c5bd03e87c1cd1149466c3ee5f, versionCode 205, signer 8ea8684a verified live. NO UPLOAD per standing rule.
+
 ## v2.99.0 (versionCode 204) - Nov 2, 2026 - Campaign Cycle 7 audit batch 1 (A1-A5)
 - A1 pair gate intact. A2 traversal + hash pin intact. A3 atomic writes intact. A4 canary sweep live on v2.98 code: 0 hits on git/status, git/branches, git/stash, health, eco/info - the new routes were swept in their first audit cycle. A5 eco pins unchanged (e13 / 29 / ghostmcp 0.3.2); full gate re-run this cycle.
 - Proof: version gate 2.99.0/204; esbuild exit 0; DOM-stub gate passes; run-all 126/126 (new cycle7-audit1-harness 5/5); build self-checks green; badging verified; sink census on the fresh bundle still 101 (feeds A8).

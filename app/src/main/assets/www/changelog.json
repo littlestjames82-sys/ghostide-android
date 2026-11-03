@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.02.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 4: leak sweep, approval rails, caps, flow rails - Flow Cycle complete",
+   "summary": "The Flow Cycle closes with its machinery audited as well as the old: no secret-shaped strings in the shipped sources, one approval route per server, the planning loop's pause proven inside its own code, and the agent's new git awareness proven read-only, since it can fetch branch and stash state but has no path to the routes that change them. Twenty improvements and twenty audits are complete."
+  },
+  {
+   "version": "3.01.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 3: signer, census, pins, wording, JSON guard, flow rails",
+   "summary": "The signing certificate is verified live on the shipped package and the route census sits exactly where this cycle's deliberate additions put it. The new rails hold under audit: the branch-name guard is identical on both servers including the protected current branch, and stash references are rebuilt from a checked number on both, so nothing a client sends can become a git argument it was never meant to be."
+  },
+  {
    "version": "3.00.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 7 audit batch 2: timeouts, lineage, sink census, bundle freshness",
