@@ -2963,6 +2963,13 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.97.0 (versionCode 202) - Nov 2, 2026 - Campaign Cycle 7 (Flow) batch 3 (C7-I11-I15)
+- C7-I11 /api/search options on both servers: ignoreCase + regex, defaults unchanged (case-sensitive substring), pattern capped at 200 chars, bad regex is a clean {error} on both (desktop re, Java java.util.regex fully qualified - no import churn). PROVEN LIVE on a throwaway workspace copy: default/ignoreCase/regex/bad-regex cases all correct.
+- C7-I12 find panel Aa + .* toggles, persisted in localStorage ghostide.findOpts. C7-I13 (re-scoped: result grouping already shipped in Cycle 4 I8) Prev/Next navigation over the last result set, wrapping, opening files and jumping to lines.
+- C7-I14 /api/replace dryRun on both servers (counts, never writes; response carries dryRun). PROVEN LIVE: dry run left the file byte-identical, the real run then replaced. C7-I15 Replace-all flow previews via dryRun; the confirm states exact occurrences/files; zero-count stops with a plain message.
+- Proof: version gate 2.97.0/202; esbuild exit 0; DOM-stub gate passes; run-all 124/124 (new cycle7-batch3-harness 5/5); build self-checks green; badging verified; asset carries findJump.
+- Built APK: md5 000dd69433312fdd1d15834e72f133c6, versionCode 202, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.96.0 (versionCode 201) - Nov 2, 2026 - Campaign Cycle 7 (Flow) batch 2 (C7-I6-I10)
 - C7-I6 stash routes both servers: GET list (index/ref/message parsed from %gd/%s); POST push/apply/pop/drop with the index pinned to an int 0..99 (bool rejected on desktop, non-integral rejected on Java) and the ref rebuilt server-side - a raw ref never reaches the command line. PROVEN LIVE end to end on the fixture (push tracked, count rides status, pops restore, fixture left clean).
 - C7-I6b FOUND+FIXED by that live probe: git stash push exits 0 with "No local changes to save" when only untracked files differ - a false ok. Both servers now translate it into an honest error pointing at the include-untracked option.

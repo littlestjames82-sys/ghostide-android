@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.98.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 4: continuity - the Flow Cycle's improvements close",
+   "summary": "Reopening the app now puts you back where you were: open tabs restore with their cursor positions, not just their names, and the find panel remembers the search you were in the middle of. Stashed work also shows up everywhere git state is summarized, in the copied status line and in the agent's briefing, and switching to a folder without a repo no longer leaves yesterday's stash list on screen. The Flow Cycle's twenty improvements are complete; its audits follow."
+  },
+  {
    "version": "2.97.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 7 (Flow) batch 3: search power",
