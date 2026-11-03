@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.07.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 1: access, traversal, leak checks re-run",
+   "summary": "Audit pass over everything the Craft cycle touched: the pairing gate still wraps every route including the three new ones, path and commit-hash pins are unchanged, atomic writes hold on both servers, and a live sweep of the new endpoints against a workspace holding a planted API key returned no trace of it. Malformed input to the new tag route gets a clean error, and diagnostics were verified to be compute-only: they read your text to check it and never write a file."
+  },
+  {
    "version": "3.06.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 8 (Craft) batch 4: tests craft (desktop runner)",

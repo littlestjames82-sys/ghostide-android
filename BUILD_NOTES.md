@@ -2963,6 +2963,20 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v3.07.0 (versionCode 212) - Nov 2, 2026 - Campaign Cycle 8 audit batch 1 (A1-A5 + craft rail 1)
+- A1-A5 re-derived on current code: pair gate count still exactly 2 (the three new routes live inside it), traversal + hash pins intact, atomic writes both servers, canary absent from sources, eco pins (29 tools / ghostmcp 0.3.2 / e13).
+- Live evidence: canary sweep on the a7 fixture server (v3.06 code) over health, git/tags (new), tests/discover, eco/info - 0 hits x4; malformed JSON to /api/git/tag returned a clean parse error; unknown route returned the JSON 404; health stayed up.
+- Craft rail 1: refreshDiagnostics is compute-only (posts check-content, never /api/file; problem line clamped to the document), pinned by body slice.
+- Proof: version gate 3.07.0/212; esbuild exit 0; DOM-stub gate passes; run-all 134/134 (new cycle8-audit1-harness 6/6); build self-checks green; badging verified.
+- Built APK: md5 a34c67a2bfde01297a32f7e626b7e8d8, versionCode 212, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v3.06.0 (versionCode 211) - Nov 2, 2026 - Campaign Cycle 8 (Craft) batch 4 (C8-I16-I20)
+- Tests craft (desktop runner + frontend; the phone server keeps its honest desktop-only refusal for /api/tests/*): /api/tests/run takes an optional single-test name (Python runner filters by argv; JS uses node --test-name-pattern with the name regex-escaped; a TAP "# SKIP" guard keeps skipped tests from counting as passes - proven live). Discover lists Python tests individually (tap runs one); results render through one shared renderer for all/file/single/failed-re-run scopes; Re-run failed runs exactly the failures through the single-test route; the last run persists to localStorage, shows in the panel, and drives the status-bar test chip.
+- PROVEN LIVE on the durable testfx fixture: run-all 2 pass / 2 fail across a Python and a JS file; single runs returned exactly the named test on both stacks; name-without-file refused.
+- The sink census caught this batch adding one innerHTML (102 vs the pinned 101); the new renderer clears with textContent instead and the census is exact again - the rail doing its job mid-cycle, not just at audit time.
+- Proof: version gate 3.06.0/211; esbuild exit 0; DOM-stub gate passes; run-all 133/133 (new cycle8-batch4-harness 7/7); build self-checks green; badging verified.
+- Built APK: md5 c243ab959997f626d14b899332c9cfad, versionCode 211, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v3.05.0 (versionCode 210) - Nov 2, 2026 - Campaign Cycle 8 (Craft) batch 3 (C8-I11-I15)
 - Git finish: GET /api/git/tags + POST /api/git/tag + POST /api/git/amend on both servers (name rides the branch pin; tag target hash hex-pinned; amend folds staged changes with optional reword, git refusals surface). Panel Tags section, Tag-this-commit in the commit viewer, Amend last button whose confirm states exactly what folds. Agent GIT += tags read-only; the mutating tag/amend routes have exactly one caller each (the UI), pinned in the new harness.
 - PROVEN LIVE on the gitshow fixture: tag at HEAD, tag at hash, bad name and bad hash refused, amend folded a staged line and reworded HEAD; fixture restored to its two-commit clean state afterward.
