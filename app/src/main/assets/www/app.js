@@ -35550,6 +35550,137 @@
         alert("Clipboard was not available here.");
       }
     };
+  async function branchAct(action, name2, extra) {
+    const out = $("branchOut");
+    const d = await postJson(
+      "/api/git/branch",
+      Object.assign({ action, name: name2 }, extra || {})
+    );
+    if (d.error) {
+      if (out) out.textContent = d.error;
+      return;
+    }
+    if (out) out.textContent = "";
+    const nm = $("branchName");
+    if (nm) nm.value = "";
+    refreshGit();
+  }
+  async function renderBranches() {
+    const box = $("branchList");
+    if (!box) return;
+    try {
+      const r = await fetch("/api/git/branches");
+      const d = await r.json();
+      box.textContent = "";
+      for (const b of d.branches || []) {
+        const row = document.createElement("div");
+        row.className = "gitRow";
+        const label = document.createElement("span");
+        label.textContent = (b.current ? "\u25CF " : "") + b.name + " ";
+        if (b.current) {
+          const tag = document.createElement("em");
+          tag.textContent = "current";
+          label.appendChild(tag);
+        }
+        row.appendChild(label);
+        if (!b.current) {
+          const sw = document.createElement("button");
+          sw.textContent = "Switch";
+          sw.onclick = () => branchAct("switch", b.name);
+          row.appendChild(sw);
+          const del = document.createElement("button");
+          del.textContent = "Delete";
+          del.onclick = () => {
+            if (confirm("Delete branch " + b.name + "?"))
+              branchAct("delete", b.name);
+          };
+          row.appendChild(del);
+        }
+        box.appendChild(row);
+      }
+      if (!(d.branches || []).length)
+        box.textContent = "(no branches)";
+    } catch (e) {
+    }
+  }
+  var branchCreateBtn = $("branchCreate");
+  if (branchCreateBtn)
+    branchCreateBtn.onclick = () => {
+      const nm = $("branchName").value.trim();
+      if (nm) branchAct("create", nm);
+    };
+  var branchCreateSwitchBtn = $("branchCreateSwitch");
+  if (branchCreateSwitchBtn)
+    branchCreateSwitchBtn.onclick = () => {
+      const nm = $("branchName").value.trim();
+      if (nm) branchAct("create", nm, { switch: true });
+    };
+  var branchChipEl = $("branchChip");
+  if (branchChipEl)
+    branchChipEl.onclick = () => {
+      const vg = $("viewGit");
+      if (vg) vg.click();
+    };
+  async function stashAct(action, index) {
+    const out = $("stashOut");
+    const body = { action };
+    if (index !== void 0) body.index = index;
+    if (action === "push")
+      body.untracked = !!($("stashUntracked") && $("stashUntracked").checked);
+    const d = await postJson("/api/git/stash", body);
+    if (d.error) {
+      if (out) out.textContent = d.error;
+      return;
+    }
+    if (out) out.textContent = "";
+    refreshGit();
+  }
+  async function renderStashes() {
+    const box = $("stashList");
+    if (!box) return;
+    try {
+      const r = await fetch("/api/git/stash");
+      const d = await r.json();
+      const entries = d.entries || [];
+      const cnt = $("stashCount");
+      if (cnt) cnt.textContent = entries.length ? "(" + entries.length + ")" : "";
+      box.textContent = "";
+      if (!entries.length) {
+        box.textContent = "(nothing stashed)";
+        return;
+      }
+      for (const e of entries) {
+        const row = document.createElement("div");
+        row.className = "gitRow";
+        const label = document.createElement("span");
+        label.textContent = e.ref + " " + e.message;
+        row.appendChild(label);
+        const ap = document.createElement("button");
+        ap.textContent = "Apply";
+        ap.onclick = () => stashAct("apply", e.index);
+        row.appendChild(ap);
+        const pop = document.createElement("button");
+        pop.textContent = "Pop";
+        pop.onclick = () => {
+          if (confirm("Apply and remove " + e.ref + "?"))
+            stashAct("pop", e.index);
+        };
+        row.appendChild(pop);
+        const dr = document.createElement("button");
+        dr.textContent = "Drop";
+        dr.onclick = () => {
+          if (confirm("Drop " + e.ref + " for good?"))
+            stashAct("drop", e.index);
+        };
+        row.appendChild(dr);
+        box.appendChild(row);
+      }
+    } catch (e) {
+    }
+  }
+  var stashPushBtn = $("stashPush");
+  if (stashPushBtn)
+    stashPushBtn.onclick = () => stashAct("push");
   async function refreshGit() {
     refreshGhRemote();
     const box = $("gitChanges");
@@ -35561,6 +35692,8 @@
       if (!d.repo) {
         $("gitBranch").textContent = "";
         $("gitLog").textContent = "";
+        const bl = $("branchList");
+        if (bl) bl.textContent = "";
         $("gitAiMsg").disabled = true;
         $("branchChip").classList.add("hidden");
         box.innerHTML = "";
@@ -35585,6 +35718,8 @@
       if (scopeEl)
         scopeEl.textContent = d.scope_line ? "Last Scope: " + d.scope_line : "";
       renderWorktrees();
+      renderBranches();
+      renderStashes();
       $("gitAiMsg").disabled = false;
       if (d.branch) {
         $("branchChip").textContent = "\u2387 " + d.branch;
@@ -35920,16 +36055,59 @@
     } catch (e) {
     }
   }
+  var findMatches = [];
+  var findIdx = -1;
+  function findOpts() {
+    return {
+      ignoreCase: !!($("findIgnoreCase") && $("findIgnoreCase").checked),
+      regex: !!($("findRegex") && $("findRegex").checked)
+    };
+  }
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("ghostide.findOpts") || "{}"
+    );
+    if ($("findIgnoreCase"))
+      $("findIgnoreCase").checked = !!saved.ignoreCase;
+    if ($("findRegex")) $("findRegex").checked = !!saved.regex;
+  } catch (e) {
+  }
+  for (const id2 of ["findIgnoreCase", "findRegex"]) {
+    const el = $(id2);
+    if (el) el.addEventListener("change", () => {
+      try {
+        localStorage.setItem(
+          "ghostide.findOpts",
+          JSON.stringify(findOpts())
+        );
+      } catch (e) {
+      }
+    });
+  }
+  async function findJump(dir) {
+    if (!findMatches.length) return;
+    findIdx = (findIdx + dir + findMatches.length) % findMatches.length;
+    const m = findMatches[findIdx];
+    await openFile(m.path);
+    jumpToLine(m.line);
+  }
+  $("findPrev").onclick = () => findJump(-1);
+  $("findNext").onclick = () => findJump(1);
   $("findGo").onclick = async () => {
     const q = $("findQuery").value;
     const box = $("findResults");
     if (!q) return;
     box.textContent = "searching\u2026";
-    const d = await postJson("/api/search", { query: q });
+    const d = await postJson(
+      "/api/search",
+      Object.assign({ query: q }, findOpts())
+    );
     if (d.error) {
       box.textContent = d.error;
       return;
     }
+    findMatches = d.matches || [];
+    findIdx = -1;
     box.innerHTML = "";
     if (!d.matches.length) {
       box.textContent = "No matches.";
@@ -36043,7 +36221,20 @@
   $("findReplace").onclick = async () => {
     const q = $("findQuery").value;
     if (!q) return;
-    if (!confirm('Replace ALL occurrences of "' + q + '" across the project? Open tabs keep their in-editor copy until reopened.'))
+    const dry = await postJson("/api/replace", {
+      query: q,
+      replacement: $("findReplacement").value,
+      dryRun: true
+    });
+    if (dry.error) {
+      alert(dry.error);
+      return;
+    }
+    if (!dry.replacements) {
+      $("findResults").textContent = 'No occurrences of "' + q + '" to replace.';
+      return;
+    }
+    if (!confirm("Replace " + dry.replacements + ' occurrence(s) of "' + q + '" in ' + dry.filesChanged + " file(s)? Open tabs keep their in-editor copy until reopened."))
       return;
     const d = await postJson("/api/replace", {
       query: q,
@@ -42522,7 +42713,7 @@
     "CONTEXT - fetch the repo map (GhostAtlas) when you need",
     "  the project's shape mid-task",
     "TEST [path] - run the project tests (one file, or all)",
-    "GIT status / GIT diff / GIT log - repository state",
+    "GIT status / GIT diff / GIT log / GIT branches / GIT stash - repository state",
     "MCP <server> <tool> <json-args> - call a tool on a",
     "  configured MCP server; your briefing lists the servers",
     "  and tools available, if any",
@@ -42556,7 +42747,7 @@
     "LIST [path] - list workspace files",
     "REVERSE <path> - inspect a file or binary with GhostRE",
     "ECO <tool> - run an ecosystem tool (ghostindex, ghostdeps)",
-    "GIT status / GIT diff / GIT log - repository state",
+    "GIT status / GIT diff / GIT log / GIT branches / GIT stash - repository state",
     "You may BATCH several read-only actions in one reply, one",
     "per line: READ, SEARCH, LIST, REVERSE, ECO, GIT, TODO.",
     "TODO <text> - add one step of the plan",
@@ -42756,7 +42947,7 @@
     if (/^\s*CONTEXT\s*$/m.test(text)) return { type: "context" };
     m = text.match(/^\s*TEST(?:\s+(\S+))?\s*$/m);
     if (m) return { type: "test", path: m[1] || "" };
-    m = text.match(/^\s*GIT\s+(status|diff|log)\s*$/im);
+    m = text.match(/^\s*GIT\s+(status|diff|log|branches|stash)\s*$/im);
     if (m) return { type: "git", what: m[1].toLowerCase() };
     m = text.match(/^\s*EXPLORE\s+(.+)$/m);
     if (m) return { type: "explore", question: m[1].trim() };
@@ -42815,7 +43006,7 @@
       return { type: "reverse", path: m[1] };
     if (m = t2.match(/^ECO\s+(\S+)$/))
       return { type: "eco", tool: m[1].toLowerCase() };
-    if (m = t2.match(/^GIT\s+(status|diff|log)$/i))
+    if (m = t2.match(/^GIT\s+(status|diff|log|branches|stash)$/i))
       return { type: "git", what: m[1].toLowerCase() };
     if (/^CONTEXT$/.test(t2)) return { type: "context" };
     return null;
@@ -42892,6 +43083,16 @@
           const r2 = await fetch("/api/git/diff-all");
           const d2 = await r2.json();
           return "GIT diff vs HEAD:\n" + (d2.diff ? d2.diff.slice(0, 6e3) : "(no uncommitted changes)");
+        }
+        if (act.what === "stash") {
+          const r2 = await fetch("/api/git/stash");
+          const d2 = await r2.json();
+          return "Stash entries:\n" + ((d2.entries || []).map((e) => e.ref + " " + e.message).join("\n") || "(nothing stashed)");
+        }
+        if (act.what === "branches") {
+          const r2 = await fetch("/api/git/branches");
+          const d2 = await r2.json();
+          return "Branches:\n" + ((d2.branches || []).map((b) => (b.current ? "* " : "  ") + b.name).join("\n") || "(none)");
         }
         const r = await fetch("/api/git/log");
         const d = await r.json();
@@ -43783,10 +43984,15 @@
     let outcome = "cap";
     let nudges = 0;
     for (let step = 1; step <= AGENT_PLAN_MAX_STEPS; step++) {
+      while (agentPause && !agentStop) {
+        agentPillStep("\u23F8 Planning paused at step " + step + " - tap \u25B6 to resume");
+        await new Promise((r) => setTimeout(r, 400));
+      }
       if (agentStop) {
         outcome = "stopped";
         break;
       }
+      agentPillStep("\u{1F4DD} planning step " + step + "/" + AGENT_PLAN_MAX_STEPS + " \xB7 " + task.slice(0, 40));
       addMsg("SYSTEM", "\u{1F4DD} planning step " + step + "/" + AGENT_PLAN_MAX_STEPS);
       let reply = "";
       try {

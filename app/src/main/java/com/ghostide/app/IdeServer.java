@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "2.94.0";
+    static final String VERSION = "2.97.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -1576,6 +1576,28 @@ public final class IdeServer {
                     new String(body, StandardCharsets.UTF_8)));
                 String needle = Json.str(d, "query", "");
                 if (needle.isEmpty()) throw new IOException("empty search");
+                // Cycle 7 I11: case + regex options,
+                // mirroring the desktop route.
+                if (needle.length() > 200)
+                    throw new IOException(
+                        "search pattern too long (200 max)");
+                boolean ign = Boolean.TRUE.equals(
+                    d.get("ignoreCase"));
+                java.util.regex.Pattern pat = null;
+                if (Boolean.TRUE.equals(d.get("regex"))) {
+                    try {
+                        pat = java.util.regex.Pattern.compile(
+                            needle, ign
+                                ? java.util.regex.Pattern
+                                    .CASE_INSENSITIVE
+                                : 0);
+                    } catch (Exception e) {
+                        throw new IOException("bad regex: "
+                            + trimTo(String.valueOf(
+                                e.getMessage()), 120));
+                    }
+                }
+                String needleL = needle.toLowerCase();
                 List<File> files = new ArrayList<>();
                 collectTextFiles(workspace, files);
                 StringBuilder b = new StringBuilder("{\"matches\":[");
@@ -1590,7 +1612,15 @@ public final class IdeServer {
                         f.toURI()).getPath();
                     String[] lines = text.split("\n", -1);
                     for (int i = 0; i < lines.length && count < 200; i++) {
-                        if (lines[i].contains(needle)) {
+                        boolean hit;
+                        if (pat != null)
+                            hit = pat.matcher(lines[i]).find();
+                        else if (ign)
+                            hit = lines[i].toLowerCase()
+                                .contains(needleL);
+                        else
+                            hit = lines[i].contains(needle);
+                        if (hit) {
                             if (count > 0) b.append(',');
                             String t = lines[i].trim();
                             if (t.length() > 200) t = t.substring(0, 200);
@@ -1617,6 +1647,7 @@ public final class IdeServer {
                 String needle = Json.str(d, "query", "");
                 String rep = Json.str(d, "replacement", "");
                 if (needle.isEmpty()) throw new IOException("empty search");
+                boolean dry = Boolean.TRUE.equals(d.get("dryRun"));
                 List<File> files = new ArrayList<>();
                 collectTextFiles(workspace, files);
                 int changed = 0;
@@ -1633,13 +1664,17 @@ public final class IdeServer {
                         idx += needle.length();
                     }
                     if (n > 0) {
-                        writeFile(f, text.replace(needle, rep));
+                        // Cycle 7 I14: dryRun counts
+                        // without writing.
+                        if (!dry)
+                            writeFile(f, text.replace(needle, rep));
                         changed++;
                         total += n;
                     }
                 }
                 sendJson(out, "{\"filesChanged\":" + changed
-                    + ",\"replacements\":" + total + "}");
+                    + ",\"replacements\":" + total
+                    + ",\"dryRun\":" + dry + "}");
             } catch (Exception e) {
                 sendJson(out, 400, "{\"error\":" + Json.quote(msg(e)) + "}");
             }
@@ -2037,11 +2072,23 @@ public final class IdeServer {
                             }
                         } catch (Exception ignored) {}
                     }
+                    // Cycle 7 I8: stash depth rides status.
+                    int stashN = 0;
+                    try {
+                        ProcResult gs = gitRun(gitArgs(
+                            "stash", "list"));
+                        if (gs.code == 0)
+                            for (String ln
+                                    : gs.stdout.split("\n"))
+                                if (!ln.trim().isEmpty())
+                                    stashN++;
+                    } catch (Exception ignored) {}
                     sendJson(out, "{\"repo\":true,\"branch\":"
                         + Json.quote(branch) + ",\"ahead\":"
                         + ahead + ",\"behind\":" + behind
                         + ",\"changes\":["
-                        + ch + "],\"scope_line\":"
+                        + ch + "],\"stash\":" + stashN
+                        + ",\"scope_line\":"
                         + Json.quote(scopeLine) + "}");
                     return;
                 }
@@ -2132,6 +2179,78 @@ public final class IdeServer {
                         + Json.quote(showBody) + "}");
                     return;
                 }
+                if (path.equals("/api/git/stash")) {
+                    // Cycle 7 I6: the stash list.
+                    ProcResult gr = gitRun(gitArgs("stash",
+                        "list", "--format=%gd%x09%s"));
+                    StringBuilder sb = new StringBuilder(
+                        "{\"entries\":[");
+                    if (gr.code == 0) {
+                        boolean first = true;
+                        for (String line
+                                : gr.stdout.split("\n")) {
+                            if (line.trim().isEmpty())
+                                continue;
+                            int tab = line.indexOf('\t');
+                            String ref = tab >= 0
+                                ? line.substring(0, tab)
+                                : line;
+                            String msg = tab >= 0
+                                ? line.substring(tab + 1) : "";
+                            int oi = ref.indexOf('{');
+                            int ci = ref.indexOf('}');
+                            int idx = 0;
+                            if (oi >= 0 && ci > oi) {
+                                try {
+                                    idx = Integer.parseInt(
+                                        ref.substring(oi + 1, ci));
+                                } catch (Exception ignored) {}
+                            }
+                            if (!first) sb.append(",");
+                            first = false;
+                            sb.append("{\"index\":").append(idx)
+                              .append(",\"ref\":")
+                              .append(Json.quote(ref))
+                              .append(",\"message\":")
+                              .append(Json.quote(msg))
+                              .append("}");
+                        }
+                    }
+                    sb.append("]}");
+                    sendJson(out, sb.toString());
+                    return;
+                }
+                if (path.equals("/api/git/branches")) {
+                    // Cycle 7 I1: the branch list.
+                    ProcResult gr = gitRun(gitArgs("branch",
+                        "--format=%(refname:short)\t%(HEAD)"));
+                    StringBuilder sb = new StringBuilder(
+                        "{\"branches\":[");
+                    if (gr.code == 0) {
+                        boolean first = true;
+                        for (String line
+                                : gr.stdout.split("\n")) {
+                            if (line.trim().isEmpty())
+                                continue;
+                            int tab = line.indexOf('\t');
+                            String nm = tab >= 0
+                                ? line.substring(0, tab)
+                                : line;
+                            boolean cur = tab >= 0
+                                && line.substring(tab + 1)
+                                    .trim().equals("*");
+                            if (!first) sb.append(",");
+                            first = false;
+                            sb.append("{\"name\":")
+                              .append(Json.quote(nm))
+                              .append(",\"current\":")
+                              .append(cur).append("}");
+                        }
+                    }
+                    sb.append("]}");
+                    sendJson(out, sb.toString());
+                    return;
+                }
                 if (path.equals("/api/git/diff-all")) {
                     ProcResult gr = gitRun(gitArgs("diff",
                         "HEAD", "--no-color"));
@@ -2192,6 +2311,102 @@ public final class IdeServer {
                             300));
                     sendJson(out, "{\"ok\":true,\"output\":"
                         + Json.quote(gr.stdout.trim()) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/stash")
+                        && method.equals("POST")) {
+                    // Cycle 7 I6: push / apply / pop / drop;
+                    // the ref is rebuilt from a pinned int.
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String action = Json.str(gd, "action", "");
+                    List<String> args;
+                    if (action.equals("push")) {
+                        String msg = Json.str(gd, "message",
+                            "").trim();
+                        if (msg.length() > 120)
+                            msg = msg.substring(0, 120);
+                        if (msg.isEmpty()) msg = "GhostIDE stash";
+                        args = gitArgs("stash", "push", "-m", msg);
+                        if (Boolean.TRUE.equals(
+                                gd.get("untracked")))
+                            args.add("-u");
+                    } else if (action.equals("apply")
+                            || action.equals("pop")
+                            || action.equals("drop")) {
+                        Object io = gd.get("index");
+                        if (!(io instanceof Number))
+                            throw new IOException(
+                                "bad stash index");
+                        double dv = ((Number) io).doubleValue();
+                        if (dv != Math.floor(dv)
+                                || dv < 0 || dv > 99)
+                            throw new IOException(
+                                "bad stash index");
+                        args = gitArgs("stash", action,
+                            "stash@{" + (int) dv + "}");
+                    } else {
+                        throw new IOException(
+                            "unknown stash action");
+                    }
+                    ProcResult gr = gitRun(args);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            gr.stderr.isEmpty()
+                                ? gr.stdout : gr.stderr, 300));
+                    if (action.equals("push")
+                            && gr.stdout.contains(
+                                "No local changes"))
+                        throw new IOException(
+                            "nothing to stash: no tracked "
+                            + "changes (tick 'include "
+                            + "untracked' for new files)");
+                    sendJson(out, "{\"ok\":true}");
+                    return;
+                }
+                if (path.equals("/api/git/branch")
+                        && method.equals("POST")) {
+                    // Cycle 7 I2: create / delete / switch;
+                    // the name pin mirrors the desktop's
+                    // _branch_name_ok exactly.
+                    Map<String, Object> gd = Json.obj(Json.parse(
+                        new String(body, StandardCharsets.UTF_8)));
+                    String action = Json.str(gd, "action", "");
+                    String name = Json.str(gd, "name", "")
+                        .trim();
+                    boolean okName = name.matches(
+                        "[A-Za-z0-9][A-Za-z0-9._/-]*")
+                        && !name.contains("..")
+                        && !name.endsWith("/")
+                        && !name.endsWith(".lock");
+                    if (!okName)
+                        throw new IOException("bad branch name");
+                    List<String> args;
+                    if (action.equals("create")) {
+                        boolean sw = Boolean.TRUE.equals(
+                            gd.get("switch"));
+                        args = sw
+                            ? gitArgs("switch", "-c", name)
+                            : gitArgs("branch", name);
+                    } else if (action.equals("delete")) {
+                        ProcResult cur = gitRun(gitArgs(
+                            "branch", "--show-current"));
+                        if (cur.stdout.trim().equals(name))
+                            throw new IOException(
+                                "cannot delete the current branch");
+                        args = gitArgs("branch", "-d", name);
+                    } else if (action.equals("switch")) {
+                        args = gitArgs("switch", name);
+                    } else {
+                        throw new IOException(
+                            "unknown branch action");
+                    }
+                    ProcResult gr = gitRun(args);
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            gr.stderr.isEmpty()
+                                ? gr.stdout : gr.stderr, 300));
+                    sendJson(out, "{\"ok\":true}");
                     return;
                 }
                 if (path.equals("/api/git/stage")

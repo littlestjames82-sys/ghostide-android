@@ -78,6 +78,25 @@ setTimeout(function () {
     <div id="gitPanel">
       <div class="panel-head"><span id="gitHeadTxt">GIT</span> <span id="gitBranch" class="tag"></span> <button id="gitCopyStatus" title="Copy a one-line status summary (branch, distance, change count)">📋</button></div>
       <div id="gitChanges" class="dim">checking…</div>
+      <div class="git-remote">
+        <div class="dim">Branches</div>
+        <div id="branchList" class="dim"></div>
+        <div class="ghBtns">
+          <input id="branchName" placeholder="new branch name">
+          <button id="branchCreate">Create</button>
+          <button id="branchCreateSwitch">Create + switch</button>
+        </div>
+        <div id="branchOut" class="dim"></div>
+      </div>
+      <div class="git-remote">
+        <div class="dim">Stash <span id="stashCount"></span></div>
+        <div id="stashList" class="dim"></div>
+        <div class="ghBtns">
+          <button id="stashPush">Stash changes</button>
+          <label class="dim"><input type="checkbox" id="stashUntracked"> include untracked</label>
+        </div>
+        <div id="stashOut" class="dim"></div>
+      </div>
       <div class="git-commit">
         <input id="commitMsg" placeholder="Commit message">
         <button id="commitBtn">Commit staged</button>
@@ -379,6 +398,12 @@ setTimeout(function () {
     <button id="findIndexed" title="Indexed search: the real GhostIndex FTS5 index over the whole workspace, token-budgeted excerpts">🔎 Indexed</button>
     <button id="findReplace">Replace all</button>
     <button id="findClose">Close</button>
+  </div>
+  <div class="find-btns">
+    <label class="dim"><input type="checkbox" id="findIgnoreCase"> Aa ignore case</label>
+    <label class="dim"><input type="checkbox" id="findRegex"> .* regex</label>
+    <button id="findPrev" title="Previous match">↑ Prev</button>
+    <button id="findNext" title="Next match">↓ Next</button>
   </div>
   <div id="findResults"></div>
 </div>

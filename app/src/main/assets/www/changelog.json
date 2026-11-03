@@ -3,6 +3,24 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "2.97.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 3: search power",
+   "summary": "Project search grows up. Find now has ignore-case and regex toggles that remember your choice, a broken regex gets a plain error instead of silence, and Prev and Next buttons walk you through the matches one by one. Replace all no longer asks you to trust it blind: it counts first and the confirmation states exactly how many occurrences in how many files are about to change."
+  },
+  {
+   "version": "2.96.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 2: stash, and planning learns to pause",
+   "summary": "The Git panel can now stash your changes and bring them back, with an apply that keeps the entry, a pop and drop that ask first, and an option to include untracked files. One honesty fix rides along: git reports success even when it stashed nothing because only new files changed, so the IDE now says so plainly instead of pretending your work is tucked away. The agent can list what is stashed, and planning runs finally honor the pause button like agent runs do."
+  },
+  {
+   "version": "2.95.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 1: branches",
+   "summary": "The Git panel finally manages branches. You can see every branch with the current one marked, switch with a tap (git itself protects uncommitted work, and its refusal is shown plainly), create a branch with or without switching to it, and delete one, with the current branch protected. The branch chip in the editor now opens the Git drawer instead of just sitting there, and the agent can list branches when it needs the lay of the land, though switching stays a human act."
+  },
+  {
    "version": "2.94.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 6 audit batch 4: leak sweep, approval rails, caps, the new loop rails - Agentic Cycle complete",

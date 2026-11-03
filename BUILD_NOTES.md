@@ -2963,6 +2963,22 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.96.0 (versionCode 201) - Nov 2, 2026 - Campaign Cycle 7 (Flow) batch 2 (C7-I6-I10)
+- C7-I6 stash routes both servers: GET list (index/ref/message parsed from %gd/%s); POST push/apply/pop/drop with the index pinned to an int 0..99 (bool rejected on desktop, non-integral rejected on Java) and the ref rebuilt server-side - a raw ref never reaches the command line. PROVEN LIVE end to end on the fixture (push tracked, count rides status, pops restore, fixture left clean).
+- C7-I6b FOUND+FIXED by that live probe: git stash push exits 0 with "No local changes to save" when only untracked files differ - a false ok. Both servers now translate it into an honest error pointing at the include-untracked option.
+- C7-I7 panel Stash section (count in the header, Apply/Pop/Drop per entry, Pop/Drop confirm-gated, untracked toggle). C7-I8 stash depth rides /api/git/status on both servers. C7-I9 agent GIT += stash read-only - with a process correction: batch 1's harness pin had passed on ONE parser site while the other still lacked branches; both sites are now updated and the verb-list count is pinned (>=2) in this batch's harness. C7-I10 PLAN loop honors pause and updates the pill per step - the Cycle 6 residual is closed.
+- Census moved by design again: 139/129 -> 141/131; the three A12 pins updated with dated notes.
+- Proof: version gate 2.96.0/201; esbuild exit 0; DOM-stub gate passes; run-all 123/123 (new cycle7-batch2-harness 5/5); build self-checks green; badging verified; asset carries renderStashes.
+- Built APK: md5 dcd629899e239718264a921e8b646b8f, versionCode 201, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.95.0 (versionCode 200) - Nov 2, 2026 - Campaign Cycle 7 (Flow) batch 1 (C7-I1-I5)
+- C7-I1/I2 branch routes both servers: GET /api/git/branches; POST /api/git/branch (create/delete/switch) with an identical name pin (_branch_name_ok / String.matches pair: no leading dash, no dot-dot, no trailing slash/.lock); current-branch delete refused server-side; delete uses -d so unmerged work is protected by git itself. PROVEN LIVE on the desktop fixture repo: list/create/switch plus flag-shaped, traversal, and current-delete refusals.
+- C7-I3 Git panel Branches section (current marked, per-branch Switch/Delete with confirm on delete, Create / Create + switch). C7-I4 branchChip tap opens the Git drawer. C7-I5 agent GIT += branches (read-only; switching stays human).
+- Census moved by design: 137/127 -> 139/129; the three older A12 census pins (cycles 4/5/6 audit3) were updated with dated notes, the established pattern.
+- Build lesson caught by the ritual: gitArgs returns List<String>, not String[] - the first build failed javac on the ternary; fixed by declaring List<String> args. Badging check caught the stale APK before anything shipped.
+- Proof: version gate 2.95.0/200; esbuild exit 0; DOM-stub gate passes; run-all 122/122 (new cycle7-batch1-harness 5/5); build self-checks green; badging verified; asset carries renderBranches.
+- Built APK: md5 f30e7df77bf86e62fa610f2bf1a10c4a, versionCode 200, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.94.0 (versionCode 199) - Nov 2, 2026 - Campaign Cycle 6 audit batch 4 (A16-A20 + loop rails) - CYCLE 6 COMPLETE
 - A16 leak sweep zero. A17 one decide route per server. A18 caps re-pinned (EXPLORE 6 steps, notes 8000, show 20000). A19 new surfaces textContent-rendered (A8 census held). A20 ritual held.
 - Rails: EXPLORE whitelist proven by negative space in its dispatch (no write/run/delete/MCP branches exist); NOTE confined to the one pinned path; queue single-run guard (runAgent refuses while busy; drain fires only after release); stop beats pause in the wait condition.
