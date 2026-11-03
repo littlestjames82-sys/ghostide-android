@@ -14,6 +14,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly drift check (Mondays 06:17 UTC): the
+    # suites run even when nothing was pushed, so a
+    # silent breakage upstream cannot age unnoticed.
+    - cron: "17 6 * * 1"
 
 jobs:
   frontend:
