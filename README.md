@@ -59,6 +59,8 @@ instead of pretending.
 
 ## The AI
 
+![The agent, illustrated: a spectral hand raised over a pause mark, with staged changes and an approval shield waiting below](docs/images/agent.png)
+
 - **On-device chat** with context modes (current file,
   smart slice, project slice via GhostSlice) against local
   Qwen2.5-Coder models — 0.5B Sprinter, 1.5B Balanced,
@@ -112,6 +114,8 @@ agent's git surface is read-only by construction.
   files themselves run on-device via Run.
 
 ## The ecosystem: 29 bundled tools
+
+![The ecosystem, illustrated: one ghost core with the bundled tools in orbit around it](docs/images/ecosystem.png)
 
 The app bundles the Ghost tool suite (bundle generation
 **e13**, extracted on first run) and executes the *real
