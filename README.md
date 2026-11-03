@@ -2,6 +2,8 @@
 
 # GhostIDE for Android 👻
 
+[![CI](https://github.com/littlestjames82-sys/ghostide-android/actions/workflows/ci.yml/badge.svg)](https://github.com/littlestjames82-sys/ghostide-android/actions/workflows/ci.yml)
+
 **A mobile-first, AI-powered software development environment
 with an integrated agent runtime and a governed developer
 ecosystem — running entirely on the phone.**
