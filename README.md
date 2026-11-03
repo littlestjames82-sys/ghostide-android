@@ -17,7 +17,7 @@ forever.
 
 **Your code never leaves the device. The AI lives here.**
 
-**▶ Watch it run: [the 54-second demo](docs/media/ghostide-demo.mp4)** —
+**▶ Watch it run: [the 55-second demo](docs/media/ghostide-demo.mp4)** —
 the real app, driven live: editor diagnostics on a real syntax
 error, the git client, a live test run, the ecosystem catalog,
 and the agent's approval controls. Narrated by Ryan.
