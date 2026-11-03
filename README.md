@@ -9,7 +9,7 @@ app-private storage and then work offline forever.
 
 **Your code never leaves the device. The AI lives here.**
 
-- Package: `com.ghostide.app` · min SDK 24 · target SDK 34
+- Package: `com.ghostide.app` · min SDK 24 · target SDK 36
   · arm64 only
 - The web IDE is the SAME frontend bundle as the desktop
   `ghost-ide` repo (one behavior pack, `BEHAVIOR.md`
@@ -20,7 +20,9 @@ app-private storage and then work offline forever.
 ## What the phone build does
 
 - Full editor: tabs, split view, find/replace, local
-  history, drafts with recovery, import/export/share.
+  history, drafts with recovery, import/export/share,
+  code folding, and live syntax diagnostics in the
+  gutter as you type.
 - On-device AI: chat with context modes (file, smart
   slice, project slice), agent mode with staged writes
   and diff review, autocomplete, inline edits.
@@ -33,7 +35,8 @@ app-private storage and then work offline forever.
   Termux packages), with a persistent REPL and real
   syntax checking.
 - Full git on the phone (bundled git 2.56): init,
-  status, diff, stage, commit, branches, blame, log.
+  status, diff, stage, commit, branches, stash, tags,
+  amend, worktrees, blame, log.
 - Voice coding: system speech recognition into chat or
   the editor, plus spoken commands ("save file",
   "run it", "Ask Ghost ...").
