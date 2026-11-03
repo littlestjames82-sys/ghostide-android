@@ -3,6 +3,18 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.00.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 2: timeouts, lineage, sink census, bundle freshness",
+   "summary": "Timeouts and signing lineage re-proven and the ecosystem stamp is consistent. The shipped bundle provably contains this cycle's features, and its HTML-sink census is unchanged at 101: every new surface, from branch rows to stash entries, renders through safe text APIs only."
+  },
+  {
+   "version": "2.99.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 1: pairing, traversal, atomic writes, secret sweep, bundle pins",
+   "summary": "The Flow Cycle's audits open on current code: the pairing gate still wraps every request, traversal stays refused, writes stay atomic, the planted secret canary appears in none of the probed responses including the new branch and stash routes, and the ecosystem bundle pins are unchanged."
+  },
+  {
    "version": "2.98.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 7 (Flow) batch 4: continuity - the Flow Cycle's improvements close",

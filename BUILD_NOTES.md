@@ -2963,6 +2963,17 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v2.99.0 (versionCode 204) - Nov 2, 2026 - Campaign Cycle 7 audit batch 1 (A1-A5)
+- A1 pair gate intact. A2 traversal + hash pin intact. A3 atomic writes intact. A4 canary sweep live on v2.98 code: 0 hits on git/status, git/branches, git/stash, health, eco/info - the new routes were swept in their first audit cycle. A5 eco pins unchanged (e13 / 29 / ghostmcp 0.3.2); full gate re-run this cycle.
+- Proof: version gate 2.99.0/204; esbuild exit 0; DOM-stub gate passes; run-all 126/126 (new cycle7-audit1-harness 5/5); build self-checks green; badging verified; sink census on the fresh bundle still 101 (feeds A8).
+- Built APK: md5 5e9587ab1774b956e927dd521336c192, versionCode 204, same signer (8ea8684a). NO UPLOAD per standing rule.
+
+## v2.98.0 (versionCode 203) - Nov 2, 2026 - Campaign Cycle 7 (Flow) batch 4 (C7-I16-I20) - IMPROVEMENTS COMPLETE
+- C7-I16 cursor positions ride the session: saveSession records each open tab's selection head (live view for the current tab, tabStates for the rest); restore parks them in pendingPos; activateTab applies each exactly once, clamped to the document as it now exists.
+- C7-I17 find query + replacement persist (ghostide.findText, restored on load, saved on input). C7-I18 Git copy-status line gains ", N stashed" (the Cycle 5 I10 harness pin updated to the extended line). C7-I19 agent priming's git briefing gains the stash-entry count. C7-I20 the non-repo refresh path now clears the Stash section + count as well as Branches, so workspace switches leave no stale git UI.
+- Proof: version gate 2.98.0/203; esbuild exit 0; DOM-stub gate passes; run-all 125/125 (new cycle7-batch4-harness 5/5); build self-checks green; badging verified; asset carries pendingPos.
+- Built APK: md5 e3a0399139e7b913eb12e8de7097884c, versionCode 203, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v2.97.0 (versionCode 202) - Nov 2, 2026 - Campaign Cycle 7 (Flow) batch 3 (C7-I11-I15)
 - C7-I11 /api/search options on both servers: ignoreCase + regex, defaults unchanged (case-sensitive substring), pattern capped at 200 chars, bad regex is a clean {error} on both (desktop re, Java java.util.regex fully qualified - no import churn). PROVEN LIVE on a throwaway workspace copy: default/ignoreCase/regex/bad-regex cases all correct.
 - C7-I12 find panel Aa + .* toggles, persisted in localStorage ghostide.findOpts. C7-I13 (re-scoped: result grouping already shipped in Cycle 4 I8) Prev/Next navigation over the last result set, wrapping, opening files and jumping to lines.
