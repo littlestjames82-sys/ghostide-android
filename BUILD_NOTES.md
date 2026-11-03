@@ -2963,6 +2963,13 @@ byte-matches the source build. Device pass is Ryan's.
 - Proof: esbuild clean; DOM-stub gate passes; 90/90 harness files (new cycle3-batch1-harness 7/7); build self-check green.
 - Built APK: 20,456,042 B, md5 6b93120cf69b6935554640414448be24, versionCode 168, compileSdk/targetSdk 36, minSdk 24, same signer (8ea8684a). Device pass is Ryan's: install over v2.62.0.
 
+## v3.05.0 (versionCode 210) - Nov 2, 2026 - Campaign Cycle 8 (Craft) batch 3 (C8-I11-I15)
+- Git finish: GET /api/git/tags + POST /api/git/tag + POST /api/git/amend on both servers (name rides the branch pin; tag target hash hex-pinned; amend folds staged changes with optional reword, git refusals surface). Panel Tags section, Tag-this-commit in the commit viewer, Amend last button whose confirm states exactly what folds. Agent GIT += tags read-only; the mutating tag/amend routes have exactly one caller each (the UI), pinned in the new harness.
+- PROVEN LIVE on the gitshow fixture: tag at HEAD, tag at hash, bad name and bad hash refused, amend folded a staged line and reworded HEAD; fixture restored to its two-commit clean state afterward.
+- Census moved by design +3/server to 144 desktop / 134 Java; the four older A12 pins were advanced with the full chain in their notes, and the Cycle 7 batch-1 verb pin followed the extended list (stash, now tags) - the Cycle 7 lesson (count-pin every parser site) caught all of these in run-all before the build, not after.
+- Proof: version gate 3.05.0/210; esbuild exit 0; DOM-stub gate passes; run-all 132/132 (new cycle8-batch3-harness 7/7); build self-checks green; badging verified; asset carries renderTags.
+- Built APK: md5 be2799487cd891ee8c97248603bca8eb, versionCode 210, same signer (8ea8684a). NO UPLOAD per standing rule.
+
 ## v3.04.0 (versionCode 209) - Nov 2, 2026 - Campaign Cycle 8 (Craft) batch 2 (C8-I6-I10)
 - The batch's finding: Fold all / Unfold all buttons and the foldAll import shipped long ago, but codeFolding() was in no extension list, so the commands had no fold state and silently did nothing. C8-I6 wires codeFolding() + foldGutter() via foldComp (state always present; gutter toggleable). C8-I7 foldKeymap in the main editor. C8-I8 Settings toggle reconfiguring both panes. C8-I9 the split pane's separate extension list gained fold + diag compartments and the keymap (it does not inherit baseExtensions - the same trap as any future compartment). C8-I10 the dead buttons are alive by construction.
 - Proof: version gate 3.04.0/209; esbuild exit 0; DOM-stub gate passes; run-all 131/131 (new cycle8-batch2-harness 5/5, incl. slice checks on both extension lists); build self-checks green; badging verified; asset carries foldGutter.

@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.06.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 4: tests craft (desktop runner)",
+   "summary": "The test panel works at the level you actually fix things: one test at a time. Discovered Python tests are listed individually and a tap runs just that one; after a run, a Re-run failed button runs only the failures; and the last run's verdict is remembered, shown when the panel opens and carried on the status-bar chip until the next run. Skipped tests in a narrowed run never count as passes. The phone keeps its honest note that the runner itself is desktop-only."
+  },
+  {
    "version": "3.05.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 8 (Craft) batch 3: git finish - tags and amend",

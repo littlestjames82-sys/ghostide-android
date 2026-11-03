@@ -44825,6 +44825,41 @@
     $("todoPanel").classList.remove("hidden");
   }
   var testDefLines = {};
+  var lastTestFailures = [];
+  function noteTestRun(d) {
+    try {
+      localStorage.setItem(
+        "ghostide.lastTests",
+        JSON.stringify({
+          passed: d.passed,
+          failed: d.failed,
+          ms: d.ms,
+          at: Date.now()
+        })
+      );
+    } catch (e) {
+    }
+    const chip = $("testChip");
+    if (!chip) return;
+    if (d.failed) {
+      chip.textContent = "\u{1F9EA} \u2717 " + d.failed + " failing";
+      chip.classList.remove("hidden");
+      chip.onclick = () => openTests();
+    } else {
+      chip.classList.add("hidden");
+    }
+  }
+  function lastTestLine() {
+    try {
+      const s = JSON.parse(
+        localStorage.getItem("ghostide.lastTests") || "null"
+      );
+      if (!s) return "";
+      return "Last run: " + s.passed + " passed, " + s.failed + " failed \xB7 " + new Date(s.at).toLocaleString();
+    } catch (e) {
+      return "";
+    }
+  }
   async function openTests() {
     hideTools();
     $("todoTitle").textContent = "Tests";
@@ -44853,6 +44888,13 @@
       box.appendChild(el);
       return;
     }
+    const lastLine = lastTestLine();
+    if (lastLine) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = lastLine;
+      box.appendChild(el);
+    }
     const all = document.createElement("div");
     all.className = "findRow";
     all.textContent = "\u25B6 Run all tests (" + files.length + " file(s))";
@@ -44864,18 +44906,29 @@
       row.textContent = "\u25B6 " + f.path + (f.tests && f.tests.length ? " \xB7 " + f.tests.length + " test(s)" : "");
       row.onclick = () => runTests(f.path);
       box.appendChild(row);
+      for (const t2 of f.tests || []) {
+        const tr = document.createElement("div");
+        tr.className = "findRow";
+        tr.textContent = "\u25B8 " + t2.name;
+        tr.onclick = () => runTests(f.path, t2.name);
+        box.appendChild(tr);
+      }
     }
   }
-  async function runTests(path) {
+  async function runTests(path, name2) {
     $("todoTitle").textContent = "Tests - running\u2026";
     const box = $("todoResults");
     box.innerHTML = '<div class="dim">Running\u2026</div>';
     $("todoPanel").classList.remove("hidden");
-    const d = await postJson(
-      "/api/tests/run",
-      path ? { path } : {}
-    );
-    box.innerHTML = "";
+    const body = {};
+    if (path) body.path = path;
+    if (name2) body.name = name2;
+    const d = await postJson("/api/tests/run", body);
+    renderTestResults(d, name2 ? "single test" : null);
+  }
+  function renderTestResults(d, scope) {
+    const box = $("todoResults");
+    box.textContent = "";
     if (d.error) {
       const el = document.createElement("div");
       el.className = "dim";
@@ -44884,7 +44937,16 @@
       $("todoTitle").textContent = "Tests";
       return;
     }
-    $("todoTitle").textContent = "Tests: " + d.passed + " passed, " + d.failed + " failed (" + d.ms + " ms)";
+    noteTestRun(d);
+    lastTestFailures = (d.results || []).filter((r) => r.status !== "pass").map((r) => ({ file: r.file, name: r.name }));
+    $("todoTitle").textContent = "Tests" + (scope ? " (" + scope + ")" : "") + ": " + d.passed + " passed, " + d.failed + " failed (" + d.ms + " ms)";
+    if (lastTestFailures.length && scope !== "failed re-run") {
+      const rr = document.createElement("div");
+      rr.className = "findRow";
+      rr.textContent = "\u21BB Re-run " + lastTestFailures.length + " failed test(s) only";
+      rr.onclick = rerunFailedTests;
+      box.appendChild(rr);
+    }
     if (!d.results.length) {
       const el = document.createElement("div");
       el.className = "dim";
@@ -44904,6 +44966,36 @@
       };
       box.appendChild(row);
     }
+  }
+  async function rerunFailedTests() {
+    const fails = lastTestFailures.slice();
+    if (!fails.length) return;
+    $("todoTitle").textContent = "Tests - re-running\u2026";
+    const box = $("todoResults");
+    box.innerHTML = '<div class="dim">Re-running ' + fails.length + " failed test(s)\u2026</div>";
+    const merged = { results: [], passed: 0, failed: 0, ms: 0 };
+    for (const f of fails) {
+      const d = await postJson(
+        "/api/tests/run",
+        { path: f.file, name: f.name }
+      );
+      if (d.error) {
+        merged.results.push({
+          name: f.name,
+          file: f.file,
+          line: null,
+          status: "fail",
+          message: d.error
+        });
+        merged.failed++;
+        continue;
+      }
+      for (const r of d.results) merged.results.push(r);
+      merged.passed += d.passed;
+      merged.failed += d.failed;
+      merged.ms += d.ms || 0;
+    }
+    renderTestResults(merged, "failed re-run");
   }
   $("toolTests").onclick = openTests;
   async function maybeRunTestsOnSave(savedPath) {
