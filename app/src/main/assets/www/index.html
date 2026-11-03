@@ -97,9 +97,19 @@ setTimeout(function () {
         </div>
         <div id="stashOut" class="dim"></div>
       </div>
+      <div class="git-remote">
+        <div class="dim">Tags</div>
+        <div id="tagList" class="dim"></div>
+        <div class="ghBtns">
+          <input id="tagName" placeholder="new tag name (marks HEAD)">
+          <button id="tagCreate">Tag HEAD</button>
+        </div>
+        <div id="tagOut" class="dim"></div>
+      </div>
       <div class="git-commit">
         <input id="commitMsg" placeholder="Commit message">
         <button id="commitBtn">Commit staged</button>
+        <button id="gitAmend" title="Fold staged changes into the last commit; uses the message box if filled, otherwise keeps the old message">Amend last</button>
         <button id="gitReview" title="Pre-commit review: secrets, bug risks, dead code">🔍 Review</button>
         <button id="gitGhostReview" title="GhostReview: plain-English verdict over the working-tree diff, secret-shaped lines flagged, values never shown">🧾 Verdict</button>
         <button id="gitGhostScope" title="GhostScope: what this change touches - changed files, neighbours, covering tests, riskiest-first">🎯 Scope</button>

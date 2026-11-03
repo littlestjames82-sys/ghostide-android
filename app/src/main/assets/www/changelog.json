@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.05.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 3: git finish - tags and amend",
+   "summary": "The git panel is complete. Tags get their own section: mark HEAD, delete with a confirm, and tag any older commit straight from the commit viewer. A new Amend last button folds staged changes into the last commit, with the confirm spelling out exactly what will change, and the message box can reword it at the same time. The agent can read the tag list but, as with branches and stashes, tagging and amending stay human acts."
+  },
+  {
    "version": "3.04.0",
    "date": "Nov 2, 2026",
    "goal": "Campaign Cycle 8 (Craft) batch 2: code folding, completed",
