@@ -120,7 +120,7 @@ jobs:
         with:
           repository: littlestjames82-sys/ghost-ide
           path: ghost-ide
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Live-server probe suites
