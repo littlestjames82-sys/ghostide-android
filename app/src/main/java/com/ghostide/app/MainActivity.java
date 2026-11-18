@@ -911,6 +911,46 @@ public class MainActivity extends Activity {
             });
         }
 
+        /* Mobile Cycle 2 (M4): git account tokens. The
+           bundle can save a token into the Keystore-backed
+           store and ask whether one exists; there is
+           deliberately no getter, so no page script can
+           ever read a token back out. IdeServer reads the
+           store in-process at git time. Failures answer
+           false / do nothing: the Settings status line
+           re-reads hasGitToken after every save, so a
+           failed save shows up as "no token saved". */
+        @android.webkit.JavascriptInterface
+        public boolean saveGitToken(final String host,
+                final String token) {
+            try {
+                GitTokenKeystore.forApp(
+                    getApplicationContext())
+                    .put(host, token);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public boolean hasGitToken(final String host) {
+            try {
+                return GitTokenKeystore.forApp(
+                    getApplicationContext()).has(host);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public void removeGitToken(final String host) {
+            try {
+                GitTokenKeystore.forApp(
+                    getApplicationContext()).remove(host);
+            } catch (Exception ignored) {}
+        }
+
         /* Mobile Cycle 1 (M5): hand a URL to the system
            browser - the APK update check's Download
            button. https only, and that is all it does:

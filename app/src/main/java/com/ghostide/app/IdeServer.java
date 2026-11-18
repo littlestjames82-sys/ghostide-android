@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "3.20.0";
+    static final String VERSION = "3.21.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -584,6 +584,11 @@ public final class IdeServer {
                         r.stdout, r.stderr, r.ms);
                 }
             });
+        try {
+            this.gitTokens = GitTokenKeystore.forApp(this.ctx);
+        } catch (Exception e) {
+            this.gitTokens = null;
+        }
     }
 
     File workspaceDir() { return workspace; }
@@ -2052,6 +2057,7 @@ public final class IdeServer {
                     int ahead = 0;
                     int behind = 0;
                     StringBuilder ch = new StringBuilder();
+                    StringBuilder conf = new StringBuilder();
                     for (String ln : gr.stdout.split("\n")) {
                         if (ln.startsWith("## ")) {
                             String b = ln.substring(3);
@@ -2073,6 +2079,16 @@ public final class IdeServer {
                               .append(Json.quote(
                                   ln.substring(3).trim()))
                               .append("}");
+                            // M4: D9 parity - unmerged
+                            // paths ride the same status,
+                            // as on the desktop server.
+                            if (isConflictXY(ln.charAt(0),
+                                    ln.charAt(1))) {
+                                if (conf.length() > 0)
+                                    conf.append(",");
+                                conf.append(Json.quote(
+                                    ln.substring(3).trim()));
+                            }
                         }
                     }
                     String scopeLine = "";
@@ -2104,11 +2120,16 @@ public final class IdeServer {
                                 if (!ln.trim().isEmpty())
                                     stashN++;
                     } catch (Exception ignored) {}
+                    String mergeState = gitMergeState();
                     sendJson(out, "{\"repo\":true,\"branch\":"
                         + Json.quote(branch) + ",\"ahead\":"
                         + ahead + ",\"behind\":" + behind
                         + ",\"changes\":["
                         + ch + "],\"stash\":" + stashN
+                        + ",\"conflicts\":[" + conf + "]"
+                        + ",\"mergeState\":"
+                        + (mergeState == null ? "null"
+                            : Json.quote(mergeState))
                         + ",\"scope_line\":"
                         + Json.quote(scopeLine) + "}");
                     return;
@@ -2171,6 +2192,72 @@ public final class IdeServer {
                         }
                     }
                     sendJson(out, "{\"commits\":[" + cm + "]}");
+                    return;
+                }
+                if (path.equals("/api/git/conflict")) {
+                    /* M4: D9 parity - base / ours / theirs
+                       stage contents plus the working file
+                       for one conflicted path, in exactly
+                       the desktop server's shape. A stage
+                       that does not exist in this conflict
+                       comes back null, never an error. The
+                       phone card resolver and the desktop
+                       three-pane editor read the same
+                       endpoint. */
+                    String rel = queryParam(query, "path");
+                    File wf = safe(rel);
+                    ProcResult lu = gitRun(gitArgs(
+                        "ls-files", "-u", "--", rel));
+                    if (lu.code != 0)
+                        throw new IOException(trimTo(
+                            lu.stderr, 300));
+                    java.util.Set<Integer> stages =
+                        new java.util.TreeSet<>();
+                    for (String ln : lu.stdout.split("\n")) {
+                        String[] parts = ln.trim()
+                            .split("\\s+");
+                        if (parts.length >= 3) {
+                            try {
+                                stages.add(Integer.parseInt(
+                                    parts[2]));
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                    if (stages.isEmpty())
+                        throw new IOException(
+                            "no conflict recorded for " + rel);
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("{\"path\":").append(
+                        Json.quote(rel));
+                    sb.append(",\"stages\":[");
+                    boolean firstStage = true;
+                    for (int n : stages) {
+                        if (!firstStage) sb.append(",");
+                        firstStage = false;
+                        sb.append(n);
+                    }
+                    sb.append("]");
+                    String[] keys = {"base", "ours", "theirs"};
+                    for (int n = 1; n <= 3; n++) {
+                        sb.append(",\"").append(keys[n - 1])
+                          .append("\":");
+                        if (stages.contains(n)) {
+                            ProcResult sh = gitRun(gitArgs(
+                                "show", ":" + n + ":" + rel));
+                            sb.append(sh.code == 0
+                                ? Json.quote(sh.stdout)
+                                : "null");
+                        } else {
+                            sb.append("null");
+                        }
+                    }
+                    sb.append(",\"working\":");
+                    if (wf.isFile())
+                        sb.append(Json.quote(readFile(wf)));
+                    else
+                        sb.append("null");
+                    sb.append("}");
+                    sendJson(out, sb.toString());
                     return;
                 }
                 if (path.equals("/api/git/show")) {
@@ -2640,9 +2727,18 @@ public final class IdeServer {
                         throw new IOException(
                             "ctarget folder exists and is not "
                             + "empty: " + ctarget);
-                    ProcResult gr = gitNetRun(gitArgs("clone",
-                        curl, ctarget),
-                        Json.str(gd, "token", "").trim(), 300);
+                    /* M4: the token comes from the
+                       Keystore store, keyed by the clone
+                       URL's host; a token in the request
+                       body is ignored on purpose. Clone
+                       depth rides the same body fields the
+                       desktop server reads (full / depth),
+                       defaulting to shallow. */
+                    ProcResult gr = gitNetRun(
+                        GitSupport.cloneArgs(curl, ctarget,
+                            truthy(gd.get("full")),
+                            Json.num(gd, "depth", 0)),
+                        storedTokenForUrl(curl), 300);
                     if (gr.code != 0)
                         throw new IOException(trimTo(
                             (gr.stderr == null
@@ -2668,7 +2764,9 @@ public final class IdeServer {
                         fargs.add(remote);
                     }
                     ProcResult gr = gitNetRun(fargs,
-                        Json.str(gd, "token", "").trim(), 180);
+                        storedTokenForRemote(
+                            remote.isEmpty()
+                                ? "origin" : remote), 180);
                     if (gr.code != 0)
                         throw new IOException(trimTo(
                             (gr.stderr == null
@@ -2684,7 +2782,7 @@ public final class IdeServer {
                     Map<String, Object> gd = Json.obj(Json.parse(
                         new String(body, StandardCharsets.UTF_8)));
                     ProcResult gr = gitNetRun(gitArgs("pull"),
-                        Json.str(gd, "token", "").trim(), 180);
+                        storedTokenForRemote("origin"), 180);
                     if (gr.code != 0)
                         throw new IOException(trimTo(
                             (gr.stderr == null
@@ -2706,7 +2804,7 @@ public final class IdeServer {
                         ? gitArgs("push")
                         : gitArgs("push", "-u", "origin", "HEAD");
                     ProcResult gr = gitNetRun(pargs,
-                        Json.str(gd, "token", "").trim(), 180);
+                        storedTokenForRemote("origin"), 180);
                     if (gr.code != 0)
                         throw new IOException(trimTo(
                             (gr.stderr == null
@@ -2715,6 +2813,37 @@ public final class IdeServer {
                     sendJson(out, "{\"ok\":true,\"output\":"
                         + Json.quote(trimTo(gr.stdout + "\n"
                             + gr.stderr, 300)) + "}");
+                    return;
+                }
+                if (path.equals("/api/git/conflict/resolve")
+                        && method.equals("POST")) {
+                    /* M4: D9 parity - write the resolved
+                       content and stage it, returning how
+                       many conflicted files remain, in the
+                       desktop server's shape. Nothing here
+                       commits or continues the operation:
+                       that stays the user's step. */
+                    Map<String, Object> gd = Json.obj(
+                        Json.parse(new String(body,
+                            StandardCharsets.UTF_8)));
+                    String rel = Json.str(gd, "path", "");
+                    String content = Json.str(gd, "content",
+                        "");
+                    File wf = safe(rel);
+                    if (wf.getParentFile() != null)
+                        wf.getParentFile().mkdirs();
+                    writeFile(wf, content);
+                    ProcResult gr = gitRun(gitArgs("add",
+                        "--", rel));
+                    if (gr.code != 0)
+                        throw new IOException(trimTo(
+                            gr.stderr, 300));
+                    String mergeState = gitMergeState();
+                    sendJson(out, "{\"ok\":true,\"remaining\":"
+                        + gitConflictPaths().size()
+                        + ",\"mergeState\":"
+                        + (mergeState == null ? "null"
+                            : Json.quote(mergeState)) + "}");
                     return;
                 }
                 sendJson(out, 400, "{\"error\":\"unknown git "
@@ -7433,6 +7562,86 @@ public final class IdeServer {
        split); these delegates keep call sites as-is. */
     private GitSupport git;
     private BackupService backupService;
+
+    /* Mobile Cycle 2 (M4): the Keystore-backed git token
+       store. Read in-process only, at git time; the token
+       a request uses comes from here, never from the
+       request body, so the JS bundle never handles a
+       stored token at all. Null when the store could not
+       be opened (git then runs without a token and the
+       remote's own auth error is the honest answer). */
+    private GitTokenStore gitTokens;
+
+    private String storedTokenForUrl(String url) {
+        if (gitTokens == null || url == null) return "";
+        String host = GitTokenStore.hostOf(url);
+        if (host == null) return "";
+        String t = gitTokens.tokenFor(host);
+        return t == null ? "" : t;
+    }
+
+    private String storedTokenForRemote(String remote) {
+        try {
+            ProcResult r = gitRun(gitArgs("remote",
+                "get-url", remote));
+            if (r.code == 0)
+                return storedTokenForUrl(r.stdout.trim());
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    private static boolean truthy(Object v) {
+        if (v instanceof Boolean) return (Boolean) v;
+        if (v == null) return false;
+        String s = String.valueOf(v).trim();
+        return s.equalsIgnoreCase("true") || s.equals("1");
+    }
+
+    /* D9 parity (M4): the in-progress operation, read
+       from .git state exactly as server.py reads it.
+       Rebase is checked first: a rebase can also leave a
+       CHERRY_PICK_HEAD behind while it runs. */
+    private String gitMergeState() {
+        try {
+            ProcResult r = gitRun(gitArgs("rev-parse",
+                "--git-dir"));
+            if (r.code != 0) return null;
+            String gd = r.stdout.trim();
+            File dir = gd.startsWith("/")
+                ? new File(gd) : new File(workspace, gd);
+            if (new File(dir, "rebase-merge").isDirectory()
+                    || new File(dir, "rebase-apply")
+                        .isDirectory())
+                return "rebase";
+            if (new File(dir, "MERGE_HEAD").isFile())
+                return "merge";
+            if (new File(dir, "CHERRY_PICK_HEAD").isFile())
+                return "cherry-pick";
+            if (new File(dir, "REVERT_HEAD").isFile())
+                return "revert";
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private static boolean isConflictXY(char x, char y) {
+        return x == 'U' || y == 'U'
+            || (x == 'A' && y == 'A')
+            || (x == 'D' && y == 'D');
+    }
+
+    private List<String> gitConflictPaths()
+            throws IOException {
+        ProcResult gr = gitRun(gitArgs("status",
+            "--porcelain=v1"));
+        List<String> paths = new ArrayList<>();
+        if (gr.code != 0) return paths;
+        for (String ln : gr.stdout.split("\n"))
+            if (ln.length() > 3
+                    && isConflictXY(ln.charAt(0),
+                        ln.charAt(1)))
+                paths.add(ln.substring(3).trim());
+        return paths;
+    }
 
     private Map<String, String> gitEnv() {
         return git.gitEnv();

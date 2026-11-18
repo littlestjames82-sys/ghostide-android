@@ -130,7 +130,10 @@ setTimeout(function () {
       <div class="git-remote">
         <div class="dim">GitHub / remote</div>
         <input id="ghToken" type="password" placeholder="GitHub token (stays on this device)">
+        <div id="ghTokenNote" class="dim hidden">Token is stored in secure device storage. Manage it in Settings, Git accounts.</div>
         <input id="ghRemoteUrl" placeholder="Remote URL (https://github.com/you/repo.git)">
+        <label><input type="checkbox" id="ghFullClone"> Full clone (all history and branches)</label>
+        <div class="dim">Clones are shallow by default: latest snapshot only (depth 1, one branch), so large repos stay fast. Fetch, pull and push work as usual.</div>
         <div class="ghBtns">
           <button id="ghSaveRemote">Save remote</button>
           <button id="ghClone">Clone</button>
@@ -853,7 +856,8 @@ setTimeout(function () {
     <div><div class="dim">Theirs (incoming)</div><pre id="conflictTheirs"></pre></div>
   </div>
   <div id="conflictBlocks"></div>
-  <div class="dim">Result: use the buttons above per conflict, or edit the text by hand.</div>
+  <div id="conflictCards"></div>
+  <div class="dim" id="conflictResultLabel">Result: use the buttons above per conflict, or edit the text by hand.</div>
   <textarea id="conflictResult" rows="12" spellcheck="false"></textarea>
   <div id="conflictCount" class="dim"></div>
   <div id="conflictMsg" class="dim"></div>
@@ -1017,6 +1021,17 @@ setTimeout(function () {
     <input type="text" id="setSymbolKeys" spellcheck="false" autocomplete="off"></label>
   <div class="optRow"><button id="setSymbolKeysReset" type="button">Reset symbol row keys to default</button></div>
   <p class="dim">The row scrolls sideways inside itself, so put the keys you use most first. It only appears at phone widths while the editor has focus.</p>
+  <h4>GIT ACCOUNTS</h4>
+  <div id="gitAcctAndroid">
+    <label>Host
+      <input type="text" id="gitAcctHost" value="github.com" spellcheck="false" autocomplete="off"></label>
+    <label>Personal access token
+      <input type="password" id="gitAcctToken" placeholder="Paste token" autocomplete="off"></label>
+    <div class="optRow"><button id="gitAcctSave" type="button">Save token</button><button id="gitAcctRemove" type="button">Remove token</button></div>
+    <div id="gitAcctStatus" class="dim"></div>
+    <p class="dim">The token is encrypted with a key in the Android Keystore and stays on this device. The app uses it only to sign git requests for that host. It is never written into a repo, a remote URL, or this page's storage, and this page cannot read it back.</p>
+  </div>
+  <p id="gitAcctDesktopNote" class="dim hidden">On desktop, the git token is entered in the Git panel and sent only to your local server with each request. There is nothing to set up here.</p>
   <h4>SETTINGS TOOLS</h4>
   <div class="optRow"><button id="setExportBtn">Export settings</button><button id="setImportBtn">Import settings</button><button id="setResetBtn">Reset all settings</button></div>
   <div id="appInfo" class="dim"></div>

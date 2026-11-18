@@ -36190,6 +36190,33 @@
     const u = String(url || "").trim();
     return !!u && !u.startsWith("-");
   }
+  function gitAccountsBridge(g) {
+    return !!g && typeof g.saveGitToken === "function" && typeof g.hasGitToken === "function" && typeof g.removeGitToken === "function";
+  }
+  function cloneRequestBody(url, dir, full) {
+    return { url, dir, full: !!full };
+  }
+  function conflictSegIndices(segs) {
+    const out = [];
+    segs.forEach((s, i2) => {
+      if (s.kind === "conflict") out.push(i2);
+    });
+    return out;
+  }
+  function nextConflictSeg(segs, fromIdx) {
+    const idxs = conflictSegIndices(segs);
+    if (!idxs.length) return -1;
+    for (const i2 of idxs) if (i2 >= fromIdx) return i2;
+    return idxs[0];
+  }
+  function cardProgress(totalAtOpen, segs) {
+    const remaining = conflictSegIndices(segs).length;
+    return {
+      total: totalAtOpen,
+      remaining,
+      resolved: Math.max(0, totalAtOpen - remaining)
+    };
+  }
   function aboutText(info, entry, evidence) {
     let out = info;
     if (entry) out += "\n\nLatest change (v" + entry.version + ", " + entry.goal + "): " + entry.summary;
@@ -37240,6 +37267,7 @@
       if (lines[i2].startsWith("<<<<<<<")) {
         const raw = [lines[i2]];
         const ours = [];
+        const base2 = [];
         const theirs = [];
         let side = 0;
         i2++;
@@ -37261,6 +37289,7 @@
             continue;
           }
           if (side === 0) ours.push(ln);
+          else if (side === 1) base2.push(ln);
           else if (side === 2) theirs.push(ln);
         }
         if (!closed) {
@@ -37271,6 +37300,7 @@
         segs.push({
           kind: "conflict",
           ours: ours.join("\n"),
+          base: base2.join("\n"),
           theirs: theirs.join("\n"),
           raw: raw.join("\n")
         });
@@ -37314,6 +37344,7 @@
       box.appendChild(row);
     });
     updateConflictCount();
+    renderConflictCards();
   }
   function applyConflictChoice(segIdx, choice) {
     const ta = $("conflictResult");
@@ -37346,6 +37377,114 @@
       msg.textContent = n ? "Saving is blocked while conflict markers remain, unless you override on the save prompt (a hand-resolved file can legitimately contain marker-like text)." : "";
     }
   }
+  var conflictTotal = 0;
+  var conflictCardSeg = -1;
+  function renderConflictCards() {
+    const box = $("conflictCards");
+    if (!box) return;
+    box.textContent = "";
+    if (!conflictPath || !conflictTotal) return;
+    const ta = $("conflictResult");
+    const segs = splitConflictBlocks(ta.value);
+    const prog = cardProgress(conflictTotal, segs);
+    const head = document.createElement("div");
+    head.className = "conflictCardHead";
+    const title = document.createElement("span");
+    if (!prog.remaining) {
+      title.textContent = "All " + prog.total + " conflicts resolved";
+      head.appendChild(title);
+      box.appendChild(head);
+      const done = document.createElement("div");
+      done.className = "dim";
+      done.textContent = "Save the result to stage it. Nothing is committed until you commit it.";
+      box.appendChild(done);
+      conflictCardSeg = -1;
+      return;
+    }
+    if (conflictCardSeg < 0 || !segs[conflictCardSeg] || segs[conflictCardSeg].kind !== "conflict")
+      conflictCardSeg = nextConflictSeg(segs, 0);
+    const segIdx = conflictCardSeg;
+    const seg = segs[segIdx];
+    title.textContent = "Conflict " + (prog.resolved + 1) + " of " + prog.total;
+    head.appendChild(title);
+    const left = document.createElement("span");
+    left.className = "dim";
+    left.textContent = prog.remaining + " remaining";
+    head.appendChild(left);
+    box.appendChild(head);
+    const card = document.createElement("div");
+    card.className = "conflictCard";
+    const sections = [
+      [
+        "Ours (current branch)",
+        seg.ours === "" ? "(empty)" : seg.ours
+      ],
+      [
+        "Base (common ancestor)",
+        seg.base ? seg.base : "(no base recorded for this block)"
+      ],
+      [
+        "Theirs (incoming)",
+        seg.theirs === "" ? "(empty)" : seg.theirs
+      ]
+    ];
+    for (const pair2 of sections) {
+      const lab = document.createElement("div");
+      lab.className = "dim";
+      lab.textContent = pair2[0];
+      card.appendChild(lab);
+      const pre = document.createElement("pre");
+      pre.className = "conflictCardPre";
+      pre.textContent = pair2[1];
+      card.appendChild(pre);
+    }
+    const btns = document.createElement("div");
+    btns.className = "conflictCardBtns";
+    const choices = [
+      ["Use ours", "ours"],
+      ["Use theirs", "theirs"],
+      ["Use both (ours first)", "ours-theirs"],
+      ["Use both (theirs first)", "theirs-ours"]
+    ];
+    for (const pair2 of choices) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = pair2[0];
+      b.onclick = () => {
+        applyConflictChoice(segIdx, pair2[1]);
+        conflictCardSeg = nextConflictSeg(
+          splitConflictBlocks(ta.value),
+          segIdx
+        );
+      };
+      btns.appendChild(b);
+    }
+    card.appendChild(btns);
+    const nav2 = document.createElement("div");
+    nav2.className = "conflictCardBtns";
+    const idxs = conflictSegIndices(segs);
+    const pos = idxs.indexOf(segIdx);
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.textContent = "Previous";
+    prev.disabled = idxs.length < 2;
+    prev.onclick = () => {
+      conflictCardSeg = idxs[(pos - 1 + idxs.length) % idxs.length];
+      renderConflictCards();
+    };
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "Next";
+    next.disabled = idxs.length < 2;
+    next.onclick = () => {
+      conflictCardSeg = idxs[(pos + 1) % idxs.length];
+      renderConflictCards();
+    };
+    nav2.appendChild(prev);
+    nav2.appendChild(next);
+    card.appendChild(nav2);
+    box.appendChild(card);
+  }
   async function openConflict(path) {
     let d = null;
     try {
@@ -37359,6 +37498,8 @@
       return;
     }
     conflictPath = path;
+    conflictTotal = countConflictBlocks(d.working || "");
+    conflictCardSeg = -1;
     $("conflictTitle").textContent = "Resolve conflict: " + path;
     $("conflictBase").textContent = d.base == null ? "(no base version in this conflict)" : d.base;
     $("conflictOurs").textContent = d.ours == null ? "(no version on the current branch)" : d.ours;
@@ -37397,6 +37538,7 @@
     loadFiles();
   };
   function ghToken() {
+    if (gitAccountsBridge(window.GhostNative)) return "";
     const el = $("ghToken");
     return el ? el.value.trim() : "";
   }
@@ -37441,16 +37583,22 @@
   (function wireGhConnect() {
     const tok = $("ghToken");
     if (!tok) return;
-    try {
-      tok.value = localStorage.getItem("ghostide-gh-token") || "";
-    } catch (e) {
-    }
-    tok.addEventListener("change", function() {
+    if (gitAccountsBridge(window.GhostNative)) {
+      tok.classList.add("hidden");
+      const note = $("ghTokenNote");
+      if (note) note.classList.remove("hidden");
+    } else {
       try {
-        localStorage.setItem("ghostide-gh-token", tok.value.trim());
+        tok.value = localStorage.getItem("ghostide-gh-token") || "";
       } catch (e) {
       }
-    });
+      tok.addEventListener("change", function() {
+        try {
+          localStorage.setItem("ghostide-gh-token", tok.value.trim());
+        } catch (e) {
+        }
+      });
+    }
     $("ghSaveRemote").onclick = async () => {
       const url = $("ghRemoteUrl").value.trim();
       if (!validRemoteUrl(url)) {
@@ -37477,9 +37625,14 @@
         repoNameFromUrl(url)
       );
       if (!dir) return;
+      const fullEl = $("ghFullClone");
       const r = await ghPost(
         "/api/git/clone",
-        { url, dir: dir.trim() }
+        cloneRequestBody(
+          url,
+          dir.trim(),
+          !!(fullEl && fullEl.checked)
+        )
       );
       if (r) {
         loadFiles();
@@ -37501,6 +37654,93 @@
       if (r) refreshGit();
     };
   })();
+  var gitAcctMigrated = false;
+  function gitAcctHost() {
+    const el = $("gitAcctHost");
+    const h = el ? el.value.trim() : "";
+    return h || "github.com";
+  }
+  function refreshGitAcctStatus() {
+    const el = $("gitAcctStatus");
+    if (!el) return;
+    if (!gitAccountsBridge(window.GhostNative)) return;
+    const host = gitAcctHost();
+    let msg;
+    try {
+      msg = window.GhostNative.hasGitToken(host) ? "Token saved for " + host + "." : "No token saved for " + host + ".";
+    } catch (e) {
+      msg = "Secure token storage is not available.";
+    }
+    if (gitAcctMigrated)
+      msg += " Your previously saved token was moved here from the Git panel.";
+    el.textContent = msg;
+  }
+  function initGitAccounts() {
+    const sec = $("gitAcctAndroid");
+    if (!sec) return;
+    const note = $("gitAcctDesktopNote");
+    if (!gitAccountsBridge(window.GhostNative)) {
+      sec.classList.add("hidden");
+      if (note) note.classList.remove("hidden");
+      return;
+    }
+    if (note) note.classList.add("hidden");
+    try {
+      const legacy = localStorage.getItem("ghostide-gh-token");
+      if (legacy && legacy.trim()) {
+        if (window.GhostNative.saveGitToken(
+          "github.com",
+          legacy.trim()
+        )) {
+          gitAcctMigrated = true;
+          const tok = $("ghToken");
+          if (tok) tok.value = "";
+        }
+      }
+      if (legacy !== null)
+        localStorage.removeItem("ghostide-gh-token");
+    } catch (e) {
+    }
+    const save = $("gitAcctSave");
+    if (save) save.onclick = () => {
+      const fld = $("gitAcctToken");
+      const token = fld ? fld.value.trim() : "";
+      if (!token) {
+        $("gitAcctStatus").textContent = "Paste a token first.";
+        return;
+      }
+      let okSave = false;
+      try {
+        okSave = window.GhostNative.saveGitToken(
+          gitAcctHost(),
+          token
+        );
+      } catch (e) {
+        okSave = false;
+      }
+      if (fld) fld.value = "";
+      if (!okSave) {
+        $("gitAcctStatus").textContent = "That token could not be saved. Check the host name and try again.";
+        return;
+      }
+      refreshGitAcctStatus();
+    };
+    const remove2 = $("gitAcctRemove");
+    if (remove2) remove2.onclick = () => {
+      try {
+        window.GhostNative.removeGitToken(gitAcctHost());
+      } catch (e) {
+      }
+      refreshGitAcctStatus();
+    };
+    const hostEl = $("gitAcctHost");
+    if (hostEl) hostEl.addEventListener(
+      "change",
+      refreshGitAcctStatus
+    );
+    refreshGitAcctStatus();
+  }
+  initGitAccounts();
   $("commitBtn").onclick = async () => {
     const msg = $("commitMsg").value.trim();
     if (!msg) {

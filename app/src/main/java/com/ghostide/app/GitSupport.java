@@ -258,6 +258,28 @@ final class GitSupport {
         }
     }
 
+    /* Mobile Cycle 2 (M4): clone arguments. The default
+       clone is shallow - depth 1, single branch - because
+       on a phone the history is almost never the point and
+       a large repo's full history is the difference between
+       seconds and minutes on a mobile connection. A full
+       clone is the explicit opt-in. server.py builds the
+       same arguments for the same request body, so the two
+       servers cannot drift on this. */
+    static List<String> cloneArgs(String url, String dir,
+            boolean full, int depth) {
+        List<String> args = new ArrayList<>();
+        args.add("clone");
+        if (!full) {
+            args.add("--depth");
+            args.add(String.valueOf(depth > 0 ? depth : 1));
+            args.add("--single-branch");
+        }
+        args.add(url);
+        args.add(dir);
+        return args;
+    }
+
     static List<String> gitArgs(String... a) {
         List<String> l = new ArrayList<>();
         for (String s : a) l.add(s);

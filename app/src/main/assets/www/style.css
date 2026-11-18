@@ -1185,3 +1185,42 @@ input:focus, select:focus, textarea:focus {
   .gitRow button, .hunkHead button,
   .conflictRow button { min-height: 40px; }
 }
+
+/* ---------- Mobile Cycle 2 (M4): conflict cards ----
+   The card resolver is the phone presentation of the
+   D9 conflict editor: one unresolved block per card,
+   ours / base / theirs stacked so each side is readable
+   at phone width, the desktop choices as full-width
+   touch targets. The three-pane grid, the per-block
+   rows and the Result textarea stay the desktop
+   presentation and are hidden at phone widths; both
+   presentations drive the same Result text and the
+   same save path. Card sections scroll inside the card;
+   the page never scrolls sideways. */
+#conflictCards { display: none; }
+.conflictCardHead {
+  display: flex; gap: 8px; align-items: baseline;
+  flex-wrap: wrap; font-size: 13px; margin: 2px 0 6px;
+}
+.conflictCard {
+  display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px; background: var(--bg);
+}
+.conflictCardPre {
+  margin: 0; overflow: auto; max-height: 180px;
+  font-size: 11.5px; white-space: pre;
+  background: var(--panel-2); border-radius: 6px;
+  padding: 8px;
+}
+.conflictCardBtns {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+@media (max-width: 900px) {
+  #conflictCards { display: block; }
+  #conflictPanes, #conflictBlocks,
+  #conflictResult, #conflictResultLabel {
+    display: none;
+  }
+  .conflictCardBtns button { min-height: 40px; }
+}
