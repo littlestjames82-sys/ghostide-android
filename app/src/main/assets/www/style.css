@@ -1180,6 +1180,12 @@ input:focus, select:focus, textarea:focus {
     display: inline-flex; align-items: center;
     justify-content: center;
   }
+  /* Mobile Cycle 2 (M7): the composer row joins the
+     touch pass now that its mic starts voice-to-prompt;
+     the mic itself also gets a 40px width so the target
+     is square. */
+  .chat-input button { min-height: 40px; }
+  #chatMic { min-width: 40px; }
   #viewBar button { min-height: 40px; }
   .panel-head button { min-height: 40px; }
   .gitRow button, .hunkHead button,
@@ -1223,4 +1229,20 @@ input:focus, select:focus, textarea:focus {
     display: none;
   }
   .conflictCardBtns button { min-height: 40px; }
+}
+
+/* ---------- Mobile Cycle 2 (M7): voice-to-prompt ----
+   The status line sits under the composer and carries
+   the dictation states in plain words (which
+   recognition is in use, and every way a session can
+   end). It is hidden whenever it has nothing to say.
+   The mic shows a stop glyph on an accent ground while
+   a session is live, so "I am being heard" is never
+   ambiguous. The mic itself is hidden by the bundle
+   wherever the composer recogniser does not exist
+   (anywhere but the phone's bridge). */
+#voiceStatus { margin-top: 6px; }
+#chatMic.listening {
+  background: var(--ghost-accent); color: #fff;
+  border-color: var(--ghost-accent);
 }

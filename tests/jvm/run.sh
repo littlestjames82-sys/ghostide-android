@@ -20,8 +20,9 @@ javac -d "$OUT" \
   "$APP/PairHub.java" "$APP/BackupService.java" \
   "$APP/GitSupport.java" "$APP/GitTokenStore.java" \
   "$APP/Models.java" "$APP/PhoneGuard.java" \
+  "$APP/VoiceSupport.java" \
   BkTest.java ZgTest.java PcTest.java PhTest.java \
-  RsTest.java GtTest.java PgTest.java
+  RsTest.java GtTest.java PgTest.java VcTest.java
 java -cp "$OUT" com.ghostide.app.BkTest
 java -cp "$OUT" com.ghostide.app.ZgTest
 java -cp "$OUT" com.ghostide.app.PcTest
@@ -29,4 +30,5 @@ java -cp "$OUT" com.ghostide.app.PhTest
 java -cp "$OUT" com.ghostide.app.RsTest
 java -cp "$OUT" com.ghostide.app.GtTest
 java -cp "$OUT" com.ghostide.app.PgTest
+java -cp "$OUT" com.ghostide.app.VcTest
 echo "JVM SUITES OK"

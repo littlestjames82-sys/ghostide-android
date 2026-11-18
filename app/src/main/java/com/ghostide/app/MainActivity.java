@@ -76,6 +76,15 @@ public class MainActivity extends Activity {
     private static final int REQ_SPEECH = 103;
     private static final int REQ_MIC_PERM = 104;
     private String voiceTarget = "chat";
+    /* Mobile Cycle 2 (M7): the composer dictation
+       session (in-process SpeechRecognizer). The legacy
+       G13 path above it uses the speech activity and
+       needs none of this. voicePermForComposer tells
+       onRequestPermissionsResult which flow is waiting
+       on the RECORD_AUDIO answer. */
+    private android.speech.SpeechRecognizer composerRec;
+    private boolean composerListening = false;
+    private boolean voicePermForComposer = false;
     private File pendingExport;
 
     private static final int BG = Color.rgb(23, 24, 28);
@@ -151,6 +160,11 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (composerRec != null) {
+            try { composerRec.destroy(); } catch (Exception ignored) {}
+            composerRec = null;
+            composerListening = false;
+        }
         brain.free();
         super.onDestroy();
     }
@@ -1191,6 +1205,33 @@ public class MainActivity extends Activity {
                 }
             });
         }
+
+        /* Mobile Cycle 2 (M7): composer dictation. A
+           second tap while a session is live stops it
+           (the recogniser still delivers what it heard);
+           otherwise a session starts, through the same
+           RECORD_AUDIO permission the legacy path uses.
+           Results return to the page through the
+           __ghostVoicePrompt* callbacks, never through
+           the legacy __ghostVoiceResult: the composer
+           path carries no commands and sends nothing. */
+        @android.webkit.JavascriptInterface
+        public void startComposerDictation() {
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    toggleComposerDictation();
+                }
+            });
+        }
+
+        @android.webkit.JavascriptInterface
+        public void stopComposerDictation() {
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    stopComposerSession();
+                }
+            });
+        }
     }
 
     private void startDictation(String target) {
@@ -1199,12 +1240,190 @@ public class MainActivity extends Activity {
                 android.Manifest.permission.RECORD_AUDIO)
                 != android.content.pm.PackageManager
                     .PERMISSION_GRANTED) {
+            voicePermForComposer = false;
             requestPermissions(new String[]{
                 android.Manifest.permission.RECORD_AUDIO},
                 REQ_MIC_PERM);
             return;
         }
         fireSpeechIntent();
+    }
+
+    /* ---------------- Mobile Cycle 2 (M7): composer
+       dictation ----------------
+       The legacy path above runs the system's speech
+       ACTIVITY: it can only hand back one finished
+       string, and every failure (no recogniser,
+       permission denied, cancelled) collapses to the
+       same silent null. The composer needs more: live
+       partials while the user speaks, and a named state
+       for every way a session can end, so the prompt
+       box can say what happened in plain words. That
+       means the in-process SpeechRecognizer API, which
+       is what runs here. On API 31+ the on-device
+       recogniser is used when the device reports one
+       (genuinely offline); below that, or without one,
+       the system speech service runs it, and
+       EXTRA_PREFER_OFFLINE only ASKS that service to
+       stay offline - the page is told which of the two
+       is in use, so it never claims "offline" for the
+       service path. */
+
+    private void toggleComposerDictation() {
+        if (composerListening) {
+            stopComposerSession();
+            return;
+        }
+        if (checkSelfPermission(
+                android.Manifest.permission.RECORD_AUDIO)
+                != android.content.pm.PackageManager
+                    .PERMISSION_GRANTED) {
+            voicePermForComposer = true;
+            requestPermissions(new String[]{
+                android.Manifest.permission.RECORD_AUDIO},
+                REQ_MIC_PERM);
+            return;
+        }
+        startComposerSession();
+    }
+
+    private void startComposerSession() {
+        if (!android.speech.SpeechRecognizer
+                .isRecognitionAvailable(this)) {
+            deliverVoicePromptState("unavailable", null);
+            return;
+        }
+        boolean onDevice = false;
+        try {
+            if (VoiceSupport.useOnDevice(
+                    Build.VERSION.SDK_INT,
+                    Build.VERSION.SDK_INT >= 31
+                        && android.speech.SpeechRecognizer
+                            .isOnDeviceRecognitionAvailable(
+                                this))) {
+                composerRec = android.speech.SpeechRecognizer
+                    .createOnDeviceSpeechRecognizer(this);
+                onDevice = true;
+            } else {
+                composerRec = android.speech.SpeechRecognizer
+                    .createSpeechRecognizer(this);
+            }
+        } catch (Exception e) {
+            composerRec = null;
+            deliverVoicePromptState("error", null);
+            return;
+        }
+        composerRec.setRecognitionListener(
+            new android.speech.RecognitionListener() {
+                @Override public void onReadyForSpeech(
+                        Bundle params) {}
+                @Override public void onBeginningOfSpeech() {}
+                @Override public void onRmsChanged(
+                        float rmsdB) {}
+                @Override public void onBufferReceived(
+                        byte[] buffer) {}
+                @Override public void onEndOfSpeech() {}
+                @Override public void onEvent(int eventType,
+                        Bundle params) {}
+                @Override public void onPartialResults(
+                        Bundle partialResults) {
+                    String heard = firstResult(partialResults);
+                    if (heard != null)
+                        deliverVoicePromptPartial(heard);
+                }
+                @Override public void onResults(
+                        Bundle results) {
+                    String heard = firstResult(results);
+                    endComposerSession();
+                    if (heard != null)
+                        deliverVoicePromptFinal(heard);
+                    else
+                        deliverVoicePromptState(
+                            "nomatch", null);
+                }
+                @Override public void onError(int error) {
+                    String state =
+                        VoiceSupport.errorState(error);
+                    endComposerSession();
+                    deliverVoicePromptState(state, null);
+                }
+            });
+        Intent i = new Intent(
+            android.speech.RecognizerIntent
+                .ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(android.speech.RecognizerIntent
+                .EXTRA_LANGUAGE_MODEL,
+            android.speech.RecognizerIntent
+                .LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(android.speech.RecognizerIntent
+                .EXTRA_PARTIAL_RESULTS, true);
+        i.putExtra(android.speech.RecognizerIntent
+                .EXTRA_PREFER_OFFLINE, true);
+        try {
+            composerRec.startListening(i);
+            composerListening = true;
+            deliverVoicePromptState("listening",
+                VoiceSupport.kind(onDevice));
+        } catch (Exception e) {
+            endComposerSession();
+            deliverVoicePromptState("error", null);
+        }
+    }
+
+    private static String firstResult(Bundle bundle) {
+        if (bundle == null) return null;
+        java.util.ArrayList<String> all =
+            bundle.getStringArrayList(
+                android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
+        if (all == null || all.isEmpty()) return null;
+        String first = all.get(0);
+        return first == null || first.isEmpty() ? null : first;
+    }
+
+    private void stopComposerSession() {
+        if (composerRec != null && composerListening) {
+            /* stopListening still delivers the final
+               result (or an error) through the listener,
+               which is what ends the session. */
+            try { composerRec.stopListening(); }
+            catch (Exception ignored) {}
+        }
+    }
+
+    private void endComposerSession() {
+        composerListening = false;
+        if (composerRec != null) {
+            try { composerRec.destroy(); }
+            catch (Exception ignored) {}
+            composerRec = null;
+        }
+    }
+
+    private void deliverVoicePromptState(String state,
+            String kind) {
+        if (webView == null) return;
+        String js = "window.__ghostVoicePromptState && "
+            + "window.__ghostVoicePromptState("
+            + org.json.JSONObject.quote(state) + ", "
+            + (kind == null ? "null"
+               : org.json.JSONObject.quote(kind)) + ")";
+        webView.evaluateJavascript(js, null);
+    }
+
+    private void deliverVoicePromptPartial(String text) {
+        if (webView == null) return;
+        String js = "window.__ghostVoicePromptPartial && "
+            + "window.__ghostVoicePromptPartial("
+            + org.json.JSONObject.quote(text) + ")";
+        webView.evaluateJavascript(js, null);
+    }
+
+    private void deliverVoicePromptFinal(String text) {
+        if (webView == null) return;
+        String js = "window.__ghostVoicePromptFinal && "
+            + "window.__ghostVoicePromptFinal("
+            + org.json.JSONObject.quote(text) + ")";
+        webView.evaluateJavascript(js, null);
     }
 
     private void fireSpeechIntent() {
@@ -1229,9 +1448,22 @@ public class MainActivity extends Activity {
             String[] perms, int[] grants) {
         super.onRequestPermissionsResult(req, perms, grants);
         if (req == REQ_MIC_PERM) {
-            if (grants.length > 0 && grants[0]
+            boolean granted = grants.length > 0 && grants[0]
                     == android.content.pm.PackageManager
-                        .PERMISSION_GRANTED) {
+                        .PERMISSION_GRANTED;
+            if (voicePermForComposer) {
+                voicePermForComposer = false;
+                if (granted) {
+                    startComposerSession();
+                } else {
+                    /* M7: the composer path names the
+                       denial; the page shows where to
+                       grant the permission. (The legacy
+                       path below still answers with its
+                       historical silent null.) */
+                    deliverVoicePromptState("denied", null);
+                }
+            } else if (granted) {
                 fireSpeechIntent();
             } else {
                 deliverVoice(null);

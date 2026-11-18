@@ -50864,7 +50864,6 @@
       alert("Voice dictation uses the phone's speech recognizer, so it is a phone feature. On desktop, typing is the way.");
     }
   }
-  $("chatMic").onclick = () => startDictation("chat");
   $("voiceBtn").onclick = () => startDictation("editor");
   var VOICE_COMMANDS = [
     [/^save( file)?\.?$/i, () => saveFile()],
@@ -50899,6 +50898,164 @@
       box.focus();
     }
   };
+  var voicePromptForce = false;
+  var voicePromptSession = null;
+  function voicePromptAvailable() {
+    if (voicePromptForce) return true;
+    try {
+      return !!(window.GhostVoice && typeof window.GhostVoice.startComposerDictation === "function");
+    } catch (e) {
+      return false;
+    }
+  }
+  function voicePromptForced(v) {
+    voicePromptForce = !!v;
+    applyVoicePromptVisibility();
+  }
+  function voiceCleanup(text) {
+    let t2 = String(text == null ? "" : text);
+    t2 = t2.replace(/\s+/g, " ").trim();
+    t2 = t2.replace(/([.!?])([A-Za-z])/g, "$1 $2");
+    return t2;
+  }
+  function voiceJoin(base2, addition) {
+    const b = String(base2 == null ? "" : base2);
+    const a = String(addition == null ? "" : addition);
+    if (!a) return b;
+    if (!b) return a;
+    return /\s$/.test(b) ? b + a : b + " " + a;
+  }
+  function voicePartialText(base2, partial) {
+    return voiceJoin(base2, String(partial == null ? "" : partial).replace(/\s+/g, " "));
+  }
+  function voiceFinalText(base2, heard) {
+    return voiceJoin(base2, voiceCleanup(heard));
+  }
+  function voiceStateMessage(state, kind) {
+    switch (state) {
+      case "listening":
+        return kind === "device" ? "Listening. On-device recognition: your voice stays on this phone." : "Listening. The system speech service is hearing you, and it may use the network.";
+      case "done":
+        return "Dictated text is in the box above. Edit it, then tap Send when you are ready.";
+      case "unavailable":
+        return "No speech recogniser is available on this phone, so dictation cannot run.";
+      case "denied":
+        return "Microphone permission is off, so dictation cannot start. You can grant it in Android Settings, Apps, GhostIDE, Permissions, Microphone.";
+      case "network":
+        return "The speech service needs a network connection and could not get one. Nothing was dictated.";
+      case "nomatch":
+        return "I did not catch that. Nothing was added to the box.";
+      case "busy":
+        return "The speech recogniser is busy right now. Give it a moment and try again.";
+      default:
+        return "Dictation stopped with an error. Nothing was sent.";
+    }
+  }
+  function setVoiceStatus(text) {
+    const el = $("voiceStatus");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("hidden", !text);
+  }
+  function setVoiceMicListening(on) {
+    const mic = $("chatMic");
+    if (!mic) return;
+    mic.classList.toggle("listening", !!on);
+    mic.textContent = on ? "\u23F9" : "\u{1F3A4}";
+    mic.title = on ? "Stop dictating" : "Dictate a message (phone)";
+  }
+  function applyVoicePromptVisibility() {
+    const mic = $("chatMic");
+    if (!mic) return;
+    mic.classList.toggle(
+      "hidden",
+      !voicePromptAvailable()
+    );
+  }
+  function endVoicePromptSession(restore) {
+    if (voicePromptSession && restore) {
+      const box = $("chatText");
+      if (box) box.value = voicePromptSession.base;
+    }
+    voicePromptSession = null;
+    setVoiceMicListening(false);
+  }
+  function toggleVoicePrompt() {
+    if (voicePromptSession) {
+      try {
+        window.GhostVoice.stopComposerDictation();
+      } catch (e) {
+      }
+      return;
+    }
+    if (!voicePromptAvailable()) return;
+    const box = $("chatText");
+    voicePromptSession = { base: box ? box.value : "" };
+    setVoiceMicListening(true);
+    setVoiceStatus("");
+    try {
+      window.GhostVoice.startComposerDictation();
+    } catch (e) {
+      endVoicePromptSession(true);
+      setVoiceStatus(voiceStateMessage("error"));
+    }
+  }
+  window.__ghostVoicePromptState = (state, kind) => {
+    if (state === "listening") {
+      if (!voicePromptSession) {
+        const box = $("chatText");
+        voicePromptSession = { base: box ? box.value : "" };
+      }
+      setVoiceMicListening(true);
+      setVoiceStatus(voiceStateMessage("listening", kind));
+      return;
+    }
+    endVoicePromptSession(true);
+    setVoiceStatus(voiceStateMessage(state, kind));
+  };
+  window.__ghostVoicePromptPartial = (text) => {
+    if (!voicePromptSession) return;
+    const box = $("chatText");
+    if (box) box.value = voicePartialText(
+      voicePromptSession.base,
+      text
+    );
+  };
+  window.__ghostVoicePromptFinal = (text) => {
+    if (!voicePromptSession) return;
+    const box = $("chatText");
+    const base2 = voicePromptSession.base;
+    voicePromptSession = null;
+    setVoiceMicListening(false);
+    if (box) {
+      box.value = voiceFinalText(base2, text);
+      box.focus();
+      try {
+        box.setSelectionRange(
+          box.value.length,
+          box.value.length
+        );
+      } catch (e) {
+      }
+    }
+    setVoiceStatus(voiceStateMessage("done"));
+  };
+  try {
+    const mic = $("chatMic");
+    if (mic) mic.onclick = () => toggleVoicePrompt();
+    applyVoicePromptVisibility();
+    window.__ghostVoicePrompt = {
+      voicePromptAvailable,
+      voicePromptForced,
+      voiceCleanup,
+      voiceJoin,
+      voicePartialText,
+      voiceFinalText,
+      voiceStateMessage,
+      toggleVoicePrompt
+    };
+  } catch (e) {
+  }
   var pairOn = false;
   var pairId = "";
   var pairName = "";
