@@ -3,6 +3,12 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.22.0",
+   "date": "Nov 18, 2026",
+   "goal": "Mobile Cycle 2 M6: phone model guards",
+   "summary": "Both trains bumped together per check_versions.py: 3.21.0 -> 3.22.0, Android versionCode 220 -> 221; the five Python health-version pins moved to 3.22.0, the cycle1 update-feed fixture moved ahead one train to 3.23.0, an"
+  },
+  {
    "version": "3.21.0",
    "date": "Nov 18, 2026",
    "goal": "Mobile Cycle 2 M4: git phone pack",

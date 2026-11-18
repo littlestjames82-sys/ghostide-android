@@ -32977,6 +32977,7 @@
       attachDiff: false,
       agentRepairRounds: 3,
       agentMaxSteps: 50,
+      agentStepsChosen: false,
       lsp: true
     },
     JSON.parse(localStorage.getItem("ghostide-settings") || "{}")
@@ -34824,6 +34825,11 @@
     const box = $("todoResults");
     if (!box || $("todoTitle").textContent !== "Model store")
       return;
+    if (phoneGuardOnAndroid()) {
+      box.textContent = "";
+      msNote(box, "On the phone, models live in the native Models store: open the app menu, then Models. That screen shows this phone's RAM and free storage, which model is recommended for it, and the downloads, with a heat and battery warning before a download starts.");
+      return;
+    }
     let d;
     try {
       d = await (await fetch("/api/models/store")).json();
@@ -34953,6 +34959,52 @@
       clearInterval(modelsStoreTimer);
       modelsStoreTimer = null;
     }
+  }
+  var PHONE_AGENT_DEFAULT_STEPS = 25;
+  var phoneGuardForce = false;
+  function phoneGuardOnAndroid() {
+    if (phoneGuardForce) return true;
+    try {
+      if (typeof window === "undefined" || !window.GhostNative) return false;
+      const host = window.location && window.location.hostname || "";
+      return host === "127.0.0.1" || host === "localhost";
+    } catch (e) {
+      return false;
+    }
+  }
+  function phoneGuardForced(v) {
+    phoneGuardForce = !!v;
+  }
+  function agentStepDefault() {
+    return phoneGuardOnAndroid() ? PHONE_AGENT_DEFAULT_STEPS : AGENT_MAX_STEPS;
+  }
+  function agentStepCap() {
+    const raw = settings.agentStepsChosen ? Number(settings.agentMaxSteps) : agentStepDefault();
+    return Math.max(10, Math.min(
+      120,
+      raw || agentStepDefault()
+    ));
+  }
+  function applyAgentStepsPhoneNote() {
+    const el = $("agentStepsPhoneNote");
+    if (!el) return;
+    if (phoneGuardOnAndroid()) {
+      el.textContent = "On this phone, agent runs default to " + PHONE_AGENT_DEFAULT_STEPS + " steps, to keep runs short on battery and heat. Pick any value above to use it instead.";
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  }
+  try {
+    window.__ghostPhoneGuard = {
+      phoneGuardOnAndroid,
+      phoneGuardForced,
+      agentStepDefault,
+      agentStepCap,
+      applyAgentStepsPhoneNote,
+      PHONE_AGENT_DEFAULT_STEPS
+    };
+  } catch (e) {
   }
   function shortModelLabel(modelName) {
     const name2 = String(modelName || "");
@@ -46140,12 +46192,14 @@
     };
   var agentStepsSel = $("agentStepsSel");
   if (agentStepsSel) {
-    agentStepsSel.value = String(settings.agentMaxSteps || 50);
+    agentStepsSel.value = String(agentStepCap());
     agentStepsSel.onchange = () => {
       settings.agentMaxSteps = Number(agentStepsSel.value) || 50;
+      settings.agentStepsChosen = true;
       saveSettings();
     };
   }
+  applyAgentStepsPhoneNote();
   var agentRepairSel = $("agentRepairSel");
   if (agentRepairSel) {
     agentRepairSel.value = String(settings.agentRepairRounds ?? 3);
@@ -46644,10 +46698,13 @@
     }
     if (memText)
       addMsg("SYSTEM", "\u{1F4DA} Agent primed with project memory (GhostRecall + error memory).");
+    const stepCap = agentStepCap();
     const messages = [
       { role: "system", content: BEHAVIOR.systemPrompt + "\n\n" + AGENT_RULES + (mapText ? "\n\n" + mapText : "") + (memText ? "\n\nProject memory for this task:\n" + memText.slice(0, 8e3) : "") + (opts.plan ? "\n\nApproved plan:\n" + opts.plan : "") + /* Cycle 6 I6: state the run's real budget when
-         the user's setting moves it off the default. */
-      ((Number(settings.agentMaxSteps) || 50) !== AGENT_MAX_STEPS ? "\n\nYour step budget for this run is " + (Number(settings.agentMaxSteps) || 50) + " actions." : "") },
+         it moves off the built-in default. Mobile
+         Cycle 2, M6: on the phone that is the normal
+         case (25, not 50), so the model is told. */
+      (stepCap !== AGENT_MAX_STEPS ? "\n\nYour step budget for this run is " + stepCap + " actions." : "") },
       { role: "user", content: "Task: " + task + (currentFile ? "\nThe user is currently editing: " + currentFile : "") + (todos.length ? "\nPlan items: " + todos.map((t2, i2) => i2 + 1 + ". " + t2.text).join(" | ") : "") }
     ];
     snapshot("task start", 0);
@@ -46675,10 +46732,6 @@
       messages.push({ role: "user", content: "DONE refused: your staged changes fail their automatic checks:\n" + bad.join("\n") + "\nFix them with WRITE or EDIT, then finish with DONE again." });
       return false;
     }
-    const stepCap = Math.max(10, Math.min(
-      120,
-      Number(settings.agentMaxSteps) || 50
-    ));
     for (let step = 1; step <= stepCap; step++) {
       if (thermalWatchdog() === "stop") {
         addMsg("SYSTEM", "\u{1F321} Agent stopped: the device reached severe heat. (Thermal guard.)");

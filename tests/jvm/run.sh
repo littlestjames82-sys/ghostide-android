@@ -10,19 +10,23 @@ OUT=$(mktemp -d)
 javac -d "$OUT" \
   android/util/Base64.java \
   android/content/Context.java \
+  android/content/SharedPreferences.java \
   android/content/res/AssetManager.java \
   android/content/pm/ApplicationInfo.java \
+  android/app/ActivityManager.java \
   android/system/Os.java \
   "$APP/Json.java" "$APP/BackupCrypto.java" \
   "$APP/ZipGuard.java" "$APP/PathCheck.java" \
   "$APP/PairHub.java" "$APP/BackupService.java" \
   "$APP/GitSupport.java" "$APP/GitTokenStore.java" \
+  "$APP/Models.java" "$APP/PhoneGuard.java" \
   BkTest.java ZgTest.java PcTest.java PhTest.java \
-  RsTest.java GtTest.java
+  RsTest.java GtTest.java PgTest.java
 java -cp "$OUT" com.ghostide.app.BkTest
 java -cp "$OUT" com.ghostide.app.ZgTest
 java -cp "$OUT" com.ghostide.app.PcTest
 java -cp "$OUT" com.ghostide.app.PhTest
 java -cp "$OUT" com.ghostide.app.RsTest
 java -cp "$OUT" com.ghostide.app.GtTest
+java -cp "$OUT" com.ghostide.app.PgTest
 echo "JVM SUITES OK"

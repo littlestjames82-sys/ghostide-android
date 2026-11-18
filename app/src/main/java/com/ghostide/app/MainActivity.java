@@ -8,14 +8,17 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.Uri;
 import android.widget.EditText;
 import android.widget.Toast;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.StatFs;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -203,6 +206,109 @@ public class MainActivity extends Activity {
         setContentView(sv);
     }
 
+    /* Mobile Cycle 2 (M6): the phone guard device reads.
+       Thermal comes from the same PowerManager call the
+       GhostNative bridge exposes to the bundle; battery
+       comes from the sticky battery intent, which needs
+       no permission; free storage from StatFs over the
+       app's own files dir. A read that fails answers -1
+       and the guard claims nothing from it. */
+    private int thermalNow() {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.os.PowerManager pm =
+                    (android.os.PowerManager)
+                        getSystemService(POWER_SERVICE);
+                if (pm != null)
+                    return pm.getCurrentThermalStatus();
+            }
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
+    private int batteryPct() {
+        try {
+            Intent i = registerReceiver(null, new IntentFilter(
+                Intent.ACTION_BATTERY_CHANGED));
+            if (i == null) return -1;
+            int level = i.getIntExtra(
+                BatteryManager.EXTRA_LEVEL, -1);
+            int scale = i.getIntExtra(
+                BatteryManager.EXTRA_SCALE, -1);
+            if (level < 0 || scale <= 0) return -1;
+            return Math.round(level * 100f / scale);
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
+    private boolean batteryCharging() {
+        try {
+            Intent i = registerReceiver(null, new IntentFilter(
+                Intent.ACTION_BATTERY_CHANGED));
+            if (i == null) return false;
+            int st = i.getIntExtra(
+                BatteryManager.EXTRA_STATUS, -1);
+            return st == BatteryManager.BATTERY_STATUS_CHARGING
+                || st == BatteryManager.BATTERY_STATUS_FULL;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private long freeStorageBytes() {
+        try {
+            return new StatFs(getFilesDir().getAbsolutePath())
+                .getAvailableBytes();
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
+    private static String gbText(long bytes) {
+        if (bytes < 0) return null;
+        return String.format(Locale.US, "%.1f",
+            bytes / (double) (1024L * 1024L * 1024L));
+    }
+
+    /* One readout line for the store screens: this
+       phone's real RAM and free storage, each labelled
+       honestly when it cannot be read. */
+    private String deviceReadout() {
+        String ram = gbText(Models.totalRamBytes(this));
+        String free = gbText(freeStorageBytes());
+        return "This phone: "
+            + (ram != null ? "about " + ram + " GB of RAM"
+                : "RAM could not be read")
+            + (free != null
+                ? " · about " + free + " GB of free storage"
+                : " · free storage could not be read")
+            + ".";
+    }
+
+    /* The M6 warning gate: when the device state draws
+       a warning, show it with a proceed-anyway choice;
+       otherwise run the action at once. Never blocks. */
+    private void confirmDeviceWarning(String title,
+            String proceedLabel, final Runnable proceed) {
+        String warn = PhoneGuard.stateWarning(thermalNow(),
+            batteryPct(), batteryCharging());
+        if (warn == null) { proceed.run(); return; }
+        new AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(warn + " A big download or a large "
+                + "model makes more heat and drains the "
+                + "battery faster. You can go ahead anyway, "
+                + "or wait until the phone has cooled down "
+                + "or is plugged in.")
+            .setPositiveButton(proceedLabel,
+                new DialogInterface.OnClickListener() {
+                    @Override public void onClick(
+                            DialogInterface d, int which) {
+                        proceed.run();
+                    }
+                })
+            .setNegativeButton("Not now", null)
+            .show();
+    }
+
     private void showDownload() {
         stopDownloadPoll();
         deleteIfWrongSize();
@@ -228,6 +334,13 @@ public class MainActivity extends Activity {
         blp.topMargin = 24;
         body.setLayoutParams(blp);
         root.addView(body);
+        /* Mobile Cycle 2 (M6): the real device readout,
+           and the plain caution when the selected model
+           is the desktop-class 7B. */
+        root.addView(text(deviceReadout(), 13, DIM));
+        if (PhoneGuard.isLargeModel(v))
+            root.addView(text(Models.PHONE_LARGE_CAUTION,
+                13, DIM));
 
         final ProgressBar bar = new ProgressBar(this, null,
             android.R.attr.progressBarStyleHorizontal);
@@ -251,8 +364,17 @@ public class MainActivity extends Activity {
 
         start.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View vw) {
-                askNotificationPermission();
-                DownloadService.start(MainActivity.this, v);
+                /* Mobile Cycle 2 (M6): a hot or nearly
+                   empty phone hears about it before the
+                   download starts, and decides itself. */
+                confirmDeviceWarning("Before you download",
+                    "Download anyway", new Runnable() {
+                        @Override public void run() {
+                            askNotificationPermission();
+                            DownloadService.start(
+                                MainActivity.this, v);
+                        }
+                    });
             }
         });
         cancel.setOnClickListener(new View.OnClickListener() {
@@ -585,6 +707,17 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/help.html");
     }
 
+    /* Switch the active model and load it (the Models
+       screen's Use action, unchanged behaviour; M6 only
+       routes the 7B through the warning first). */
+    private void useModel(Models.Variant mv) {
+        Models.select(this, mv.id);
+        brain.free();
+        if (server != null)
+            server.setModelName(modelDisplayName());
+        loadModelAndStart();
+    }
+
     private void showModelScreen() {
         final Models.Variant active = variant();
         LinearLayout root = screen();
@@ -608,12 +741,21 @@ public class MainActivity extends Activity {
         ilp.topMargin = 16;
         intro.setLayoutParams(ilp);
         root.addView(intro);
+        /* Mobile Cycle 2 (M6): the real device readout
+           the fit marks and the recommendation below
+           are computed from. */
+        root.addView(text(deviceReadout(), 13, DIM));
+        final long ramBytes = Models.totalRamBytes(this);
+        final Models.Variant recVariant =
+            Models.recommended(ramBytes);
 
         for (final Models.Variant mv : Models.ALL) {
             boolean isActive = mv.id.equals(active.id);
             boolean ready = Models.ready(this, mv);
             TextView head = text(
-                mv.label + (isActive ? "  ·  ACTIVE" : ""), 16, FG);
+                mv.label + (isActive ? "  ·  ACTIVE" : "")
+                + (mv == recVariant
+                    ? "  ·  RECOMMENDED" : ""), 16, FG);
             LinearLayout.LayoutParams hlp =
                 new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -626,6 +768,27 @@ public class MainActivity extends Activity {
                     ? "downloaded (" + mv.mb() + " MB)"
                     : "not downloaded (" + mv.mb() + " MB)"),
                 13, DIM));
+            /* Mobile Cycle 2 (M6): the 7B carries the
+               plain caution instead of a fit mark; the
+               phone-sized models carry their fit on
+               this phone's real RAM. */
+            if (PhoneGuard.isLargeModel(mv)) {
+                root.addView(text(Models.PHONE_LARGE_CAUTION,
+                    13, DIM));
+            } else {
+                String fit = Models.fitClass(mv.ramGB,
+                    ramBytes);
+                root.addView(text(
+                    "unknown".equals(fit)
+                        ? "Fit on this phone is unknown "
+                          + "(its RAM could not be read)."
+                        : "fits".equals(fit)
+                          ? "Fits this phone."
+                          : "tight".equals(fit)
+                            ? "Tight on this phone."
+                            : "Too big for this phone.",
+                    13, DIM));
+            }
             if (!ready) {
                 Button dl = button("Download " + mv.label);
                 dl.setOnClickListener(new View.OnClickListener() {
@@ -639,11 +802,22 @@ public class MainActivity extends Activity {
                 Button use = button("Use " + mv.label);
                 use.setOnClickListener(new View.OnClickListener() {
                     @Override public void onClick(View vw) {
-                        Models.select(MainActivity.this, mv.id);
-                        brain.free();
-                        if (server != null)
-                            server.setModelName(modelDisplayName());
-                        loadModelAndStart();
+                        /* Mobile Cycle 2 (M6): loading
+                           the 7B on a hot or nearly empty
+                           phone warns first; the user
+                           decides. Other loads are
+                           uninterrupted. */
+                        if (PhoneGuard.isLargeModel(mv)) {
+                            confirmDeviceWarning(
+                                "Before you load this model",
+                                "Load anyway", new Runnable() {
+                                    @Override public void run() {
+                                        useModel(mv);
+                                    }
+                                });
+                        } else {
+                            useModel(mv);
+                        }
                     }
                 });
                 root.addView(use);
