@@ -549,6 +549,7 @@ setTimeout(function () {
     <button id="toolLeads">Leads</button>
     <button id="toolQuote">QuoteShot</button>
     <button id="toolReplay">Session replay</button>
+    <button id="toolTasks">Task records</button>
   </div>
 </div>
 
@@ -824,6 +825,15 @@ setTimeout(function () {
 <div id="todoPanel" class="hidden">
   <div class="panel-head"><h3 id="todoTitle">TODO / FIXME</h3><button id="todoClose">✕</button></div>
   <div id="todoResults"></div>
+</div>
+
+<div id="tasksPanel" class="hidden">
+  <div class="panel-head"><h3>🗂 Tasks</h3><button id="tasksClose" aria-label="Close tasks">✕</button></div>
+  <p class="dim">Portable records of agent work in this workspace, in the shared ghostide.task format: the same record reads on the desktop and the phone. Export one to a file, import one from the other platform.</p>
+  <div><button id="taskImportBtn">⬆ Import a task record…</button><input id="taskImportFile" type="file" accept=".json,application/json" class="hidden"></div>
+  <div id="tasksMsg" class="dim"></div>
+  <div id="tasksList"></div>
+  <div id="taskDetail" class="hidden"></div>
 </div>
 
 <div id="snipPanel" class="hidden">

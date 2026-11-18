@@ -35166,7 +35166,8 @@
     "previewPanel",
     "quickPanel",
     "keysPanel",
-    "pluginPanel"
+    "pluginPanel",
+    "tasksPanel"
   ];
   function closeOverlayPanels(exceptId) {
     if (window.innerWidth > 900) return;
@@ -40327,6 +40328,12 @@
       hideTools();
       openBoardPanel();
     };
+  var toolTasksBtn = $("toolTasks");
+  if (toolTasksBtn)
+    toolTasksBtn.onclick = () => {
+      hideTools();
+      openTasksPanel();
+    };
   var dataPanePath = "";
   async function maybeDataView(path, content2) {
     const pane = $("dataPane");
@@ -44621,6 +44628,7 @@
     } },
     { title: "View data packs", run: () => openPackListPanel() },
     { title: "Session replay", run: () => $("toolReplay").click() },
+    { title: "Task records", run: () => $("toolTasks").click() },
     { title: "Recipes shelf", run: () => $("toolRecipes").click() },
     { title: "Leads", run: () => $("toolLeads").click() },
     { title: "QuoteShot", run: () => $("toolQuote").click() },
@@ -45954,13 +45962,365 @@
     buildRunRecord,
     RUN_CKPT_MAX_CHARS
   };
+  var TASK_SCHEMA = "ghostide.task";
+  var TASK_SCHEMA_VERSION = 1;
+  var TASK_KINDS = ["agent-run", "plan", "note"];
+  var TASK_STATUSES = [
+    "draft",
+    "running",
+    "waiting-approval",
+    "stopped",
+    "done",
+    "failed"
+  ];
+  var TASK_MAX_BYTES = 256 * 1024;
+  var TASK_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+  var TASK_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
+  function makeTaskId(date, rand) {
+    return "task-" + agentRunStamp(date) + "-" + String(rand || "0000").replace(/[^a-z0-9]/gi, "").slice(0, 6);
+  }
+  function taskPlatform() {
+    return window.GhostNative ? "android" : "desktop";
+  }
+  function taskStatusFromOutcome(outcome) {
+    if (outcome === "done" || outcome === "asked")
+      return "done";
+    if (outcome === "stopped" || outcome === "cap" || outcome === "looping")
+      return "stopped";
+    return "failed";
+  }
+  function taskApprovalsSummary(approvals) {
+    const list = Array.isArray(approvals) ? approvals : [];
+    let allowed = 0, denied = 0;
+    for (const a of list) {
+      const v = a && a.verdict;
+      if (v === "allowed" || v === "auto" || v === "granted") allowed++;
+      else if (v === "denied" || v === "disabled") denied++;
+    }
+    return { asked: list.length, allowed, denied };
+  }
+  function buildTaskRecordFromRun(rec, ctx) {
+    rec = rec || {};
+    ctx = ctx || {};
+    const steps = Array.isArray(rec.steps) ? rec.steps : [];
+    const last2 = steps.length ? steps[steps.length - 1] : null;
+    const firstLine = String(rec.task || "").split("\n")[0].trim();
+    return {
+      schema: TASK_SCHEMA,
+      schemaVersion: TASK_SCHEMA_VERSION,
+      id: ctx.id || makeTaskId(/* @__PURE__ */ new Date(), ctx.rand),
+      kind: rec.mode === "plan" ? "plan" : "agent-run",
+      title: (firstLine || (rec.mode === "plan" ? "Plan run" : "Agent run")).slice(0, 200),
+      goal: String(rec.task || "").slice(0, 2e4),
+      workspace: String(ctx.workspace || ""),
+      createdBy: ctx.platform || "desktop",
+      status: taskStatusFromOutcome(rec.outcome),
+      budget: { stepCap: ctx.stepCap | 0 },
+      approvals: taskApprovalsSummary(rec.approvals),
+      checkpoint: rec.checkpoint || null,
+      planPath: rec.planPath || null,
+      steps: {
+        count: steps.length,
+        lastLabel: last2 ? (String(last2.type || "") + " " + String(last2.target || "")).trim().slice(0, 300) : ""
+      },
+      createdAt: rec.startedAt || (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: rec.endedAt || rec.startedAt || (/* @__PURE__ */ new Date()).toISOString(),
+      payload: {
+        runId: rec.id || "",
+        outcome: rec.outcome || "",
+        summary: rec.summary || "",
+        filesChanged: Array.isArray(rec.filesChanged) ? rec.filesChanged : [],
+        skipped: Array.isArray(rec.skipped) ? rec.skipped : []
+      }
+    };
+  }
+  function validateTaskRecord(rec, rawLen) {
+    if (typeof rawLen === "number" && rawLen > TASK_MAX_BYTES)
+      return "task record too large (limit " + TASK_MAX_BYTES + " bytes)";
+    if (!rec || typeof rec !== "object" || Array.isArray(rec))
+      return "task record must be a JSON object";
+    if (rec.schema !== TASK_SCHEMA)
+      return "not a GhostIDE task record";
+    const ver = rec.schemaVersion;
+    if (typeof ver !== "number" || !Number.isInteger(ver))
+      return "task record has no readable schema version";
+    if (ver > TASK_SCHEMA_VERSION)
+      return "task record was written by a newer GhostIDE (task schema version " + ver + "); this build reads version " + TASK_SCHEMA_VERSION;
+    if (ver < 1)
+      return "task record schema version " + ver + " is older than any this build can read";
+    if (typeof rec.id !== "string" || !TASK_ID_RE.test(rec.id) || rec.id.includes(".."))
+      return "bad task id";
+    if (!TASK_KINDS.includes(rec.kind))
+      return "task record kind must be one of " + TASK_KINDS.join(", ");
+    if (typeof rec.title !== "string" || rec.title.length < 1 || rec.title.length > 200)
+      return "task record title must be a string of 1 to 200 characters";
+    if (typeof rec.goal !== "string" || rec.goal.length > 2e4)
+      return "task record goal must be a string of at most 20000 characters";
+    if (typeof rec.workspace !== "string" || rec.workspace.length > 1e3)
+      return "task record workspace must be a string of at most 1000 characters";
+    if (rec.createdBy !== "desktop" && rec.createdBy !== "android")
+      return "task record createdBy must be desktop or android";
+    if (!TASK_STATUSES.includes(rec.status))
+      return "task record status must be one of " + TASK_STATUSES.join(", ");
+    const cap = rec.budget && rec.budget.stepCap;
+    if (typeof cap !== "number" || !Number.isInteger(cap) || cap < 0 || cap > 1e5)
+      return "task record budget.stepCap must be an integer from 0 to 100000";
+    const appr = rec.approvals || {};
+    for (const k of ["asked", "allowed", "denied"]) {
+      if (typeof appr[k] !== "number" || !Number.isInteger(appr[k]) || appr[k] < 0)
+        return "task record approvals must be an object with asked, allowed and denied counts at or above 0";
+    }
+    const steps = rec.steps || {};
+    if (typeof steps.count !== "number" || !Number.isInteger(steps.count) || steps.count < 0 || typeof steps.lastLabel !== "string" || steps.lastLabel.length > 300)
+      return "task record steps must be an object with a count at or above 0 and a lastLabel string of at most 300 characters";
+    for (const key of ["checkpoint", "planPath"]) {
+      const v = rec[key];
+      if (v !== null && v !== void 0 && (typeof v !== "string" || v.length > 1e3))
+        return "task record " + key + " must be a string of at most 1000 characters or null";
+    }
+    for (const key of ["createdAt", "updatedAt"]) {
+      if (typeof rec[key] !== "string" || !TASK_TS_RE.test(rec[key]))
+        return "task record " + key + " must be an ISO 8601 timestamp string";
+    }
+    if (rec.provenance !== void 0 && (typeof rec.provenance !== "object" || rec.provenance === null || Array.isArray(rec.provenance)))
+      return "task record provenance must be an object";
+    if (rec.payload !== void 0 && (typeof rec.payload !== "object" || rec.payload === null || Array.isArray(rec.payload)))
+      return "task record payload must be an object";
+    return null;
+  }
+  function taskImportCopy(rec, newId, atIso) {
+    const copy = JSON.parse(JSON.stringify(rec));
+    copy.id = newId;
+    copy.provenance = { importedFrom: {
+      id: rec.id,
+      platform: rec.createdBy,
+      at: atIso
+    } };
+    return copy;
+  }
+  window.__ghostTasks = {
+    TASK_SCHEMA,
+    TASK_SCHEMA_VERSION,
+    TASK_KINDS,
+    TASK_STATUSES,
+    TASK_MAX_BYTES,
+    makeTaskId,
+    taskPlatform,
+    taskStatusFromOutcome,
+    taskApprovalsSummary,
+    buildTaskRecordFromRun,
+    validateTaskRecord,
+    taskImportCopy
+  };
   function postRunRecord(fields) {
     try {
-      postJson("/api/agent-runs", buildRunRecord(fields)).catch(() => {
+      const rec = buildRunRecord(fields);
+      postJson("/api/agent-runs", rec).catch(() => {
+      });
+      const task = buildTaskRecordFromRun(rec, {
+        platform: taskPlatform(),
+        workspace: historyScope || (window.GhostNative ? "on-device" : ""),
+        stepCap: agentStepCap(),
+        rand: Math.random().toString(36).slice(2, 8)
+      });
+      postJson("/api/tasks", task).catch(() => {
       });
     } catch (e) {
     }
   }
+  function taskOriginWord(rec) {
+    return rec && rec.createdBy === "android" ? "Android" : "Desktop";
+  }
+  async function refreshTasksList() {
+    const list = $("tasksList");
+    let d = null;
+    try {
+      d = await getJson("/api/tasks");
+    } catch (e) {
+    }
+    list.textContent = "";
+    const tasks = d && d.tasks || null;
+    if (!tasks) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "Task records unavailable.";
+      list.appendChild(el);
+      return;
+    }
+    if (!tasks.length) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "No task records yet. One is saved each time an agent or plan run ends, and imported records land here too.";
+      list.appendChild(el);
+      return;
+    }
+    for (const t2 of tasks) {
+      const row = document.createElement("div");
+      row.className = "taskRow";
+      const title = document.createElement("div");
+      title.className = "taskRowTitle";
+      title.textContent = (t2.kind === "plan" ? "\u{1F4DD} " : t2.kind === "note" ? "\u{1F5D2} " : "\u{1F916} ") + t2.title;
+      const meta2 = document.createElement("div");
+      meta2.className = "taskRowMeta";
+      meta2.textContent = t2.status + " \xB7 from " + taskOriginWord(t2) + " \xB7 " + (t2.updatedAt || "") + " \xB7 " + t2.steps + " step(s)";
+      row.appendChild(title);
+      row.appendChild(meta2);
+      row.onclick = () => showTaskDetail(t2.id);
+      list.appendChild(row);
+    }
+  }
+  async function openTasksPanel() {
+    hideTools();
+    const detail = $("taskDetail");
+    detail.classList.add("hidden");
+    detail.textContent = "";
+    $("tasksMsg").textContent = "";
+    const list = $("tasksList");
+    list.textContent = "";
+    const wait = document.createElement("div");
+    wait.className = "dim";
+    wait.textContent = "Loading task records\u2026";
+    list.appendChild(wait);
+    $("tasksPanel").classList.remove("hidden");
+    await refreshTasksList();
+  }
+  function taskDetailLine(parent, label, value) {
+    if (value === null || value === void 0 || value === "") return;
+    const el = document.createElement("div");
+    el.textContent = label + ": " + value;
+    parent.appendChild(el);
+  }
+  async function showTaskDetail(id2) {
+    const detail = $("taskDetail");
+    detail.textContent = "";
+    detail.classList.remove("hidden");
+    const wait = document.createElement("div");
+    wait.className = "dim";
+    wait.textContent = "Loading\u2026";
+    detail.appendChild(wait);
+    let d = null;
+    try {
+      d = await getJson("/api/tasks?id=" + encodeURIComponent(id2));
+    } catch (e) {
+    }
+    detail.textContent = "";
+    if (!d || d.error || !d.record) {
+      const el = document.createElement("div");
+      el.className = "dim";
+      el.textContent = "That record could not be read" + (d && d.error ? ": " + d.error : ".");
+      detail.appendChild(el);
+      return;
+    }
+    const rec = d.record;
+    const title = document.createElement("div");
+    title.className = "taskRowTitle";
+    title.textContent = rec.title;
+    detail.appendChild(title);
+    const meta2 = document.createElement("div");
+    meta2.className = "taskRowMeta";
+    meta2.textContent = rec.kind + " \xB7 " + rec.status + " \xB7 created on " + taskOriginWord(rec);
+    detail.appendChild(meta2);
+    if (rec.goal) {
+      const goal = document.createElement("div");
+      goal.className = "taskGoal";
+      goal.textContent = rec.goal;
+      detail.appendChild(goal);
+    }
+    taskDetailLine(
+      detail,
+      "Budget",
+      rec.budget ? rec.budget.stepCap + " steps" : null
+    );
+    if (rec.approvals)
+      taskDetailLine(
+        detail,
+        "Approvals",
+        rec.approvals.asked + " asked, " + rec.approvals.allowed + " allowed, " + rec.approvals.denied + " denied"
+      );
+    if (rec.steps)
+      taskDetailLine(
+        detail,
+        "Steps",
+        rec.steps.count + (rec.steps.lastLabel ? " (last: " + rec.steps.lastLabel + ")" : "")
+      );
+    taskDetailLine(detail, "Checkpoint", rec.checkpoint);
+    taskDetailLine(detail, "Plan file", rec.planPath);
+    taskDetailLine(detail, "Created", rec.createdAt);
+    taskDetailLine(detail, "Updated", rec.updatedAt);
+    const prov = rec.provenance && rec.provenance.importedFrom;
+    if (prov)
+      taskDetailLine(
+        detail,
+        "Imported from",
+        "a " + (prov.platform === "android" ? "Android" : "Desktop") + " record (" + prov.id + ") on " + prov.at
+      );
+    const note = document.createElement("div");
+    note.className = "taskRecordOnly";
+    note.textContent = "Record only. Resuming a run from a record arrives with supervision (M2).";
+    detail.appendChild(note);
+    const btns = document.createElement("div");
+    const exp = document.createElement("button");
+    exp.textContent = "\u2B07 Export this record";
+    exp.onclick = () => exportTaskRecord(rec);
+    const back = document.createElement("button");
+    back.textContent = "Back to the list";
+    back.onclick = () => {
+      detail.classList.add("hidden");
+      detail.textContent = "";
+    };
+    btns.appendChild(exp);
+    btns.appendChild(back);
+    detail.appendChild(btns);
+  }
+  function exportTaskRecord(rec) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(
+      [JSON.stringify(rec, null, 1)],
+      { type: "application/json" }
+    ));
+    a.download = rec.id + ".json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
+  }
+  $("tasksClose").onclick = () => $("tasksPanel").classList.add("hidden");
+  $("taskImportBtn").onclick = () => $("taskImportFile").click();
+  $("taskImportFile").onchange = async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!f) return;
+    const msg = $("tasksMsg");
+    let rec = null;
+    try {
+      rec = JSON.parse(await f.text());
+    } catch (e) {
+      msg.textContent = "That file is not a task record: it is not JSON.";
+      return;
+    }
+    const err = validateTaskRecord(rec, f.size);
+    if (err) {
+      msg.textContent = "That file is not a task record: " + err + ".";
+      return;
+    }
+    const copy = taskImportCopy(
+      rec,
+      makeTaskId(
+        /* @__PURE__ */ new Date(),
+        Math.random().toString(36).slice(2, 8)
+      ),
+      (/* @__PURE__ */ new Date()).toISOString()
+    );
+    let d = null;
+    try {
+      d = await postJson("/api/tasks", copy);
+    } catch (e) {
+    }
+    if (!d || d.error) {
+      msg.textContent = "Import failed: " + (d && d.error || "the server did not answer.");
+      return;
+    }
+    msg.textContent = "Imported as " + copy.id + " (from " + rec.id + ").";
+    await refreshTasksList();
+  };
   function agentPolicy() {
     try {
       return localStorage.getItem("ghostide-agent-policy") || "each";

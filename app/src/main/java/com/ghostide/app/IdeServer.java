@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "3.23.0";
+    static final String VERSION = "3.24.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -1121,6 +1121,132 @@ public final class IdeServer {
                 sendJson(out, "{\"ok\":true,\"path\":" + Json.quote(rel) + "}");
             } catch (Exception e) {
                 sendJson(out, 400, "{\"error\":" + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/tasks")) {
+            /* Mobile Cycle 3 (S1): portable task records -
+               the exact mirror of the desktop server's
+               /api/tasks. One schema (docs/TASK_FORMAT.md
+               in the ghost-ide repo), implemented by
+               TaskStore; records are data under
+               .ghostide/tasks/<id>.json, never executed,
+               and a record never resumes a run (that is
+               M2). Like the D2 run records these routes
+               would mirror, writing one is a plain file
+               write, so there is no trust gate here. */
+            try {
+                if (method.equals("POST")) {
+                    if (body.length > TaskStore.MAX_BYTES) {
+                        sendJson(out, 413, "{\"error\":"
+                            + Json.quote("task record too "
+                                + "large (limit "
+                                + TaskStore.MAX_BYTES
+                                + " bytes)") + "}");
+                        return;
+                    }
+                    Object parsed = Json.parse(new String(
+                        body, StandardCharsets.UTF_8));
+                    String err = TaskStore.validate(
+                        parsed, body.length);
+                    if (err != null) {
+                        sendJson(out, 400, "{\"error\":"
+                            + Json.quote(err) + "}");
+                        return;
+                    }
+                    Map<String, Object> rec = Json.obj(parsed);
+                    String id = Json.str(rec, "id", "");
+                    File f = taskFile(id);
+                    if (f.isFile()) {
+                        sendJson(out, 409, "{\"error\":"
+                            + Json.quote("a task record "
+                                + "with this id already "
+                                + "exists; update it "
+                                + "instead") + "}");
+                        return;
+                    }
+                    if (f.getParentFile() != null)
+                        f.getParentFile().mkdirs();
+                    writeFile(f, TaskStore.toJson(rec));
+                    sendJson(out, "{\"ok\":true,\"path\":"
+                        + Json.quote(".ghostide/tasks/" + id
+                            + ".json")
+                        + ",\"record\":"
+                        + TaskStore.toJson(rec) + "}");
+                    return;
+                }
+                String tid = queryParam(query, "id");
+                if (tid != null && !tid.isEmpty()) {
+                    if (!TaskStore.isTaskId(tid)) {
+                        sendJson(out, 400, "{\"error\":"
+                            + "\"bad task id\"}");
+                        return;
+                    }
+                    File f = taskFile(tid);
+                    if (!f.isFile()) {
+                        sendJson(out, 404, "{\"error\":"
+                            + "\"no such task record\"}");
+                        return;
+                    }
+                    Object parsed = Json.parse(readFile(f));
+                    String err = TaskStore.validate(
+                        parsed, 0);
+                    if (err != null) {
+                        sendJson(out, 400, "{\"error\":"
+                            + Json.quote(err) + "}");
+                        return;
+                    }
+                    sendJson(out, "{\"record\":"
+                        + TaskStore.toJson(Json.obj(parsed))
+                        + "}");
+                    return;
+                }
+                sendJson(out, "{\"tasks\":"
+                    + taskListJson() + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
+            }
+            return;
+        }
+        if (path.equals("/api/tasks/update")
+                && method.equals("POST")) {
+            /* S1: replace an existing task record; a
+               missing id is a 404, in the desktop's shape. */
+            try {
+                if (body.length > TaskStore.MAX_BYTES) {
+                    sendJson(out, 413, "{\"error\":"
+                        + Json.quote("task record too large "
+                            + "(limit " + TaskStore.MAX_BYTES
+                            + " bytes)") + "}");
+                    return;
+                }
+                Object parsed = Json.parse(new String(
+                    body, StandardCharsets.UTF_8));
+                String err = TaskStore.validate(
+                    parsed, body.length);
+                if (err != null) {
+                    sendJson(out, 400, "{\"error\":"
+                        + Json.quote(err) + "}");
+                    return;
+                }
+                Map<String, Object> rec = Json.obj(parsed);
+                String id = Json.str(rec, "id", "");
+                File f = taskFile(id);
+                if (!f.isFile()) {
+                    sendJson(out, 404, "{\"error\":"
+                        + "\"no such task record\"}");
+                    return;
+                }
+                writeFile(f, TaskStore.toJson(rec));
+                sendJson(out, "{\"ok\":true,\"path\":"
+                    + Json.quote(".ghostide/tasks/" + id
+                        + ".json")
+                    + ",\"record\":"
+                    + TaskStore.toJson(rec) + "}");
+            } catch (Exception e) {
+                sendJson(out, 400, "{\"error\":"
+                    + Json.quote(msg(e)) + "}");
             }
             return;
         }
@@ -3234,6 +3360,67 @@ public final class IdeServer {
 
 
 
+
+    /* S1: the task record file for one id. Callers have
+       already run TaskStore.isTaskId over the id, so the
+       name is a plain file name with no traversal in it -
+       the same posture as the desktop's _task_path. */
+    private File taskFile(String id) {
+        return new File(new File(new File(workspace,
+            ".ghostide"), "tasks"), id + ".json");
+    }
+
+    /* S1: the list summaries JSON for GET /api/tasks -
+       valid records only (a file that fails validation is
+       skipped, exactly as the desktop skips it), newest
+       update first, at most 100. */
+    private String taskListJson() {
+        java.util.List<Map<String, Object>> sums =
+            new java.util.ArrayList<>();
+        File dir = new File(new File(workspace, ".ghostide"),
+            "tasks");
+        File[] files = dir.listFiles(
+            new java.io.FilenameFilter() {
+                public boolean accept(File d, String name) {
+                    return name.endsWith(".json");
+                }
+            });
+        if (files != null) {
+            java.util.Arrays.sort(files,
+                new java.util.Comparator<File>() {
+                    public int compare(File a, File b) {
+                        return a.getName().compareTo(
+                            b.getName());
+                    }
+                });
+            for (File f : files) {
+                try {
+                    Object parsed = Json.parse(readFile(f));
+                    if (TaskStore.validate(parsed, 0) != null)
+                        continue;
+                    sums.add(TaskStore.summary(
+                        Json.obj(parsed)));
+                } catch (Exception ignored) {}
+            }
+        }
+        java.util.Collections.sort(sums,
+            new java.util.Comparator<Map<String, Object>>() {
+                public int compare(Map<String, Object> a,
+                                   Map<String, Object> b) {
+                    return String.valueOf(b.get("updatedAt"))
+                        .compareTo(String.valueOf(
+                            a.get("updatedAt")));
+                }
+            });
+        if (sums.size() > 100)
+            sums = sums.subList(0, 100);
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < sums.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(TaskStore.toJson(sums.get(i)));
+        }
+        return sb.append("]").toString();
+    }
 
     private File safe(String rel) throws IOException {
         // R14: C0 controls and DEL refused.
