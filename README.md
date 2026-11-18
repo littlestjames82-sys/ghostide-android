@@ -25,11 +25,30 @@ and the agent's approval controls. Narrated by Ryan.
 | | |
 |---|---|
 | Package | `com.ghostide.app` |
-| Current release | **3.10.0** (versionCode 215, Nov 2, 2026) |
+| Current release | **3.21.0** (versionCode 220, Nov 18, 2026) |
 | APK size | ~20.5 MB |
 | Android | min SDK 24 · target SDK 36 · arm64 only |
 | Signing | one preserved keystore across every build, so each release installs as an in-place update (cert SHA-256 `8ea8684a…`) |
 | License | MIT |
+
+## Download
+
+- **Downloads site:** https://downloads.ghostdeveloperstudio.com/
+  carries the current APK with its SHA-256 printed beside it.
+- **From this repo:** the
+  [`downloads`](https://github.com/littlestjames82-sys/ghostide-android/tree/downloads)
+  branch carries the APK per version with a SHA256SUMS file.
+- The app checks for updates itself (at most once a day) and
+  offers the newer APK through your browser. Nothing installs
+  itself, and every build installs over the last.
+
+New in 3.21.0, the Git phone pack: your GitHub token is
+stored in the Android Keystore, encrypted and never readable
+back, instead of in page storage; clone is shallow by
+default with a Full clone option; and merge conflicts
+resolve one card at a time. In 3.20.0 the app gained its
+update check, and in 3.19.0 a configurable symbol row and
+40px touch targets.
 
 The web IDE is the **same frontend bundle** as the desktop
 [`ghost-ide`](https://github.com/littlestjames82-sys/ghost-ide)
