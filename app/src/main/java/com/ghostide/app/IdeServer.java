@@ -52,7 +52,7 @@ public final class IdeServer {
     private static final Semaphore CONN_SLOTS =
         new Semaphore(32);
     static final int PORT = 18763;
-    static final String VERSION = "3.19.0";
+    static final String VERSION = "3.20.0";
     private volatile String modelName;
 
     void setModelName(String n) { modelName = n; }
@@ -533,6 +533,26 @@ public final class IdeServer {
     private volatile boolean running = false;
     private ServerSocket socket;
 
+    /* Mobile Cycle 1 (M5): the installed build's version
+       code, read from the package manager so /api/health
+       reports the code of the APK actually running. The
+       web bundle carries only version names, so this is
+       the one place the running versionCode is knowable
+       from the JS side; the APK update check compares
+       against it. 0 when the package lookup fails. */
+    private int installedVersionCode() {
+        try {
+            android.content.pm.PackageInfo pi =
+                ctx.getPackageManager().getPackageInfo(
+                    ctx.getPackageName(), 0);
+            if (android.os.Build.VERSION.SDK_INT >= 28)
+                return (int) pi.getLongVersionCode();
+            return pi.versionCode;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     IdeServer(Context ctx, LlamaBrain brain, String modelName) {
         this.ctx = ctx.getApplicationContext();
         this.brain = brain;
@@ -856,6 +876,7 @@ public final class IdeServer {
             sendJson(out, "{\"model\":\"" + (brain.isLoaded() ? "up" : "down")
                 + "\",\"modelName\":" + Json.quote(modelName)
                 + ",\"version\":" + Json.quote(VERSION)
+                + ",\"versionCode\":" + installedVersionCode()
                 + ",\"pairRequired\":true"
                 + ",\"backupFormats\":[1,2]"
                 + ",\"targetSdk\":36"

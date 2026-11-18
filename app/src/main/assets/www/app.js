@@ -34325,6 +34325,10 @@
     pollHealth();
   };
   $("setUpdateBtn").onclick = async () => {
+    if (apkUpdateOnAndroid()) {
+      await apkUpdateManualCheck();
+      return;
+    }
     const out = $("setUpdateOut");
     out.textContent = "checking\u2026";
     try {
@@ -41410,6 +41414,235 @@
     renderSymbolRow();
   }
   initSymbolRow();
+  var APK_UPDATE_KEY = "ghostide-apkupdate";
+  var APK_UPDATE_URL_KEY = "ghostide-apkupdate-url";
+  var APK_UPDATE_MANIFEST_URL = "https://downloads.ghostdeveloperstudio.com/ghostide/android-latest.json";
+  var APK_UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1e3;
+  function apkUpdateOnAndroid() {
+    try {
+      return typeof window !== "undefined" && !!window.GhostNative;
+    } catch (e) {
+      return false;
+    }
+  }
+  function apkUpdateManifestUrl() {
+    try {
+      const o = localStorage.getItem(APK_UPDATE_URL_KEY);
+      if (o && /^https?:\/\//i.test(o)) return o;
+    } catch (e) {
+    }
+    return APK_UPDATE_MANIFEST_URL;
+  }
+  function apkUpdateState() {
+    let st = {};
+    try {
+      st = JSON.parse(
+        localStorage.getItem(APK_UPDATE_KEY) || "{}"
+      ) || {};
+    } catch (e) {
+      st = {};
+    }
+    return {
+      lastCheck: typeof st.lastCheck === "number" ? st.lastCheck : 0,
+      snoozedCode: typeof st.snoozedCode === "number" ? st.snoozedCode : 0
+    };
+  }
+  function saveApkUpdateState(st) {
+    try {
+      localStorage.setItem(APK_UPDATE_KEY, JSON.stringify({
+        lastCheck: st.lastCheck || 0,
+        snoozedCode: st.snoozedCode || 0
+      }));
+    } catch (e) {
+    }
+  }
+  function apkUpdateEvaluate(manifest, currentCode) {
+    if (!manifest || typeof manifest !== "object")
+      return null;
+    const code2 = manifest.versionCode;
+    if (typeof code2 !== "number" || !isFinite(code2))
+      return null;
+    if (typeof currentCode !== "number" || !(currentCode > 0)) return null;
+    if (code2 <= currentCode) return null;
+    if (!manifest.version || !manifest.apkUrl || !/^https:\/\//i.test(String(manifest.apkUrl)))
+      return null;
+    return {
+      version: String(manifest.version),
+      versionCode: code2,
+      apkUrl: String(manifest.apkUrl),
+      notesUrl: typeof manifest.notesUrl === "string" ? manifest.notesUrl : ""
+    };
+  }
+  function apkUpdateManualMessage(res, currentVersion) {
+    if (!res || res.error)
+      return "Could not reach the update server. Check the connection and try again.";
+    if (res.notice)
+      return "Update available: GhostIDE v" + res.notice.version + " is ready to download.";
+    return "You are up to date (" + currentVersion + ").";
+  }
+  async function apkUpdateRun(opts) {
+    const o = opts || {};
+    const now = typeof o.now === "number" ? o.now : Date.now();
+    const st = apkUpdateState();
+    if (!o.manual && now - st.lastCheck < APK_UPDATE_INTERVAL_MS)
+      return { skipped: true };
+    let notice = null, error = null;
+    try {
+      const r = await o.fetchText(apkUpdateManifestUrl());
+      if (!r || r.status !== 200)
+        throw new Error("status " + (r && r.status));
+      notice = apkUpdateEvaluate(
+        JSON.parse(r.text),
+        o.currentCode
+      );
+    } catch (e) {
+      error = String(e && e.message || e);
+    }
+    st.lastCheck = now;
+    if (notice && notice.versionCode <= st.snoozedCode)
+      notice = null;
+    saveApkUpdateState(st);
+    return {
+      notice,
+      error,
+      currentVersion: o.currentVersion
+    };
+  }
+  try {
+    window.__ghostApkUpdate = {
+      APK_UPDATE_MANIFEST_URL,
+      APK_UPDATE_KEY,
+      APK_UPDATE_INTERVAL_MS,
+      apkUpdateOnAndroid,
+      apkUpdateManifestUrl,
+      apkUpdateState,
+      saveApkUpdateState,
+      apkUpdateEvaluate,
+      apkUpdateManualMessage,
+      apkUpdateRun,
+      showApkUpdateNotice,
+      hideApkUpdateNotice
+    };
+  } catch (e) {
+  }
+  var apkUpdateNoticeData = null;
+  function showApkUpdateNotice(notice) {
+    const b = $("updateBanner");
+    if (!b || !notice) return;
+    apkUpdateNoticeData = notice;
+    $("updateBannerBody").textContent = "GhostIDE v" + notice.version + " is available. Download opens the new APK in your browser; install it over this build to update. The app itself never downloads or installs updates.";
+    b.classList.remove("hidden");
+  }
+  function hideApkUpdateNotice() {
+    const b = $("updateBanner");
+    if (b) b.classList.add("hidden");
+  }
+  function apkUpdateOpenDownload() {
+    const n = apkUpdateNoticeData;
+    if (!n || !/^https:\/\//i.test(n.apkUrl)) return;
+    try {
+      if (window.GhostNative && window.GhostNative.openExternal) {
+        window.GhostNative.openExternal(n.apkUrl);
+        return;
+      }
+    } catch (e) {
+    }
+    try {
+      window.open(n.apkUrl, "_blank");
+    } catch (e) {
+    }
+  }
+  async function apkUpdateFetchText(url) {
+    const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const t2 = ctl ? setTimeout(() => ctl.abort(), 1e4) : null;
+    try {
+      const r = await fetch("/api/http", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          method: "GET",
+          url,
+          headers: { "User-Agent": "GhostIDE-Updater" }
+        }),
+        signal: ctl ? ctl.signal : void 0
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      return { status: d.status, text: d.body || "" };
+    } finally {
+      if (t2) clearTimeout(t2);
+    }
+  }
+  async function apkUpdateCurrentBuild() {
+    const d = await (await fetch("/api/health")).json();
+    return {
+      code: typeof d.versionCode === "number" ? d.versionCode : 0,
+      version: d.version || "?"
+    };
+  }
+  async function apkUpdateCheckNow(manual) {
+    if (!apkUpdateOnAndroid()) return { skipped: true };
+    let cur2 = { code: 0, version: "?" };
+    try {
+      cur2 = await apkUpdateCurrentBuild();
+    } catch (e) {
+    }
+    if (!(cur2.code > 0))
+      return {
+        error: "no version code",
+        currentVersion: cur2.version
+      };
+    const res = await apkUpdateRun({
+      manual: !!manual,
+      fetchText: apkUpdateFetchText,
+      now: Date.now(),
+      currentCode: cur2.code,
+      currentVersion: cur2.version
+    });
+    if (res.notice) showApkUpdateNotice(res.notice);
+    return res;
+  }
+  async function apkUpdateManualCheck() {
+    const out = $("setUpdateOut");
+    if (out) out.textContent = "checking\u2026";
+    const res = await apkUpdateCheckNow(true);
+    if (!out) return;
+    out.textContent = apkUpdateManualMessage(
+      res,
+      res.currentVersion || "?"
+    );
+    if (res.notice) {
+      out.appendChild(document.createTextNode(" "));
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Download v" + res.notice.version;
+      btn.onclick = () => {
+        apkUpdateNoticeData = res.notice;
+        apkUpdateOpenDownload();
+      };
+      out.appendChild(btn);
+    }
+  }
+  var updDlBtn = $("updateDownloadBtn");
+  if (updDlBtn) updDlBtn.onclick = () => {
+    apkUpdateOpenDownload();
+    hideApkUpdateNotice();
+  };
+  var updLaterBtn = $("updateLaterBtn");
+  if (updLaterBtn) updLaterBtn.onclick = () => {
+    if (apkUpdateNoticeData) {
+      const st = apkUpdateState();
+      st.snoozedCode = apkUpdateNoticeData.versionCode;
+      saveApkUpdateState(st);
+    }
+    hideApkUpdateNotice();
+  };
+  var updDismissBtn = $("updateDismissBtn");
+  if (updDismissBtn)
+    updDismissBtn.onclick = hideApkUpdateNotice;
+  setTimeout(() => {
+    apkUpdateCheckNow(false);
+  }, 5e3);
   $("setDelay").value = settings.infillDelay;
   $("setDelay").onchange = (e) => {
     const n = parseInt(e.target.value, 10);

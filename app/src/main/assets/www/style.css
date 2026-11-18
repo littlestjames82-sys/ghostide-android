@@ -587,6 +587,19 @@ body.onehand .fileMenuBtn { min-width: 40px; }
 }
 #trustBanner.hidden { display: none; }
 #trustBanner p { font-size: 14px; line-height: 1.5; margin: 6px 0 10px; }
+/* Mobile Cycle 1 (M5): the APK update notice - the
+   trust banner's floating-card shape, one z-step
+   below it. It renders in the app chrome only when
+   the update check finds a newer build than the
+   installed one, and it never blocks the editor. */
+#updateBanner {
+  position: fixed; left: 14px; bottom: 14px; z-index: 74;
+  width: min(380px, 92vw); background: var(--float);
+  border: 1px solid var(--ghost-accent); border-radius: 12px;
+  padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+}
+#updateBanner.hidden { display: none; }
+#updateBanner p { font-size: 14px; line-height: 1.5; margin: 6px 0 10px; }
 #trustPill { cursor: pointer; }
 #tourChip {
   position: fixed; right: 14px; bottom: 64px; z-index: 70;

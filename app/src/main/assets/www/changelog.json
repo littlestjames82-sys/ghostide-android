@@ -3,958 +3,958 @@
  "kind": "changelog",
  "entries": [
   {
+   "version": "3.20.0",
+   "date": "Nov 17, 2026",
+   "goal": "Mobile Cycle 1 M5: in-app APK update check",
+   "summary": "A sideloaded app gets no store updates, so the app now checks itself: it fetches android-latest.json from the downloads host (a separate file from the desktop latest.json, which the desktop publish owns) and compares its"
+  },
+  {
    "version": "3.19.0",
    "date": "Nov 17, 2026",
    "goal": "Mobile Cycle 1 M3: slim configurable symbol row + touch-editing pass",
-   "summary": "Phone keyboards bury the characters code is made of, so a single slim row now docks under the editor at phone widths while it has focus: Tab, brackets, quotes and the everyday symbols in one row that scrolls sideways inside itself, plus Undo and cursor keys. Bracket and quote keys insert through the editor's own auto-close, so a pair lands with the cursor inside, and taps never dismiss the keyboard. The row is configurable in Settings, Phone: an on/off toggle and an editable, resettable key list. A touch pass also lifts tab close buttons, view bar items, panel header buttons and Git row buttons to a 40px minimum target on phones, and the viewport gate proves the row appears on focus, inserts, measures clean, and hides on blur."
+   "summary": "Both trains bumped together per check_versions.py: 3.18.0 -> 3.19.0, Android versionCode 217 -> 218; the five version sources agree (server.py, VERSION.json, web/changelog.json, AndroidManifest, IdeServer.java). The cycl"
   },
   {
    "version": "3.18.0",
    "date": "Nov 17, 2026",
    "goal": "Mobile Cycle 1 M1: viewport-matrix gate + phone layout hardening",
-   "summary": "A repeatable viewport gate now renders the built bundle in a real browser at phone sizes and fails on any overflow or clipped control, and the layout is hardened to pass it: wrapping button rows, stacked conflict panes, one overlay panel at a time on phones. The Android build re-syncs to the shared 3.18.0 bundle (language servers, agent trust layer, MCP polish, neural search, model store, git depth included)."
-  },
-  {
-   "version": "3.10.1",
-   "date": "Nov 4, 2026",
-   "goal": "Hotfix: Git panel commit row clipped on phone-width sidebars",
-   "summary": "The commit row in the Git panel (Commit staged, Amend last, Review, Verdict, Scope, AI) was a single no-wrap flex row, wider than the sidebar on phones, so the Scope and AI buttons were cut off at the panel edge. The row now wraps: the message box takes the first line and any buttons that do not fit flow onto the next line, fully visible and tappable at any width."
-  },
-  {
-   "version": "3.10.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 (Craft) audit batch 4: cycle close",
-   "summary": "The Craft cycle closes clean. Final pass: no leaked key material anywhere in the shipped sources, approval decisions still ride their single route, every size cap holds, pairing tokens still expire, and the agent's view of tags is read-only like the rest of its git surface, with tagging and amending reachable from exactly one human-facing control each. The two new status-bar chips were also verified not to interfere with each other."
-  },
-  {
-   "version": "3.09.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 audit batch 3: census, pins, and the new git rails",
-   "summary": "Third audit pass: the route census sits exactly where this cycle deliberately put it (three new git routes, nothing else), the tag name rules match the branch rules character for character on both servers, amending is a plain amend with no force flags anywhere near it, and a narrowed test run can only ever select from the files the discoverer found. The signing certificate was re-verified live on the shipped APK."
-  },
-  {
-   "version": "3.08.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 audit batch 2: timeouts, bundle hygiene, ecosystem gate",
-   "summary": "Second audit pass: the ecosystem bundle gate was re-run in full and all 29 bundled tools are green, the editor's HTML-sink count is unchanged (a new screen this cycle tried to add one and was caught and rewritten during development), timeouts and signing are untouched, and the folding and diagnostics extensions were verified to be pure view state that makes no network calls of their own."
-  },
-  {
-   "version": "3.07.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 audit batch 1: access, traversal, leak checks re-run",
-   "summary": "Audit pass over everything the Craft cycle touched: the pairing gate still wraps every route including the three new ones, path and commit-hash pins are unchanged, atomic writes hold on both servers, and a live sweep of the new endpoints against a workspace holding a planted API key returned no trace of it. Malformed input to the new tag route gets a clean error, and diagnostics were verified to be compute-only: they read your text to check it and never write a file."
-  },
-  {
-   "version": "3.06.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 (Craft) batch 4: tests craft (desktop runner)",
-   "summary": "The test panel works at the level you actually fix things: one test at a time. Discovered Python tests are listed individually and a tap runs just that one; after a run, a Re-run failed button runs only the failures; and the last run's verdict is remembered, shown when the panel opens and carried on the status-bar chip until the next run. Skipped tests in a narrowed run never count as passes. The phone keeps its honest note that the runner itself is desktop-only."
-  },
-  {
-   "version": "3.05.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 (Craft) batch 3: git finish - tags and amend",
-   "summary": "The git panel is complete. Tags get their own section: mark HEAD, delete with a confirm, and tag any older commit straight from the commit viewer. A new Amend last button folds staged changes into the last commit, with the confirm spelling out exactly what will change, and the message box can reword it at the same time. The agent can read the tag list but, as with branches and stashes, tagging and amending stay human acts."
-  },
-  {
-   "version": "3.04.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 (Craft) batch 2: code folding, completed",
-   "summary": "Code folding actually works now. The Fold all and Unfold all buttons existed before, but the folding machinery underneath them was never switched on, so they quietly did nothing; the fold state, the gutter arrows, and the keyboard shortcuts are all wired now, in the split pane as well as the main editor, and the gutter can be hidden in Settings without losing the shortcuts."
-  },
-  {
-   "version": "3.03.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 8 (Craft) batch 1: editor diagnostics",
-   "summary": "The editor now shows syntax problems where you write. As you type, save, or switch files, the current text is checked and a broken line is marked in the gutter with the checker's own message, while a chip in the status bar names the line and takes you straight to it. It can be switched off in Settings, and it never blocks typing or saving when a check cannot run."
-  },
-  {
-   "version": "3.02.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 audit batch 4: leak sweep, approval rails, caps, flow rails - Flow Cycle complete",
-   "summary": "The Flow Cycle closes with its machinery audited as well as the old: no secret-shaped strings in the shipped sources, one approval route per server, the planning loop's pause proven inside its own code, and the agent's new git awareness proven read-only, since it can fetch branch and stash state but has no path to the routes that change them. Twenty improvements and twenty audits are complete."
-  },
-  {
-   "version": "3.01.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 audit batch 3: signer, census, pins, wording, JSON guard, flow rails",
-   "summary": "The signing certificate is verified live on the shipped package and the route census sits exactly where this cycle's deliberate additions put it. The new rails hold under audit: the branch-name guard is identical on both servers including the protected current branch, and stash references are rebuilt from a checked number on both, so nothing a client sends can become a git argument it was never meant to be."
-  },
-  {
-   "version": "3.00.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 audit batch 2: timeouts, lineage, sink census, bundle freshness",
-   "summary": "Timeouts and signing lineage re-proven and the ecosystem stamp is consistent. The shipped bundle provably contains this cycle's features, and its HTML-sink census is unchanged at 101: every new surface, from branch rows to stash entries, renders through safe text APIs only."
-  },
-  {
-   "version": "2.99.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 audit batch 1: pairing, traversal, atomic writes, secret sweep, bundle pins",
-   "summary": "The Flow Cycle's audits open on current code: the pairing gate still wraps every request, traversal stays refused, writes stay atomic, the planted secret canary appears in none of the probed responses including the new branch and stash routes, and the ecosystem bundle pins are unchanged."
-  },
-  {
-   "version": "2.98.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 (Flow) batch 4: continuity - the Flow Cycle's improvements close",
-   "summary": "Reopening the app now puts you back where you were: open tabs restore with their cursor positions, not just their names, and the find panel remembers the search you were in the middle of. Stashed work also shows up everywhere git state is summarized, in the copied status line and in the agent's briefing, and switching to a folder without a repo no longer leaves yesterday's stash list on screen. The Flow Cycle's twenty improvements are complete; its audits follow."
-  },
-  {
-   "version": "2.97.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 (Flow) batch 3: search power",
-   "summary": "Project search grows up. Find now has ignore-case and regex toggles that remember your choice, a broken regex gets a plain error instead of silence, and Prev and Next buttons walk you through the matches one by one. Replace all no longer asks you to trust it blind: it counts first and the confirmation states exactly how many occurrences in how many files are about to change."
-  },
-  {
-   "version": "2.96.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 (Flow) batch 2: stash, and planning learns to pause",
-   "summary": "The Git panel can now stash your changes and bring them back, with an apply that keeps the entry, a pop and drop that ask first, and an option to include untracked files. One honesty fix rides along: git reports success even when it stashed nothing because only new files changed, so the IDE now says so plainly instead of pretending your work is tucked away. The agent can list what is stashed, and planning runs finally honor the pause button like agent runs do."
-  },
-  {
-   "version": "2.95.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 7 (Flow) batch 1: branches",
-   "summary": "The Git panel finally manages branches. You can see every branch with the current one marked, switch with a tap (git itself protects uncommitted work, and its refusal is shown plainly), create a branch with or without switching to it, and delete one, with the current branch protected. The branch chip in the editor now opens the Git drawer instead of just sitting there, and the agent can list branches when it needs the lay of the land, though switching stays a human act."
-  },
-  {
-   "version": "2.94.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 audit batch 4: leak sweep, approval rails, caps, the new loop rails - Agentic Cycle complete",
-   "summary": "The Agentic Cycle closes with its new machinery audited as well as the old: no secret-shaped strings in the shipped sources, one approval route per server, the sub-run's read-only whitelist proven by the absence of any write path in its dispatch, the scratchpad confined to its one pinned file, the queue unable to run two agents at once, and stop always beating pause. Twenty improvements and twenty audits are complete."
-  },
-  {
-   "version": "2.93.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 audit batch 3: signer, census, pins, wording, JSON guard, DONE-gate rail",
-   "summary": "The signing certificate is verified live on the shipped package and the route census is unchanged, since the Agentic Cycle added no server routes. The new rail audit proves the self-repair gate cannot be bypassed: inside the agent loop there is exactly one road to a finished run and it passes through the gate, whose refusal is bounded by the repair cap rather than infinite."
-  },
-  {
-   "version": "2.92.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 audit batch 2: timeouts, lineage, sink census, bundle freshness",
-   "summary": "Timeouts and signing lineage re-proven, the ecosystem stamp is consistent, and two freshness facts worth stating plainly: the shipped bundle provably contains this cycle's agent features, and its HTML-sink census is unchanged at 101 - every new surface, from the status pill to the notes viewer, renders through safe text APIs only."
-  },
-  {
-   "version": "2.91.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 audit batch 1: pairing, traversal, atomic writes, secret sweep, bundle pins",
-   "summary": "The Agentic Cycle's audits open on current code: the pairing gate still wraps every request, traversal and the commit route's hash pin refuse bad input live, writes stay atomic on both servers, the planted secret canary appears in none of the probed responses, and the ecosystem bundle pins are unchanged."
-  },
-  {
-   "version": "2.90.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 (Agentic) batch 4: background runs and control",
-   "summary": "Agent runs are no longer tied to the chat screen. A status pill stays visible from any view while the agent works, showing its step and task, with pause, resume and stop on the pill itself; tapping it jumps back to chat. Sending another task while the agent is busy now queues it instead of bouncing, and queued tasks start automatically with fresh priming. Stop also lands mid-batch instead of waiting for the next step, and every finished run reports its steps, repair rounds and seconds. The Agentic Cycle's twenty improvements are complete; its audits follow."
-  },
-  {
-   "version": "2.89.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 (Agentic) batch 3: sub-runs and agent memory",
-   "summary": "The agent can now delegate and remember. EXPLORE hands a focused question to a bounded read-only sub-run that can only read and search, and brings back a summary. NOTE appends to the agent's own scratchpad in the workspace, and every new run's briefing now includes those notes plus what the last recorded run did, so the agent stops starting from zero. The scratchpad is yours to inspect and clear from Chat options."
-  },
-  {
-   "version": "2.88.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 (Agentic) batch 2: budgets and batching depth",
-   "summary": "The agent's budgets are yours to set: Chat options gains a step budget (25 to 100) that the loop, its banner and the model's own briefing all honor, plus the repair-round control for the DONE gate. Batched actions now appear individually in run replays instead of vanishing into one step, pure-read batches execute concurrently instead of one by one, a meter line reports progress every ten steps, and when a long run's context is compacted, the summary carries the open check problems so the agent never forgets what it was in the middle of fixing."
-  },
-  {
-   "version": "2.87.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 6 (Agentic) batch 1: the self-repair loop",
-   "summary": "The agent now repairs its own work. Saying DONE with staged changes first runs every staged file's automatic check; failures refuse DONE and come back for fixing, up to a repair-round limit you control in settings. Applying reviewed changes runs the full verify pipeline on disk automatically and drafts a fix task if problems remain. The VERIFY action reports the problems themselves, repeated identical actions are detected (a warning at three, a stop at four), and every run ends with its accounting: steps, repair rounds, seconds."
-  },
-  {
-   "version": "2.86.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 audit batch 4: leak sweep, approval rails, caps, rendering honesty, version ritual - cycle complete",
-   "summary": "The fifth cycle closes clean: no secret-shaped strings anywhere in the shipped sources, one approval route per server with every decision riding it, output caps re-pinned including the new commit viewer's, problem rows rendering only from structured fields, and the five-source version ritual holding. Twenty improvements and twenty audits are complete, and the cycle's headline remains the freshness audit that caught and fixed a silently frozen interface."
-  },
-  {
-   "version": "2.85.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 audit batch 3: signer, route census, name pins, delta wording, JSON guard",
-   "summary": "The signing certificate is verified live on the shipped package, the route census is re-derived at exactly the expected counts (the baseline plus this cycle's one deliberate route pair), datapack name pins still refuse traversal shapes, history size deltas stay honest in both directions, and malformed JSON still earns a clean error with the server healthy afterwards."
-  },
-  {
-   "version": "2.84.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 audit batch 2: timeouts, lineage, sink census, bundle freshness - and a caught freeze",
-   "summary": "This audit caught a real defect: two health pollers shared one function name, the web bundle build had been refusing ever since, and recent builds quietly shipped an older interface while the servers kept advancing. The poller is renamed, the bundle is rebuilt and verified fresh inside the app package itself, and a freshness check joins the permanent suite so a stale bundle can never pass silently again. Everything from this cycle's twenty improvements is now genuinely in the interface, and the HTML-sink census still stands at 101."
-  },
-  {
-   "version": "2.83.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 audit batch 1: pairing, traversal, atomic writes, secret sweep, bundle pins",
-   "summary": "The fifth cycle's audits open by re-proving the foundations on current code: the pairing gate still wraps every request path, workspace traversal and the new commit route's hash pin refuse bad input live, file writes stay atomic on both servers, a secret canary planted in the workspace appears in none of the probed responses, and the ecosystem bundle pins are unchanged."
-  },
-  {
-   "version": "2.82.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 batch 4: commit viewer, summary copies, priming change names",
-   "summary": "Recent commits are now tappable: each opens its stat and patch in a panel, served by a new route on both servers that only accepts a hex commit hash. Replay rows, the ecosystem catalog and approval rows each gain a small copy button for their summary or action text. And the agent's priming names the first changed files instead of only counting them. Cycle 5's twenty improvements are complete; the audits follow."
-  },
-  {
-   "version": "2.81.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 batch 3: history controls, clickable verify problems, palette mirrors",
-   "summary": "On-device histories get controls: the ecosystem's recent-runs line can clear itself, and Settings gains a single Clear on-device histories action covering eco runs, verify runs, terminal history and recent files, while settings and chats stay untouched. Verify problems are now clickable rows that open the file at the problem line, and a plain run clears them away. The command palette learns this cycle's new actions: toggling the tree order and copying settings."
-  },
-  {
-   "version": "2.80.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 batch 2: settings copy, tree sort, board Ask, queue text filter, git status copy",
-   "summary": "Settings can copy its own preferences JSON (that object holds no keys or tokens, so the copy is safe to share for troubleshooting). The file tree gains an order toggle between the server's walk order and A-Z. The board panel can ask Ghost about the board. The approval queue gains a free-text filter beside its kind buttons. And the Git panel copies a one-line status summary: branch, upstream distance, and change count."
-  },
-  {
-   "version": "2.79.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 5 batch 1: CI repair, workspace-shape priming, full changelog, tappable health dot, resources refresh",
-   "summary": "Cycle 5 opens with a repair outside the app: the Android repo's CI frontend job had been failing within seconds for weeks because two test harnesses read a file from a sibling repo the CI layout never provided. The workflow now links that repo in, proven by simulating the CI layout both ways. In the app: the agent's priming learns the workspace's shape (file and folder counts, largest file), What's New can show the entire bundled changelog, the health dot opens Settings when tapped, and MCP resources refresh past the cache just like tools."
-  },
-  {
-   "version": "2.78.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 audit batch 4: concurrency, timeouts, shapes, labels - Cycle 4 complete",
-   "summary": "The closing audit of Cycle 4. Parallel approval reads and denies under load all answered cleanly with nothing executed, every subprocess path keeps its timeout bound, and response shapes stayed plain. One honesty fix: snapshot size differences under a kilobyte no longer round up to a claimed full KB. Cycle 4 is complete: twenty improvements and twenty audits, with the audits catching real defects in the cycle's own new code and fixing them in-cycle, as designed."
-  },
-  {
-   "version": "2.77.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 audit batch 3: signer, route census, pins, hostile input",
-   "summary": "The third audit verifies the shipped APK's signing certificate matches the long-standing lineage, takes a full route census as the baseline for the next cycle (this cycle changed no routes), confirms the data-pack name pins still refuse traversal shapes, and probes the server with malformed JSON: clean error answers, and the server stays healthy. All pass."
-  },
-  {
-   "version": "2.76.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 audit batch 2: parity, canary, sinks, pins, atomic writes",
-   "summary": "The second audit checks the cycle's surfaces for leaks and drift: the git ahead/behind data matches on both servers, a canary sweep over the touched endpoints finds nothing, the HTML-sink census is unchanged because every new element uses safe text rendering, the ecosystem bundle pins hold, and atomic writes remain in place on both servers. All pass."
-  },
-  {
-   "version": "2.75.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 audit batch 1: gates, roles, approval rails re-verified",
-   "summary": "The first Cycle 4 audit re-checks the safety rails against everything the cycle changed: no new routes were added, the pairing gate still wraps every request, viewer guests stay read-only, the new deny-all rides the same per-request decision path, and the MCP refresh flag can only widen a list read, never a tool call. All pass."
-  },
-  {
-   "version": "2.74.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 batch 4: upstream-aware agent, output saving, MCP refresh, richer About, health dot",
-   "summary": "The agent's priming now includes how far the branch sits from its upstream. The Run pane can save its full output as a log file. MCP tools can be refreshed past the phone's five-minute cache when a server's tools change. Settings About counts the workspace's files. And a health dot in the header polls the server every minute while the app is visible, green when it answers and red with an explanation when it does not. Cycle 4's twenty improvements are complete; the audits follow."
-  },
-  {
-   "version": "2.73.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 batch 3: informed snapshots, test-aware agent, catalog generation, pack copy, full board",
-   "summary": "Local history now sizes each snapshot against the file as it stands, so restoring is an informed pick. The agent's project priming counts the workspace's test files and says whether there are tests to keep passing. The ecosystem catalog names its bundle generation up top. Viewing a data pack keeps the list intact and offers a copy button for the summary. And the board panel lists every project in the model, not just the first."
-  },
-  {
-   "version": "2.72.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 batch 2: deny-all, verify trends, grouped find, persistent filter, What's new",
-   "summary": "The approval queue can now deny everything waiting in one confirmed pass, which executes nothing by construction. Verify history keeps twelve runs and marks whether problems went down, up or stayed level. Plain find groups its matches under per-file headers with counts. The file filter survives restarts. And Settings gains a What's new button that reads the changelog bundled in the app, so this list is now viewable on the device itself."
-  },
-  {
-   "version": "2.71.0",
-   "date": "Nov 2, 2026",
-   "goal": "Campaign Cycle 4 batch 1: git ahead/behind, folder counts, word count, persistent history, terminal copy",
-   "summary": "Cycle 4 opens with small everyday wins. The Git panel now shows how far the branch sits from its upstream (ahead/behind arrows, hidden when even). Folders in the file tree carry their file counts. Selecting text shows its word count in the status bar alongside lines and characters. Terminal and REPL history survives closing the app, keeping the last fifty entries on the device. And the terminal pane can copy its output, like the Run pane already could."
-  },
-  {
-   "version": "2.70.0",
-   "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 audit batch 4: concurrency hammer, timeouts, shapes, labels - Cycle 3 complete",
-   "summary": "The closing audit of Cycle 3. Ten parallel MCP calls with server restarts fired into the middle all answered cleanly, parallel approval reads stayed valid, every subprocess path keeps its timeout bound, and response shapes stayed consistent across both servers. One clarity fix: the file tree's two change markers (changed on disk, uncommitted in git) finally carry a legend under the Files heading. Cycle 3 is complete: twenty improvements and twenty audits, with three real bugs found by the audits and fixed in the same cycle."
-  },
-  {
-   "version": "2.69.0",
-   "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 audit batch 3: signer, honesty labels, pack pins, body caps, malformed input - two fixes",
-   "summary": "Audit release with two real fixes, both caught by probing the new data-pack panel before it ever reached a phone: it asked a list route that does not exist and read summary fields the view route never sends, so it would always have claimed there were no packs. It now uses the real routes and response shapes, verified end to end. The pack view's traversal pin refuses the same seven attack-shaped names as delete, malformed request bodies earn clean 400s with the server unharmed, and the signing certificate lineage is verified on the previous build."
-  },
-  {
-   "version": "2.68.0",
-   "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 audit batch 2: parity, canary hunt, sink census, bundle pins",
-   "summary": "Audit release, no new features. Route parity holds for everything Cycle 3 added, on both servers. A canary secret planted in a fixture server's environment appears in none of the servers, sessions, ecosystem, devices or health outputs. The HTML sink census is unchanged from Cycle 2 - every Cycle 3 screen addition used safe text rendering. A burst of twelve rapid saves against the new atomic write path landed last-write-wins with no temporary files left behind, and the bundle pins match the audited gate exactly."
-  },
-  {
-   "version": "2.67.0",
-   "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 audit batch 1: pairing, pins, approval rails re-run and deepened",
-   "summary": "Audit release, no new features. The pairing gate, path pins, queue-first approval rails and hash binding all re-verified against the Cycle 3 surface. The new per-server MCP restart and paired-devices routes were probed live on a two-server fixture: restarting one server left the other serving from its live session, the restarted one respawned cleanly, and the devices readout carried roles and expiry only - no token material anywhere in the payload."
-  },
-  {
-   "version": "2.66.0",
-   "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 batch 4: board Git jump, palette actions, replay elapsed times, build readout, harness runner",
-   "summary": "The last improvement batch also repairs a quiet old bug: the desktop Replay panel has shown zero runs since it shipped because it asks by POST and the desktop only answered GET - it now answers both, like the phone always did. Replay entries record how long a run took, shown only when it was actually measured. The ecosystem board jumps straight to the Git panel, the command palette can restart MCP sessions and browse data packs, Settings names the exact build and workspace, and the whole proof suite runs under one command that fails loudly if anything regresses."
-  },
-  {
-   "version": "2.65.0",
-   "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 batch 3: atomic writes, bundle self-check, idle reaping, queue wait times, session ages",
-   "summary": "The hardening batch closes the oldest open note in the audit book: file saves are now atomic on both servers (temporary file plus rename, snapshots still taken first), so a crash mid-save can no longer leave a torn file. The build's self-check now reaches into the bundled tool zip and refuses to ship if its tool count or key versions drift from the audited pins. MCP sessions idle for thirty minutes are reaped instead of holding processes forever, approval requests show how long they have been waiting, and session readouts show age and idle time. The daemon behaviors are covered by new tests in GhostMCP's own suite."
+   "summary": "Shared train re-synced: desktop cycles had advanced the shared bundle to 3.17.0 while Android stayed 3.10.1 (versionCode 216); check_versions.py demands all five sources agree, so BOTH trains are now 3.18.0, Android vers"
   },
   {
    "version": "2.64.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 batch 2: git-dirty tree markers, REPL run-file, eco run history, copy summary, terminal clear",
-   "summary": "Files git knows are dirty now carry a diamond in the tree, next to the watcher's changed-on-disk dot, so the two kinds of 'changed' stop being confused. The REPL gains a Run file button that executes the editor's current text (unsaved work included, size-capped) - proven live with a multi-line program. Ecosystem tool runs keep an on-device history shown at the top of the panel, failures marked. The Run pane can copy its one-line summary (the Verify verdict) to the clipboard, and the terminal pane can clear its output without killing the session."
+   "goal": "Campaign Cycle 3 batch 2 (C3-I6-I10)",
+   "summary": "C3-I6 git-dirty tree markers: refreshGit fills gitDirtyPaths from /api/git/status changes; file rows append \" \u25c6\" (watch dots stay \" \u25cf\"); markers converge one refresh behind the fetch."
+  },
+  {
+   "version": "2.65.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 batch 3 (C3-I11-I15)",
+   "summary": "C3-I11 atomic writes (A14 residual CLOSED): desktop /api/file = snapshot, same-dir temp, os.replace; Java writeFile = temp sibling + ATOMIC_MOVE with rename fallback. A crash mid-save can no longer leave a torn file on e"
+  },
+  {
+   "version": "2.66.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 batch 4 (C3-I16-I20)",
+   "summary": "C3-I16 board panel gains an Open Git panel button (closes the panel, opens the drawer Git view)."
+  },
+  {
+   "version": "2.67.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 1 (A1-A5, deepened)",
+   "summary": "A1 PASS: pair gate precedes routing in both verbs. A2 PASS: new routes pinned (devices fixed path, daemon drop by name). A3 PASS: queue-first rails intact."
+  },
+  {
+   "version": "2.68.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 2 (A6-A10)",
+   "summary": "A6 PASS: route parity for all Cycle 3 routes (devices both servers; replay POST both; atomic writes both). A7 PASS (live): fixture canary (sk-canary-12345 in a sibling server's env) absent from servers, sessions, eco/inf"
+  },
+  {
+   "version": "2.69.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 3 (A11-A15, A13 deepened, 2 fixes)",
+   "summary": "A11 PASS (live): v2.68 APK signer cert SHA-256 8ea8684a3476785530435c... - lineage unbroken. A12 PASS: terminal honesty label intact. A14 PASS: 64MB body cap intact at read_json. A15 PASS (live): malformed JSON to /api/f"
+  },
+  {
+   "version": "2.70.0",
+   "date": "Nov 1, 2026",
+   "goal": "Campaign Cycle 3 audit batch 4 (A16-A20, A17 deepened) - CYCLE 3 COMPLETE",
+   "summary": "A16 PASS: timeout census clean (13 subprocess.run windows all bounded; helpers eco 120 / mcp 50 / git 30 / term 30; daemon requests carry the 50s default with per-request deadline refresh; the new drop verb rides the sam"
+  },
+  {
+   "version": "2.71.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 1 (C4-I1-I5)",
+   "summary": "C4-I1 git ahead/behind: the porcelain branch header's [ahead N, behind M] parsed on both servers (desktop regex; Java headerCount helper), shown by the branch name with zeros hidden. Live-proven both ways: real upstream "
+  },
+  {
+   "version": "2.72.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 2 (C4-I6-I10)",
+   "summary": "C4-I6 Approve Deny all: confirm, then per-id deny loop with a denied-of-total report; executes nothing by construction (deny is the non-executing decision)."
+  },
+  {
+   "version": "2.73.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 3 (C4-I11-I15)",
+   "summary": "C4-I11 history rows size each snapshot against the current document (smaller/larger/same). The planned undoable-restore work was verified unnecessary: restore loads into the editor and nothing writes until Save, and savi"
+  },
+  {
+   "version": "2.74.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 batch 4 (C4-I16-I20) - CYCLE 4 IMPROVEMENTS COMPLETE",
+   "summary": "C4-I16 agent priming reports upstream distance (fields from I1); the scouted first pick (pair revoke-all) was already shipped since v2.32, frontend and both servers."
+  },
+  {
+   "version": "2.75.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 1 (A1-A5)",
+   "summary": "All PASS. Cycle 4 added no routes: I1 extended /api/git/status's response, I18 an existing request flag, everything else is frontend. Pair gate wraps do_GET/do_POST once each (exact C3 pin form), viewer role check intact"
+  },
+  {
+   "version": "2.76.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 2 (A6-A10, A6 deepened)",
+   "summary": "All PASS. A6: ahead/behind parity (desktop live both ways in batch 1; Java same fields, compiled into this build). A7: live canary sweep over /api/git/status, /api/health, /api/eco/info, /api/files on the canary fixture "
+  },
+  {
+   "version": "2.77.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 3 (A11-A15)",
+   "summary": "All PASS. A11: apksigner live on the v2.76 APK - SHA-256 8ea8684a3476785530435c4d7289383977766702d6c2fe1baede7fad7bec8bea, lineage unbroken (first attempt failed only on a PATH gap for java - environment, not artifact). "
+  },
+  {
+   "version": "2.78.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 4 audit batch 4 (A16-A20, A17 deepened) - CYCLE 4 COMPLETE",
+   "summary": "A16 PASS: timeout census unchanged (13 subprocess.run windows, 0 unbounded; helpers eco 120 / mcp 50 / git 30 / term 30)."
+  },
+  {
+   "version": "2.79.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 1 (C5-I1-I5)",
+   "summary": "C5-I1 CI FIX (headline): ghostide-android's frontend CI job had failed in ~10s across Nov 1 (21 failures reported) while JVM/probe jobs passed. Cause proven by local simulation of the CI layout: campaign3-ui-harness and "
+  },
+  {
+   "version": "2.80.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 2 (C5-I6-I10)",
+   "summary": "C5-I6 Settings Copy settings (preferences JSON; the object was audited first - no credentials live in it)."
+  },
+  {
+   "version": "2.81.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 3 (C5-I11-I15)",
+   "summary": "C5-I11 eco Recent runs Clear button (beside the history it clears)."
+  },
+  {
+   "version": "2.82.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 batch 4 (C5-I16-I20) - IMPROVEMENTS COMPLETE",
+   "summary": "C5-I16 commit viewer: Recent commits tappable; new /api/git/show on both servers, hash pinned to hex 7-40, output capped 20000. Live-proven on current code (real hash served stat+patch; \"--help\" and garbage refused)."
+  },
+  {
+   "version": "2.83.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 1 (A1-A5)",
+   "summary": "A1 pair gate wraps do_GET/do_POST once each, viewer check intact. A2 traversal refused live; the new /api/git/show hex pin refused traversal-shaped and 44-char hashes live. A3 atomic writes intact both servers. A4 canary"
+  },
+  {
+   "version": "2.84.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 2 (A6-A10) - A10 CAUGHT A FROZEN FRONTEND",
+   "summary": "A6 timeouts intact; A7 lineage constants intact; A8 sink census 101 on the true current bundle; A9 stamp e13 consistent."
+  },
+  {
+   "version": "2.85.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 3 (A11-A15)",
+   "summary": "A11 signer verified LIVE on the v2.84 APK (8ea8684a..., unbroken). A12 census re-derived 137/127 (baseline + I16's pair, nothing else). A13 datapack pins unchanged. A14 delta wording honest both ways. A15 malformed JSON "
+  },
+  {
+   "version": "2.86.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 5 audit batch 4 (A16-A20) - CYCLE 5 COMPLETE",
+   "summary": "A16 leak sweep zero hits. A17 one decide route per server, all decisions ride it (live ledger proof from Cycle 4 stands). A18 caps re-pinned incl. the show route's 20000 both servers. A19 verify rows render from structur"
+  },
+  {
+   "version": "2.87.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 1 (C6-I1-I5)",
+   "summary": "C6-I1 DONE gate: with staged changes, DONE runs every staged file's automatic check first; failures refuse DONE and feed back for repair (settings.agentRepairRounds, default 3, capped 5; rules text tells the model). Dele"
+  },
+  {
+   "version": "2.88.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 2 (C6-I6-I10)",
+   "summary": "C6-I6 budgets as settings: agentMaxSteps (25/50/75/100 in Chat options) wired into the ACT loop, step banner, cap message, and the budget line in the model's briefing; repair rounds (0/1/2/3/5) selectable beside it. PLAN"
+  },
+  {
+   "version": "2.89.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 3 (C6-I11-I15)",
+   "summary": "C6-I11 EXPLORE: bounded (6-step) read-only sub-run inside runAgent; dispatch whitelist = read/search/list + reverse/eco/git/context via agentToolText + read-only batches (parseAgentBatch with an explicit allowed list). N"
+  },
+  {
+   "version": "2.90.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 (Agentic) batch 4 (C6-I16-I20) - IMPROVEMENTS COMPLETE",
+   "summary": "C6-I16 agent status pill (fixed, any view; step + task; tap -> Chat). Styling in style.css with #agentPill:not(.hidden){display:flex} - an inline display:flex would have defeated the plain .hidden rule and the pill could"
+  },
+  {
+   "version": "2.91.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 1 (A1-A5)",
+   "summary": "A1 pair gate intact. A2 traversal + commit hash pin intact (flag-shaped hash refused live). A3 atomic writes intact. A4 canary sweep live on v2.90 code: 0 hits on git/status, health, eco/info, files, git/log. A5 eco pins"
+  },
+  {
+   "version": "2.92.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 2 (A6-A10)",
+   "summary": "A6 timeouts intact. A7 lineage constants intact. A8 sink census 101 on the bundle carrying all twenty agentic features. A9 stamp e13 consistent. A10 freshness: runExplore/agentPillShow/doneGate all present in the built b"
+  },
+  {
+   "version": "2.93.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 3 (A11-A15 + DONE-gate rail)",
+   "summary": "A11 signer verified live on the v2.92 APK (8ea8684a). A12 census unchanged 137/127 (the cycle added no routes). A13 datapack pins unchanged. A14 delta wording honest. A15 malformed JSON live-probed this cycle (clean {err"
+  },
+  {
+   "version": "2.94.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 6 audit batch 4 (A16-A20 + loop rails) - CYCLE 6 COMPLETE",
+   "summary": "A16 leak sweep zero. A17 one decide route per server. A18 caps re-pinned (EXPLORE 6 steps, notes 8000, show 20000). A19 new surfaces textContent-rendered (A8 census held). A20 ritual held."
+  },
+  {
+   "version": "2.95.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 1 (C7-I1-I5)",
+   "summary": "C7-I1/I2 branch routes both servers: GET /api/git/branches; POST /api/git/branch (create/delete/switch) with an identical name pin (_branch_name_ok / String.matches pair: no leading dash, no dot-dot, no trailing slash/.l"
+  },
+  {
+   "version": "2.96.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 2 (C7-I6-I10)",
+   "summary": "C7-I6 stash routes both servers: GET list (index/ref/message parsed from %gd/%s); POST push/apply/pop/drop with the index pinned to an int 0..99 (bool rejected on desktop, non-integral rejected on Java) and the ref rebui"
+  },
+  {
+   "version": "2.97.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 3 (C7-I11-I15)",
+   "summary": "C7-I11 /api/search options on both servers: ignoreCase + regex, defaults unchanged (case-sensitive substring), pattern capped at 200 chars, bad regex is a clean {error} on both (desktop re, Java java.util.regex fully qua"
+  },
+  {
+   "version": "2.98.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 (Flow) batch 4 (C7-I16-I20) - IMPROVEMENTS COMPLETE",
+   "summary": "C7-I16 cursor positions ride the session: saveSession records each open tab's selection head (live view for the current tab, tabStates for the rest); restore parks them in pendingPos; activateTab applies each exactly onc"
+  },
+  {
+   "version": "2.99.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 1 (A1-A5)",
+   "summary": "A1 pair gate intact. A2 traversal + hash pin intact. A3 atomic writes intact. A4 canary sweep live on v2.98 code: 0 hits on git/status, git/branches, git/stash, health, eco/info - the new routes were swept in their first"
+  },
+  {
+   "version": "3.00.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 2 (A6-A10)",
+   "summary": "A6 timeouts intact. A7 lineage constants intact. A8 sink census 101 on the bundle carrying all Flow features. A9 stamp e13 consistent. A10 freshness: renderBranches/renderStashes/findJump/pendingPos all present in the bu"
+  },
+  {
+   "version": "3.01.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 3 (A11-A15 + flow rails 1)",
+   "summary": "A11 signer verified live on the v3.00 APK (8ea8684a). A12 census 141/131 (Cycle 7's deliberate level). A13 datapack pins unchanged. A14 delta wording honest. A15 malformed JSON live-probed this cycle."
+  },
+  {
+   "version": "3.02.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 7 audit batch 4 (A16-A20 + flow rails 2) - CYCLE 7 COMPLETE",
+   "summary": "A16 leak sweep zero. A17 one decide route per server. A18 caps re-pinned (search pattern 200 both servers, notes 8000, show 20000). A19 new surfaces textContent-rendered (A8 census held). A20 ritual held."
+  },
+  {
+   "version": "3.03.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 1 (C8-I1-I5)",
+   "summary": "C8-I1 lintGutter from @codemirror/lint (already installed, never imported) wired via diagComp, the established compartment pattern with its TDZ discipline. C8-I2 live syntax diagnostics: /api/check-content over current e"
+  },
+  {
+   "version": "3.04.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 2 (C8-I6-I10)",
+   "summary": "The batch's finding: Fold all / Unfold all buttons and the foldAll import shipped long ago, but codeFolding() was in no extension list, so the commands had no fold state and silently did nothing. C8-I6 wires codeFolding("
+  },
+  {
+   "version": "3.05.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 3 (C8-I11-I15)",
+   "summary": "Git finish: GET /api/git/tags + POST /api/git/tag + POST /api/git/amend on both servers (name rides the branch pin; tag target hash hex-pinned; amend folds staged changes with optional reword, git refusals surface). Pane"
+  },
+  {
+   "version": "3.06.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 (Craft) batch 4 (C8-I16-I20)",
+   "summary": "Tests craft (desktop runner + frontend; the phone server keeps its honest desktop-only refusal for /api/tests/*): /api/tests/run takes an optional single-test name (Python runner filters by argv; JS uses node --test-name"
+  },
+  {
+   "version": "3.07.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 1 (A1-A5 + craft rail 1)",
+   "summary": "A1-A5 re-derived on current code: pair gate count still exactly 2 (the three new routes live inside it), traversal + hash pins intact, atomic writes both servers, canary absent from sources, eco pins (29 tools / ghostmcp"
+  },
+  {
+   "version": "3.08.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 2 (A6-A10 + craft rail 2)",
+   "summary": "A6-A10 re-derived: timeouts intact (120/50/30), push modes + signer are script constants, sink census exactly 101 on the craft bundle, extraction stamp e13, bundle freshness carries all four craft markers."
+  },
+  {
+   "version": "3.09.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 3 (A11-A15 + craft rails 1)",
+   "summary": "A11-A15 re-derived: signer constant in build.sh (and live-verified on the v3.08 APK in this batch: SHA-256 8ea8684a3476785530435c4d7289383977766702d6c2fe1baede7fad7bec8bea), census at the deliberate Cycle 8 level 144/134"
+  },
+  {
+   "version": "3.10.0",
+   "date": "Nov 2, 2026",
+   "goal": "Campaign Cycle 8 audit batch 4 (A16-A20 + craft rails 2) - CYCLE 8 COMPLETE",
+   "summary": "A16-A20 re-derived: no canary/key-shaped strings in shipped sources, one decide route per server, caps intact (search 200 / notes 8000 / show 20000), pair token TTL holds, replay record shape unchanged. Craft rails part "
   },
   {
    "version": "2.63.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 3 batch 1: per-server MCP restart, paired devices, git-aware agent, pack viewer, openable renders",
-   "summary": "Cycle 3 opens with depth where Cycle 2 added surface. MCP sessions can now be restarted one server at a time from the panel (the daemon gained a drop verb) instead of nuking them all. Settings shows who is paired - roles and expiry only, token values never leave the server. The agent's priming now includes the git state (branch and uncommitted count) next to the board line. Data packs can be viewed, not just listed and deleted, through the same namespace-pinned route discipline. Recipe renders became real list items with Open buttons. Everything was proven live against fixtures before shipping, which caught one import bug in the new devices route before it could ship."
+   "goal": "Campaign Cycle 3 batch 1 (C3-I1-I5)",
+   "summary": "C3-I1 per-server MCP restart: GhostMCP 0.3.1 adds the daemon \"drop\" verb (session closed, call count reset); /api/mcp/restart accepts {server} (desktop drops one session via the daemon; phone clears only that server's li"
   },
   {
    "version": "2.62.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 audit batch 4: A16-A20 re-run, concurrency deepened - Cycle 2 complete",
-   "summary": "The final Cycle 2 sweep stress-tested concurrency where the cycle added shared state: ten MCP calls fired in parallel through the new persistent-session daemon all answered correctly while spawning the underlying server exactly once, and ten parallel approval-queue reads all returned valid data. Timeout bounds, response shapes and label honesty held across the cycle's surface. With this release Cycle 2 is complete - twenty improvements (persistent MCP sessions, header redaction, board-aware priming, pack management, tree change dots, a build that verifies its own bundle, and more) and twenty audits re-run against them, with two planned items found already covered and recorded as verified instead of rebuilt. The full posture note lives in the build notes."
+   "goal": "Campaign Cycle 2 audit batch 4 (A16-A20 re-run, A17 deepened) - CYCLE 2 COMPLETE",
+   "summary": "C2-A16 PASS: daemon calls bounded (50s default, per-request deadline refresh), renders on the eco 120s bound, pack routes filesystem-only."
   },
   {
    "version": "2.61.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 audit batch 3: A11-A15 re-run",
-   "summary": "The third audit sweep re-checks the platform guarantees: the signing lineage continues unbroken, staged-asset matching is now enforced by the build itself, terminal honesty labels and refusals are unchanged, workspace switching guards are untouched, every file overwrite still snapshots first, and the new routes' error paths were probed live - an unknown studio verb, an unknown tool and a malformed request body each returned a clean JSON error instead of a dropped connection or an HTML page. No findings; no code changes beyond the version."
+   "goal": "Campaign Cycle 2 audit batch 3 (A11-A15 re-run)",
+   "summary": "C2-A11 PASS: v2.60 signer prefix 8ea8684a3476... (lineage); staged match enforced in-build (C2-I20)."
   },
   {
    "version": "2.60.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 audit batch 2: A6-A10 re-run with the secrets audit deepened",
-   "summary": "The secrets audit went hunting this time: a canary secret planted in a fixture workspace was chased through every output Cycle 2 added - the ecosystem board, the pack list, MCP session readouts and the bundle info - and through a data file whose column header was the canary itself. Every output came back clean, and the header redaction added this cycle held in the integrated path. Parity checks confirm the new routes exist on both servers with matching shapes, the new display sinks all use text-safe rendering, and the bundled tool set is unchanged at its audited pins. No findings; no code changes beyond the version."
+   "goal": "Campaign Cycle 2 audit batch 2 (A6-A10 re-run, A7 deepened)",
+   "summary": "C2-A6 PASS: Cycle 2 routes on both servers; pack mtime seconds on both."
   },
   {
    "version": "2.59.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 audit batch 1: A1-A5 re-run against the Cycle 2 surface",
-   "summary": "The first Cycle 2 audit sweep re-tests the approval and boundary guarantees against everything Cycle 2 added. Pairing still gates every route before routing, including the new pack, session and restart routes. The pack-delete name pin refused six traversal shapes in live probes. The agent's run, delete and MCP branches still check the approval policy first, MCP execution still happens only inside the approve-decide path (the new persistent-session daemon sits below it and cannot be reached without a decision), and the queue's hash binding is untouched - the kind filter added this cycle is display-only. No findings; no code changes beyond the version."
+   "goal": "Campaign Cycle 2 audit batch 1 (A1-A5 re-run)",
+   "summary": "C2-A1 PASS: pair gate precedes routing in do_GET + do_POST (2 call sites); all Cycle 2 routes inherit it."
   },
   {
    "version": "2.58.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 batch 4: board freshness, Settings MCP control, palette openers, tree change dots, build self-check - Cycle 2 improvements complete",
-   "summary": "The Ecosystem board now shows the project's last commit under its header. Settings gains an MCP sessions readout with a Restart sessions button (the desktop drops its persistent daemon sessions; the phone clears its list cache). The command palette can open every campaign panel directly. Files the watcher sees change on disk carry a dot in the tree until you open them. Two planned items turned out to be already covered and are recorded as verified: the chat auto-scroll toggle (it exists in Settings and the message paths honor it) and REPL slice/ask (the REPL shares the terminal pane, so its buttons already work; the Ask wording is now mode-aware). Finally the build itself now refuses to finish if the APK's bundled web assets differ from the sources, byte for byte."
+   "goal": "Campaign Cycle 2 batch 4 (C2-I14-I20) - Cycle 2 improvements complete",
+   "summary": "C2-I14 board panel: \"Last commit: <hash> <subject>\" under the board header (from /api/git/log)."
   },
   {
    "version": "2.57.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 batch 3: watch jumps, verify history, eco search, render history, pack management",
-   "summary": "Files that change on disk in the watch feed are now tap-to-open links instead of plain text. Verify keeps a five-run history on the device, shown under each new report. The ecosystem catalog gains a live filter box. The Recipes shelf can list its render history (the checklist files renders wrote, newest first), and the Data pane gains pack management: list the workspace's GhostData packs and delete one by exact name, with the delete route pinned to the pack namespace on both servers - a traversal name is refused, which the fixture probes confirmed live."
+   "goal": "Campaign Cycle 2 batch 3 (C2-I9-I13)",
+   "summary": "C2-I9 watch feed renders changed files as open-file links (\"(gone)\" entries stay text; the bar still refreshes the tree)."
   },
   {
    "version": "2.56.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 batch 2: cache parity, header redaction, smarter priming, replay export, queue filter",
-   "summary": "The phone's MCP lists now cache like the desktop's (five minutes, invalidated when the config file changes; calls are never cached). GhostData 0.1.1 closes the audit observation from Cycle 1: a KEY=VALUE file read as data used to print the secret in its header name - headers now render as KEY=<redacted> in schemas and packs. The agent's priming picks up a one-line summary of the studio board, so it knows what else is verified or needs attention before it starts. Recorded agent runs can be exported as a markdown transcript, and the approve queue gains a filter bar (Run / Delete / MCP / Write) when more than one request is waiting."
+   "goal": "Campaign Cycle 2 batch 2 (C2-I2/I4/I6/I7/I8)",
+   "summary": "C2-I2 Java MCP list cache parity: mcpListBody caches tools/resources/prompts for 5 min keyed by (config path, verb, server), invalidated by config mtime; errors are never cached; calls always run live. Mirrors the deskto"
   },
   {
    "version": "2.55.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign Cycle 2 batch 1: persistent MCP sessions, sessions readout, durable test fixtures",
-   "summary": "Cycle 2 opens with the deepest carry-over from the audits: MCP servers now stay alive. GhostMCP 0.3.0 adds a serve daemon that keeps one handshaken session per configured server, and the desktop IDE routes every MCP list and call through it (with the old one-shot CLI as an automatic fallback if the daemon ever fails). A fixture proved the win end to end: three requests, exactly one server process spawned, where before there were three. The MCP panel shows which sessions are live and how many calls each has served. Also in this batch: the GhostConsole test fixtures that kept expiring on a calendar schedule now compute their dates from today, so they cannot rot again - its suite runs 103/103. The phone's ecosystem bundle moves to generation e10 to carry the new GhostMCP."
+   "goal": "Campaign Cycle 2 batch 1 (C2-I1/I5/I3)",
+   "summary": "C2-I1 persistent MCP sessions: GhostMCP 0.3.0 adds a `serve` daemon (src/ghostmcp/serve.py) keeping one handshaken session per configured server, dropping/reopening on config mtime change, retrying once on a dead transpo"
   },
   {
    "version": "2.54.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign audit batch 4 (A16-A20) - Cycle 1 audits complete",
-   "summary": "The final audit round of Cycle 1: every subprocess on both servers is time-bounded (a hung tool gets destroyed, never wedges a thread); fourteen approval requests fired in parallel landed as fourteen unique records with zero corruption; the error contract is uniform JSON on every API route; and two honesty fixes landed - the panel button class used across the app was never actually defined in the stylesheet, so buttons now get a proper 36px minimum tap target, and the Known Issues doc no longer claims LAN mode has no authentication (pairing shipped long ago; the doc now describes the real token and role rules, including the ungated static shell). Cycle 1 closes with twenty improvements (v2.47-v2.50) and twenty audits (v2.51-v2.54): five findings fixed in the campaign's own new code, which is exactly what the audits were for."
+   "goal": "Campaign 20x20 audit batch 4 (A16-A20) - CYCLE 1 COMPLETE",
+   "summary": "A16 PASS: timeout census - every desktop subprocess.run bounded (20-180s; eco 120 / mcp 50 / git 30 / term 30 defaults); Java runProcess deadline loop + destroy + capped buffers. Model/terminal/REPL are supervised sessio"
   },
   {
    "version": "2.53.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign audit batch 3 (A11-A15): build, terminal, workspaces, writes, malformed input",
-   "summary": "The third audit round verified the build itself (the signing certificate is identical across all six campaign releases and staged web assets byte-match their sources), the terminal's exposure (labeled as an unsandboxed local shell on desktop; the phone build refuses it outright), workspace switching (folder validation and worktree removal refusals probed live), and write safety (a 64MB body cap with strict framing, a history snapshot before every overwrite, boot-time restore reconciliation). Malformed-input probes - bad JSON, wrong types, missing fields - all answered cleanly, and two error-contract gaps were fixed: unknown API routes used to return an HTML error page and now answer the JSON error shape on both builds, and the phone server no longer drops the connection when a route fails before responding."
+   "goal": "Campaign 20x20 audit batch 3 (A11-A15)",
+   "summary": "A11 PASS: signer cert SHA-256 8ea8684a... identical across v2.47-v2.52 (re-verified for v2.53 below); staged app.js + changelog byte-match every release; dex route strings checked per release. APK container bytes are not"
   },
   {
    "version": "2.52.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign audit batch 2 (A6-A10): parity, secrets, XSS, bundle integrity, versions",
-   "summary": "The second audit round swept five more areas. Server parity held on every new route, with one bug caught in this campaign's own work: the agent's worktree briefing read a field the API never sends and would have primed it with 'undefined' names - it now derives names the same way the Git panel does. Secret-leakage probes with a canary key found MCP server listings expose environment variable names only, never values, even in errors. The XSS census found every dynamic HTML path running through the hardened markdown renderer (escape-first, inert bad link schemes) with panels using textContent. The bundle cross-check against the shipped APK is exact (gate, zip, manifest and the Java lists all agree on 29 tools), and a counting mismatch between the desktop and phone bundle readouts was aligned. The version gate passes on the current tree."
+   "goal": "Campaign 20x20 audit batch 2 (A6-A10)",
+   "summary": "A6 PASS + 1 fix: route/key parity on the newest routes verified both servers (approve incl. kind mcp, worktrees {path, branch, head}, board, slicelog, studio, replay, datapack, eco/info, MCP verbs; /api/files mtime both "
   },
   {
    "version": "2.51.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign audit batch 1 (A1-A5): pairing, paths, toolrunner, agent rails, queue integrity",
-   "summary": "The first audit round probed the security rails with live attacks, and four of five areas passed clean: the pairing gate covers every API route on both methods with rate-limited joins and expiring tokens; every path-escape attempt (encoded dots, absolute paths, symlink escapes, write escapes) was refused; the ecosystem tool runner only reaches its wired verbs and cannot be flag-injected; and the Approve queue's hash binding refused a tampered record at decision time while the audit flagged the tamper by id. One real hole was found and fixed: the agent's MCP tool calls used to bypass the approval rails that govern RUN commands. They now queue under the queue policy (a new queue kind that executes on your approval) and ask per call under the other policies, exactly like commands."
+   "goal": "Campaign 20x20 audit batch 1 (A1-A5)",
+   "summary": "Method: live probes against fixture desktop servers (LAN-mode gate reviewed by construction - the sandbox has no LAN interface for the dual listener to bind; loopback behavior verified live) plus parser probes driving th"
   },
   {
    "version": "2.50.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign batch 4: worktree briefing, MCP list cache, settings bundle readout, verify fix drafts, version build gate",
-   "summary": "The agent's priming now names the workspace's git worktrees when there are several, so it knows the layout before it starts. MCP browsing gets faster and quieter: tool, resource and prompt lists are cached on the desktop server for five minutes (keyed to the config file, so an edit refreshes instantly), while calls themselves always run live - a fixture proved two list calls spawn the server once, and a call spawns it again. Settings shows the ecosystem bundle readout (generation, tool count, code size) from the real manifest. After a Verify run, a new Draft fix task button in the Run pane turns the gaps it found into a ready agent task in the chat box. And the release process hardens: the APK build now refuses to start unless server.py, VERSION.json, the changelog, the Android manifest and the Java server all agree on the version - it caught its own first half-bump during this very release."
+   "goal": "Campaign 20x20 batch 4 (I16-I20) - Cycle 1 improvements complete",
+   "summary": "I16: runAgent priming appends the workspace's git worktrees (name + branch) when more than one exists."
   },
   {
    "version": "2.49.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign batch 3: replay re-run, scope headline in Git, eco board chips, data packs, agent CONTEXT",
-   "summary": "Session replay sessions gain a Re-run button that puts the recorded task back in the chat box with Agent mode on, ready for your Send tap. The Git panel now shows the last Scope verdict as a headline line, read from the scope pack both servers already write. Ecosystem panel rows carry their Ecosystem board state (verified, no report, attention) right on the tool chip, so you can see which tools have fresh proof without opening two panels. The Data pane gains a Pack button: GhostData builds the full pack (manifest, prompt summary, bounded redacted sample) into .ghostide and shows the pack's own summary. And the agent learns a CONTEXT action - mid-task it can pull the GhostAtlas repo map to re-orient, batchable with its other read-only lookups."
+   "goal": "Campaign 20x20 batch 3 (I11-I15)",
+   "summary": "I11 (substituted, recorded in CAMPAIGN_20x20.md): indexed search already opens at the hit line (E3), so the round went to replay Re-run - a session's button seeds its task into the chat box with Agent mode checked; the u"
   },
   {
    "version": "2.48.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign batch 2: board actions, watch auto-reload, queue badge + bulk, terminal slicing",
-   "summary": "The Ecosystem board stops being read-only: every card with a report gains an Open report button that opens the source file in the editor, and a Run row at the bottom fires Verify, Verdict or Scope and redraws the board with the fresh results. The watch feed grows up - if a file you have open (and haven't edited) changes on disk, its tab now reloads in place and the feed says so; dirty tabs are never touched. The Approve queue shows a live pending count right on its Tools entry, and the queue panel gains Approve all and Deny all for clearing a backlog in one decision sweep. Finally, the Terminal pane gets the same Slice log and Ask Ghost buttons the Run pane has, so noisy terminal output becomes an incident pack just as easily."
+   "goal": "Campaign 20x20 batch 2 (I6-I10), frontend only",
+   "summary": "I6: the Ecosystem board gains a Run row (Verify / Verdict / Scope) that fires the existing endpoints and redraws the board from the fresh model; a run's error stays visible instead of refreshing."
   },
   {
    "version": "2.47.0",
    "date": "Nov 1, 2026",
-   "goal": "Campaign batch 1: studio shelf (E18/E19) + replay timeline (E16) + GhostMCP 0.2",
-   "summary": "The 20x20 campaign opens with the studio shelf. Tools gains four entries: Recipes shelf (browse the GhostRecipes library, show, validate, and render any recipe to a checklist file - recipes are data-only and rendering never runs a step), Leads (import a CSV or JSON list into the workspace store, see ranked scores and tiers, re-score, and generate draft pitch packs - drafts only, nothing is ever sent), QuoteShot (open a job folder, view its items and totals, and render the customer quote fully offline), and Session replay (every agent and plan run now records its action trail; open a past run and scrub the slider through its steps). Under the hood, GhostMCP grows to 0.2: MCP servers can now offer resources and prompts, and the MCP panel grew Resources and Prompts buttons per server - binary resources are reported by size, never dumped."
+   "goal": "Campaign 20x20 batch 1 (I1-I5)",
+   "summary": "Ryan's scope: \"Run 20 improvement rounds, 20 audit rounds, then repeat it - polish, harden, inspect, harden.\" Campaign plan at ghost-ide/CAMPAIGN_20x20.md: rounds ship in gated releases of five; this release is Cycle 1 i"
   },
   {
    "version": "2.46.0",
    "date": "Nov 1, 2026",
-   "goal": "Ecosystem board (E17) + data openers (E14) + run-pane log slicing (E13)",
-   "summary": "Three deeper forms land. The Ecosystem board (Tools, then Ecosystem board) renders GhostConsole's own board model for the workspace: the project's column and the console's reasoning up top, then every tool's latest report as a card under Verified, Attention or Stale. It fills in as you work, because Verify, Verdict, Scope and the log slicer already write the reports the console reads. Data files open properly now: a CSV, TSV or JSON file shows a data pane above the editor with GhostData's report (schema, bounded sample, sensitive columns redacted), and OpenAPI or JSON Schema files get GhostSchema's endpoint outline - the tools' own words, verbatim, with an Ask Ghost button that drops the report into the chat box. And the Run pane gains Slice log: one tap turns raw output into a GhostLogs incident pack (error windows kept, duplicates collapsed) right in the pane, ready to ask Ghost about."
+   "goal": "Board (E17) + data openers (E14) + run-pane slicing (E13)",
+   "summary": "Ryan's scope: \"Improve\" - the deeper-form roadmap items in order: E17 board cards, E14 openers, E13 run-pane embed. E12 annotated COVERED (the Ecosystem panel runs GhostDeps itself, which is the panel the item asks for)."
   },
   {
    "version": "2.45.0",
    "date": "Nov 1, 2026",
    "goal": "Approve queue (E10) + worktrees (E15) + watch feed (E16 lite)",
-   "summary": "The Approve queue is real. A fourth RUN policy joins the pack: Queue - under it, the agent's RUN commands and DELETEs go to the GhostApprove queue instead of executing or staging, and the agent is told plainly that they have not happened. Tools, then Approve queue is where you decide: GhostApprove records each decision against the request's exact hash (it executes nothing, ever), and only then does the IDE carry out that one action - a command runs, a file is deleted - with the outcome kept in the panel's history and the whole store auditable in one tap. The Git panel gains a Worktrees section: list, add and remove worktrees, and Open switches the workspace to one on desktop (the phone workspace is fixed, and the panel says so rather than pretending). And the Files panel now watches the disk: if files change outside the editor - a terminal, another app, a checkout - a feed line names them within seconds; tap it to refresh."
+   "summary": "Ryan's scope: \"Continue\" - the next ROADMAP_ECO items in order: E10, E15, E16. All wiring by the parent (the three tracks interleave in the same three files); desktop behavior fixture-proven live before the APK build."
   },
   {
    "version": "2.44.0",
    "date": "Nov 1, 2026",
    "goal": "MCP client + Git proof + evidence contract",
-   "summary": "GhostIDE speaks MCP now. A new bundled tool, GhostMCP (stdlib only), reads the workspace .mcp.json in the standard format and talks to MCP servers over stdio or HTTP: Tools, then MCP servers lists them, shows each server's tools, and calls a tool with JSON arguments - and every agent run is briefed with the exact servers and tools your workspace configures, callable with the new MCP action (Act mode only, never batched, since tools can have side effects). Env values in the config are never printed anywhere, only their names. Git proof: the Git panel gains a Verdict button (GhostReview over the working-tree diff: plain-English verdict, secret-shaped lines flagged with values never shown) and a Scope button (GhostScope: what the change touches, riskiest first). And the verify report adopts the GhostVerify evidence contract: Executed, Claimed-not-executed, and Gaps are separate sections, so an unchecked file type, the 100-file cap, missing tests, or the phone build's desktop-only test stage reads as a gap, never as a pass."
+   "summary": "Ryan's one-word scope: \"Improve\" - taken as the next improvement round, headlined by the MCP client named as this drop in v2.43.0's notes. Built: parent did all server/frontend wiring; one subagent built the GhostMCP too"
   },
   {
    "version": "2.43.0",
    "date": "Nov 1, 2026",
-   "goal": "Agent toolbelt + tools wiring: the all-in expansion",
-   "summary": "The agent can finally use the IDE's own machinery. New agent actions: REVERSE (GhostRE-inspect a file), ECO (run GhostIndex or GhostDeps), VERIFY (the full verify pipeline), TEST (project tests), and GIT status/diff/log, in Plan and Act modes. Read-only actions can be batched in one reply, one per line, so a run takes far fewer model round trips. Every Act run is primed with GhostRecall project memory plus the error memory, and a finished run saves a GhostHandoff pack for the next session. RUN approvals follow a policy pack you pick beside the Agent toggle: approve every command, auto-approve under an approved plan, or auto-approve in a trusted workspace. Tools track: the Ecosystem panel now runs nine more bundled tools for real (GhostEnv audit, GhostLogs, GhostData, GhostSchema, GhostLedger, MCP Doctor, GhostConsole, GhostReplay, GhostExposure) through a generic runner on desktop and on-device. GhostRE grows to 0.2.0 with a DEX deep inspector (class, string and method counts for Android bytecode, including inside APKs) and .NET managed-PE inspection (CLR runtime version, assembly name, strong-name flag). One honest note: REA compare commands did not join the bridge, because REA 6.8.0's compare family takes session bundles or workflow JSON rather than two files."
+   "goal": "agent toolbelt + tools wiring (the all-in expansion)",
+   "summary": "Ryan's scope pick: \"Go all in: agent track + tools track together\" (plus Track C capabilities). Built in parallel: parent did Track A + both frontends; one subagent did the Track B servers; one did GhostRE Wave 2. Parent"
   },
   {
    "version": "2.42.0",
    "date": "Nov 1, 2026",
-   "goal": "Reverse engineering: REA bridge (desktop) + GhostRE (built in)",
-   "summary": "New Reverse panel in Tools. On desktop, GhostIDE detects a locally installed REA (Reverse Engineer Anything) and runs its read-only analysis commands against workspace files, saving the full Evidence JSON under .ghostide/rea/ and showing provider status from rea doctor (Ghidra, JADX, Rizin and other free engines light up as they are installed). Built into every build, including this phone APK, is GhostRE: a Ghost-native, stdlib-only Python inspector covering ELF, PE, Mach-O, WASM, APK/ZIP, Python .pyc, SQLite, plist, entropy, strings, and JavaScript app structure, parity-checked against REA's own output on the facts they share. Live capture, debugging, and instrumentation commands are deliberately not in the bridge allowlist."
+   "goal": "REA bridge (desktop) + GhostRE built in",
+   "summary": "Ryan asked to have \"everything that REA does built into GhostIDE\" and tapped \"Go all in: Waves 1 and 2 together\", then asked for the other (provider) tools too. REA itself still does not ship inside GhostIDE (his Nov 1 i"
   },
   {
    "version": "2.41.0",
    "date": "Nov 1, 2026",
-   "goal": "Phone fit, clean + getJson startup fix",
-   "summary": "The phone layout now uses the full screen width edge to edge: saved desktop pane widths no longer squeeze the editor and chat into a partial-width column, the header row wraps inside the screen (copy-path, copy-file and duplicate move to the file menu and Tools on phones), the status bar truncates its autocomplete hint instead of wrapping into a block, and the Android WebView fits the page to the device width. Also fixes the red startup banner: getJson was called by the tour, registry, classroom and state-import paths but never defined, so any of them died with ReferenceError: getJson is not defined."
+   "goal": "phone fit, clean + getJson fix",
+   "summary": "Ryan's screenshot (Nov 1, 1:28 AM ET): red banner \"Startup problem - tell Ghost: promise: ReferenceError: getJson is not defined\", and the editor + chat squeezed into a ~70%-width column with dead black space on the righ"
   },
   {
    "version": "2.40.0",
    "date": "Oct 22, 2026",
-   "goal": "Visual refresh, take two: Ghost editor theme",
-   "summary": "The editor gets its own theme through CodeMirror: near-black background, violet-forward syntax colors, violet cursor and selection. Phone surfaces get the gradient header, a lifted chat sheet, and an accent sheet grip."
+   "goal": "visual refresh, take two",
+   "summary": "Ryan's verdict on v2.39.0: \"Nothing looks different.\" Fair, and diagnosed rather than argued with: the delivery path is provably clean (the APK's staged style.css byte-matched the new file, IdeServer serves assets from t"
   },
   {
    "version": "2.39.0",
    "date": "Oct 22, 2026",
-   "goal": "Visual refresh",
-   "summary": "One token palette (violet-tinted neutrals) under every surface, depth on floating panels, accent focus rings, slim scrollbars, and the editor blended into the app background. No layout or behavior changes."
+   "goal": "visual refresh",
+   "summary": "Ryan: \"Make the app look better\". A CSS-only refresh of web/style.css (no layout, selector, or behavior changes): the flat grays are now one token layer of violet-tinted neutrals (the studio brand cast) defined in :root "
   },
   {
    "version": "2.38.0",
    "date": "Oct 22, 2026",
-   "goal": "LAN pairing is encrypted (TLS phase 1)",
-   "summary": "Desktop hosts now serve LAN guests over HTTPS with a persistent self-signed certificate: loopback stays plain HTTP, the pair panel and console show the cert fingerprint guests verify before typing the code, and a loud plain-HTTP fallback covers desktops that cannot generate a cert."
+   "goal": "LAN TLS phase 1",
+   "summary": "Ryan approved the Oct 22 TLS design draft's six decisions as recommended: accept the browser click-through; one persistent cert per host; host-confirm (SAS) joins approved as a later phase; desktop host first, app pinnin"
   },
   {
    "version": "2.37.0",
    "date": "Oct 22, 2026",
-   "goal": "Autosave untangle",
-   "summary": "Autosave is one setting again: the v2.01 checkbox wiring that shared the key and the Settings element id (and silently stomped the mode) is removed, the duplicate default is gone, and any boolean left in stored settings is migrated to the mode it meant."
+   "goal": "autosave untangle",
+   "summary": "The pre-existing defect flagged in the v2.36.0 sweep, fixed as its own round. Two autosave features had shared one settings key and one element id since their separate rounds: the editor select (Phase 8: autosave as a mo"
   },
   {
    "version": "2.36.0",
    "date": "Oct 22, 2026",
-   "goal": "Markdown preview injection fixes",
-   "summary": "Previewed markdown can no longer break out of image or link attributes with a quote, javascript:/data:/vbscript: links render as inert text, and the update-check links only accept http(s) URLs - closing a stored-XSS hole on the origin that holds the GitHub and pair tokens."
+   "goal": "batch 3 R5 + final sweep: markdown preview injection",
+   "summary": "The frontend scout's hole, parent-verified line by line in renderMarkdown: escHtml escapes & < > but not quotes, and the image/link rules interpolated alt text and URLs straight into double-quoted attributes. A workspace"
   },
   {
    "version": "2.35.0",
    "date": "Oct 22, 2026",
-   "goal": "HTTP parsing hardening",
-   "summary": "Both servers refuse ambiguous HTTP framing: duplicate or non-numeric Content-Length and any Transfer-Encoding are hard errors, truncated bodies are refused instead of routed, header blocks may end in CRLF or a bare LF, request reads time out at 30 seconds instead of 15 minutes, and the phone server caps concurrent connections at 32."
+   "goal": "batch 3 R4: HTTP parsing hardening",
+   "summary": "The Java HTTP scout's findings, parent-verified in IdeServer.handle/readN/readUntil and server.py's read_json: a stalled or trickling socket could hold a handler thread for 15 minutes (setSoTimeout 900000) with unbounded"
   },
   {
    "version": "2.34.0",
    "date": "Oct 22, 2026",
-   "goal": "Beat Cline C1-C3: Agent v2, Plan/Act, Checkpoints",
-   "summary": "The agent grows up, still fully offline. Act mode now runs up to 50 steps with SEARCH, LIST, patch EDITs (not just whole-file rewrites), approval-gated terminal RUNs, and staged DELETEs, with syntax checks fed back automatically and a live plan list that survives a restart. Plan mode researches read-only and hands you a written plan; nothing is edited until you tap Act on this plan. Checkpoints snapshot the staged work after every change so review can roll back to any step, and an undo point is saved to .ghostide/checkpoints before every approved apply."
+   "goal": "Beat Cline C1-C3",
+   "summary": "Agent v2 + Plan/Act + Checkpoints, pure offline (Ryan's pick:"
   },
   {
    "version": "2.34.0",
    "date": "Oct 22, 2026",
-   "goal": "Backup bounds",
-   "summary": "Restore counts the whole archive before touching disk (directories included) and refuses when free space cannot hold it; backup create refuses a write the disk cannot finish; the restore preview counts streamed bytes instead of trusting zip headers; duplicate entries are refused during the scan; envelope fields are validated before the password KDF runs."
+   "goal": "batch 3 R3: backup bounds",
+   "summary": "The backup scout's bounds findings, parent-verified: directory entries never counted against the 20,000-entry cap on either server; the Python restore preview trusted zip header sizes (a lying header understated the prev"
   },
   {
    "version": "2.33.0",
    "date": "Oct 22, 2026",
-   "goal": "Restore survives a mid-apply kill",
-   "summary": "Restores now keep a small write-ahead journal next to the staging area. If the app or server is killed halfway through applying a backup, the next start quietly rolls every touched file back to its pre-restore state before serving anything, instead of leaving a half-applied tree. Apply targets are also containment-checked, so a restored file cannot be carried outside the workspace by a pre-existing symlink folder."
+   "goal": "batch 3 R2: restore journal",
+   "summary": "Closes the audit's last restore item: a process kill mid-apply could leave a half-applied tree, and the next restore's blind wipe of .ghostide-restore could destroy rollback copies holding the only version of a file (kil"
   },
   {
    "version": "2.32.0",
    "date": "Oct 22, 2026",
-   "goal": "Pair tokens get a lifetime",
-   "summary": "Guest tokens now expire 12 hours after issue, and the host can revoke every guest at once from the pair panel (Revoke all guests). Expired or revoked guests are simply asked for the code again. This also closes a race in the join limiter, where parallel wrong codes could lose count against the lockout."
+   "goal": "batch 3 R1: pair token lifetime",
+   "summary": "Batch 3 opened with five parallel read-only audit scouts (pairing, backup/restore, Java HTTP parsing, frontend injection, TLS design), every load-bearing claim parent-verified against the code before patching. Pairing fi"
   },
   {
    "version": "2.31.0",
-   "date": "Oct 22, 2026",
-   "goal": "Twenty rounds of hardening, done",
-   "summary": "The second hardening marathon closes: pairing rate limits and guest roles, component-aware path containment, backup inspect and provenance, askpass and path hygiene, three more server splits, honest release tooling, and CI that keeps its own evidence - every round gated, both repos in step, and the second external audit's named items closed or plainly documented as open (LAN traffic is still unencrypted; see PAIRING.md). What remains is the device pass, which is yours: DEVICE_PASS_V231 lists the taps."
+   "date": "Oct 21, 2026",
+   "goal": "R20 final sweep",
+   "summary": "Marathon-2 capstone: no new code; the full gate suite re-run in the foreground on the final tree and recorded below at build time."
   },
   {
    "version": "2.30.0",
-   "date": "Oct 22, 2026",
-   "goal": "The paperwork catches up",
-   "summary": "Documentation round: the hardening plan now records what actually shipped for every audit item (including the two honest deviations: CI compiles rather than assembles, and the release APK is hash-pinned in the notes because the automation credential cannot upload assets), PAIRING.md matches the rate limit and guest roles, and BUILDING.md documents what CI proves. No app code changes."
+   "date": "Oct 21, 2026",
+   "goal": "R19 docs catch-up",
+   "summary": "HARDENING_PLAN.md: items 7/8/9/11/12 marked with their real outcomes + deviations (CI compile-vs-assemble, release asset credential scope, clean-root = local second environment), item 10 progress (GitSupport/PairHub/Back"
   },
   {
    "version": "2.29.0",
-   "date": "Oct 22, 2026",
-   "goal": "Do not lose the answer to a stray reload",
-   "summary": "While an answer is streaming, a page reload or close now triggers the browser's leave warning instead of silently discarding the in-flight answer, wherever the platform surfaces that event (desktop browsers and WebView reloads; an Android app swipe-close does not surface it). The guard keys on the same stream state as the Stop button, so it never fires when nothing is running."
+   "date": "Oct 21, 2026",
+   "goal": "R18 streaming guard",
+   "summary": "beforeunload listener keyed on chatAbort (non-null only mid-stream): preventDefault + returnValue. Honest scope in the changelog: app swipe-close on Android does not surface beforeunload. streamguard harness 4/4; DOM-stu"
   },
   {
    "version": "2.28.0",
-   "date": "Oct 22, 2026",
-   "goal": "About shows its evidence",
-   "summary": "The About panel now ends with a build-evidence line read live from the host: which backup formats it reads, whether pairing is required for other devices, and on Android the target SDK. It is the audit's publish-your-evidence idea at app scale: what the build claims, it shows from the running server, not from a label."
+   "date": "Oct 21, 2026",
+   "goal": "R17 About evidence",
+   "summary": "aboutText gains an optional evidence segment (2-arg callers unchanged); the About handler fetches /api/health and composes \"backups v1 + v2 \u00b7 pairing required for other devices \u00b7 target SDK 36\" (fields present per build)"
   },
   {
    "version": "2.27.0",
-   "date": "Oct 22, 2026",
-   "goal": "Backups say who made them",
-   "summary": "New backups carry provenance in the envelope: createdBy and the exact app version that wrote them, on both builds. Readers stay tolerant, older backups restore exactly as before, and the restore preview now shows the version that made the backup when it is there. The server also keeps its version in one named constant now, so the health reply, update check, and backup meta can never drift apart."
+   "date": "Oct 21, 2026",
+   "goal": "R16 backup provenance",
+   "summary": "BackupCrypto.encrypt + server.py backup_encrypt (v1 and v2 envelopes) now write createdBy: \"GhostIDE\" and appVersion. Decrypt ignores meta (old envelopes unaffected - BkTest legacy restore still green; BkTest asserts bot"
   },
   {
    "version": "2.26.0",
-   "date": "Oct 22, 2026",
-   "goal": "Containment is component-aware now",
-   "summary": "The audit flagged string-prefix path checks in the archive extraction code: a sibling folder whose name merely starts with the workspace name would pass. Every containment check in the Android build (workspace safe-path, eco bundle, Python runtime, git templates) now goes through one tested helper that requires a real path boundary, with a JVM truth table in CI including the sibling-prefix case. The share provider and backup service already did it this way; the desktop server uses path components throughout."
+   "date": "Oct 21, 2026",
+   "goal": "R15 containment (audit item)",
+   "summary": "Audit follow-up: \"Android archive extraction: a string-prefix canonical-path check remains - replace with path-component-aware containment.\" New PathCheck.inside(root, f) (equals or separator-boundary) now guards: IdeSer"
   },
   {
    "version": "2.25.0",
    "date": "Oct 21, 2026",
-   "goal": "Control characters do not belong in paths",
-   "summary": "Path hygiene at the choke points: both servers now refuse any file path containing C0 control characters or DEL, before the path is resolved, while ordinary unicode names keep working. It closes a class of log-forging and terminal-escape tricks through crafted filenames, and the live probes prove refusal and the unicode case side by side."
+   "goal": "R14 path hygiene",
+   "summary": "safe_path (py) and safe() (IdeServer + BackupService) refuse C0 controls (<32) and DEL (127) in path params before resolution. Hardening probes 14/14 live: \\x01 GET refused 400, DEL write refused 400, unicode (caf\u00e9.txt) "
   },
   {
    "version": "2.24.0",
    "date": "Oct 21, 2026",
-   "goal": "Settings import, proven strict",
-   "summary": "Settings and profile imports now carry an adversarial test in the gate set: unknown keys dropped, wrong types dropped, nested objects refused, prototype-pollution attempts neutralized. The one gap the test found is fixed in this build: imported string values are capped at 20000 characters, so an import file cannot smuggle a payload in as a setting."
+   "goal": "R13 settings import strictness",
+   "summary": "New setutil harness (9 checks) runs the real @@SETUTIL@@ block adversarially: clean pass-through, unknown keys dropped, all-wrong-types -> null, null/array/string top level refused, empty -> null, __proto__ pollution neu"
   },
   {
    "version": "2.23.0",
    "date": "Oct 21, 2026",
-   "goal": "Guest roles: look without touching",
-   "summary": "Pairing is no longer all-or-nothing. The host can flip a switch in the pair panel so new guests join as view-only: their token can read and send presence, and every other change is refused with a clear view-only message. Roles are set by the host at join time, shown in the guest's pair panel, and the rate limit from v2.12 still guards the code. PAIRING.md documents the model."
+   "goal": "R12 guest roles (audit item)",
+   "summary": "Audit follow-up (Oct 21 re-review): \"guest permissions: full workspace access - add read-only roles.\" Done: PAIR_TOKENS is now token->role on both servers; host-only (loopback) GET/POST /api/pair/policy flips whether NEW"
   },
   {
    "version": "2.22.0",
    "date": "Oct 21, 2026",
-   "goal": "Settings search points at the answer",
-   "summary": "The settings filter now highlights every matching row in the studio violet instead of only hiding the rest, and pressing Enter in the search box jumps straight to the first match. Small, but settings is long now and finding one toggle should not be a scroll hunt."
+   "goal": "R11 settings search",
+   "summary": "filterSettings toggles a .setHit highlight on visible matches while filtering; Enter in the search box scrollIntoView's the first match. setsearch harness 5/5; DOM-stub clean."
   },
   {
    "version": "2.21.0",
    "date": "Oct 21, 2026",
-   "goal": "CI keeps its own evidence",
-   "summary": "No app changes in this build. The continuous-integration probes job now saves its full logs (and the GitHub-connect server logs) as a downloadable artifact whenever a run fails, so a red run explains itself inside GitHub instead of needing a local rerun to diagnose. The last four CI runs on main are green."
+   "goal": "R10 CI evidence",
+   "summary": "ci.yml probes job: each suite tees to /tmp/probe-logs/*.log (pipefail preserved); on failure an upload-artifact step publishes probe-logs (incl. /tmp/ghtest/server-*.log). No app code changed."
   },
   {
    "version": "2.20.0",
    "date": "Oct 21, 2026",
-   "goal": "Release tooling tells the right date",
-   "summary": "Housekeeping with teeth: the in-app changelog generator stamped every entry with a fixed date, so a day of releases all claimed the same day. It now uses the real build date, the twelve entries it had mis-stamped were corrected, and commit messages again name the version they carry."
+   "goal": "R9 release tooling honesty",
+   "summary": "release.py changelog() stamped a hardcoded \"Oct 20, 2026\" on every entry; now uses the real date. The 12 mis-stamped entries (v2.08.0-v2.19.0, all shipped Oct 21 per these notes) corrected in changelog.json."
   },
   {
    "version": "2.19.0",
    "date": "Oct 21, 2026",
-   "goal": "Health tells the truth about the host",
-   "summary": "The health endpoint on both builds now reports pairRequired, the backup formats it can read (v1 and v2), and on Android the target SDK, so any client can see what it is talking to. The pair panel uses it: a line under the pairing code shows the host build, whether pairing is required for other devices, and the backup formats supported."
+   "goal": "R8 health build info",
+   "summary": "/api/health (both): pairRequired: true, backupFormats: [1, 2]; Android also targetSdk: 36. Pair panel renders a host-build line from it (version / pairing required / backup formats)."
   },
   {
    "version": "2.18.0",
    "date": "Oct 21, 2026",
-   "goal": "Restore shows its hand first",
-   "summary": "Restoring a backup now previews before it confirms: enter the passphrase and the confirm dialog shows the backup's creation date, file count, size, and format version, all validated by the new inspect endpoint without changing a file. A wrong passphrase or a damaged backup is refused at the preview, before anything is overwritten."
+   "goal": "R7 restore preview dialog",
+   "summary": "Frontend: the restore row now prompts for the passphrase, calls /api/backup/inspect, and only then confirms with \"Backup from <created> - N files, K KB, format vV\". Inspect errors (wrong passphrase, hostile manifest) sur"
   },
   {
    "version": "2.17.0",
    "date": "Oct 21, 2026",
-   "goal": "Backup inspect: preview before you restore",
-   "summary": "New /api/backup/inspect on both builds: decrypts a backup and validates its whole manifest (entry rules, duplicates, size caps) WITHOUT changing a single file, returning its format version, file count, total bytes, and creation time. Restores also gained adversarial coverage: symlink entries land as plain files, and a truncated backup is refused cleanly."
+   "goal": "R6 backup inspect",
+   "summary": "POST /api/backup/inspect {path, passphrase} -> {ok, version, files, bytes, created}: decrypts and runs the full ZipGuard manifest validation with zero writes (no staging dir left). Desktop probes: inspect correctness (2 "
   },
   {
    "version": "2.16.0",
    "date": "Oct 21, 2026",
-   "goal": "BackupService: backups leave the server class",
-   "summary": "Internal split, no behavior change: backup create and the staged restore moved from IdeServer into a dedicated BackupService (ZIP assembly, envelope calls, ZipGuard staging and rollback), the third step of the server split after GitSupport and PairHub. One quiet improvement rides along: the restore path check is now component-aware instead of a string-prefix match. JVM backup suites pass unchanged."
+   "goal": "R5 BackupService split",
+   "summary": "Backup create + staged restore route bodies moved verbatim to BackupService.java (JsonSink interface keeps HTTP framing in IdeServer; create/restore declare IOException end-to-end). bkCollect + deleteTree moved with them"
   },
   {
    "version": "2.15.0",
    "date": "Oct 21, 2026",
-   "goal": "PairHub: pair state leaves the server class",
-   "summary": "Internal split, no behavior change: pair presence, the pairing code, guest tokens, and the join rate limiter moved from IdeServer into a dedicated PairHub class, the second step of the server split after GitSupport. The heartbeat, peers, join, and gate call sites are unchanged in shape, and the pair probe suite passes unchanged."
+   "goal": "R4 PairHub split",
+   "summary": "IdeServer's pair block (PairPeer, presence map, PAIR_CODE, tokens, R1 rate limiter, peers JSON) extracted verbatim-in-behavior to PairHub.java (beat/peersJson/validToken/issueToken/joinLocked/joinRecord). Call sites upda"
   },
   {
    "version": "2.14.0",
    "date": "Oct 21, 2026",
-   "goal": "Pair panel: status and unpair",
-   "summary": "The pair panel now says plainly whether this device holds a pair token for the host, and a paired guest can unpair with one tap, which forgets the stored token on this device. The host code line stays as before. Unpairing is per device; restarting the host still revokes every guest at once."
+   "goal": "R3 pair panel status + unpair",
+   "summary": "Frontend only: pair panel gains a status row (paired / no token held) and a one-tap unpair that removes the per-host token from localStorage. New pairpanel harness 5/5; DOM-stub clean."
   },
   {
    "version": "2.13.0",
    "date": "Oct 21, 2026",
-   "goal": "Askpass script hygiene",
-   "summary": "GitHub connect hardening: the desktop askpass helper now lives in a per-process unique temp file created owner-only, instead of a predictable shared temp path that another process could have planted first; the script itself never contains the token, it reads it from the environment at push time. The Android askpass file is explicitly owner-only inside the app sandbox."
+   "goal": "R2 askpass hygiene",
+   "summary": "Desktop: _ensure_askpass now uses tempfile.mkstemp (unique per process, 0600 -> 0700) and always writes the script itself; the old predictable $TMPDIR/ghostide-askpass.sh path is gone. Probe: a planted decoy at the old p"
   },
   {
    "version": "2.12.0",
    "date": "Oct 21, 2026",
-   "goal": "Pairing joins are rate limited",
-   "summary": "Pair mode hardening: after 5 wrong pairing-code attempts from one device, joins from that device are locked for 10 minutes (the host answers 429), and a successful join clears the counter. The code itself still rotates on every server start. PAIRING.md documents the limit."
+   "goal": "R1 pair join rate limit",
+   "summary": "Both servers: PAIR_MAX_FAILS=5 wrong codes per source inside 10 min locks joins from that source for 10 min (HTTP 429 \"too many attempts\"); success clears the record. Python decision helpers (pair_join_locked/pair_join_r"
   },
   {
    "version": "2.11.0",
    "date": "Oct 21, 2026",
-   "goal": "Hardening, round two: staged restores, pair codes, reproducible build",
-   "summary": "Backup restore is now staged and atomic: entries are unpacked to a staging area under strict rules (size and count caps, duplicate and traversal checks) and only applied once the whole backup validates, with rollback if anything fails mid-apply, so a hostile or damaged backup changes nothing. Pair mode gains a trust step: the host shows a fresh 6-digit code each boot and other devices enter it once to pair; loopback needs none. Under the hood: the Android build is now reproducible from a documented clean checkout, and the bundled-git code moved into its own GitSupport class."
+   "goal": "Hardening round 2 (plan items 7, 10, 11, 12)",
+   "summary": "Ryan: \"Do it all back to back\" - the remaining HARDENING_PLAN.md queue in one pass."
   },
   {
    "version": "2.10.0",
    "date": "Oct 21, 2026",
-   "goal": "Now targeting Android 16 (API 36)",
-   "summary": "GhostIDE now targets API 36, the level Google Play requires for new apps and updates from August 31, 2026, while still running on everything down to Android 7 (API 24). Built with the API 36 platform and build-tools. No feature changes in this build; it carries the v2.09 hardening (AES-GCM backups, request and KDF bounds) plus everything before it. On-device behavior under the new target is part of the current device pass."
+   "goal": "API 36 retarget (hardening plan item 6)",
+   "summary": "Ryan: \"Continue\" down the hardening queue. SDK platform android-36 (platform-36_r02.zip, 65,878,410 B) and build-tools 36.0.0 (build-tools_r36_linux.zip, 63,737,259 B) downloaded from dl.google.com via curl (JVM networki"
   },
   {
    "version": "2.09.0",
    "date": "Oct 21, 2026",
-   "goal": "Hardening pass: AES-GCM backups, request and KDF bounds",
-   "summary": "Backups are now encrypted with standard AES-256-GCM instead of the old custom construction, with hostile-file protections: KDF iteration counts and field sizes in a backup file are validated before any work is done, on both the new format and old v1 backups (which still restore). The local server now caps request bodies at 64 MB on both builds, and Android-managed backup of app data is turned off so workspaces and tokens never leave through OS backup; the in-app encrypted backup is the supported path."
+   "goal": "Hardening pass (external audit response)",
+   "summary": "Source: an external audit of the public ghostide-android repo (AUDIT_2026-10-21.md + HARDENING_PLAN.md in the GhostIDE goal files); Ryan directed \"Start all that\" Oct 21, 2026. Evidence classes are named per claim per th"
   },
   {
    "version": "2.08.0",
    "date": "Oct 21, 2026",
-   "goal": "GitHub connect: clone, pull and push from the phone",
-   "summary": "The git panel grows a GitHub / remote section: paste a personal access token (kept only on this device), save the origin remote, and Clone, Fetch, Pull or Push without leaving the app. The token is passed to git through a private askpass helper and is never written into .git/config. First push sets the upstream automatically."
+   "goal": "GitHub connect",
+   "summary": "Ryan picked \"GitHub connect inside the app\" from the roadmap board. New endpoints in BOTH servers (desktop server.py + phone IdeServer.java), shapes mirrored: GET /api/git/remote, POST /api/git/remote-set, /api/git/clone"
   },
   {
    "version": "2.07.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "About this build, batch 5 wrap",
-   "summary": "Tools gains About this build: the version, your on-device library counts, and the latest change, in one message. This build closes batch 5: chat wrap, text-size quick buttons, search all chats (the 2.0 milestone), editor autosave, summarize chat, duplicate file, jump to latest, clear all chats, and speak last answer."
+   "summary": "Tools gains About this build: the app info line"
   },
   {
    "version": "2.06.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Speak last answer",
-   "summary": "Chat options gains Speak last answer: one tap reads the newest answer aloud through the same speech path as the per-message Speak button. Tap again while it is speaking to stop."
+   "summary": "Chat options gains Speak last answer. It finds"
   },
   {
    "version": "2.05.0",
-   "date": "Oct 20, 2026",
-   "goal": "Clear all chats in this project",
-   "summary": "Settings gains a Clear all chats button for the current project: one confirmed action deletes every chat's stored history in the project. Settings, prompts, profiles and other projects are untouched."
+   "date": "Oct 21, 2026",
+   "goal": "Clear all chats",
+   "summary": "Settings backup area gains Clear all chats in"
   },
   {
    "version": "2.04.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Jump to latest",
-   "summary": "When you scroll up in the chat, a Latest button appears under the messages: one tap takes you back to the newest message. It hides itself when you are already at the bottom."
+   "summary": "A Latest button under the chat log appears when"
   },
   {
    "version": "2.03.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Duplicate file",
-   "summary": "The header gains a Duplicate button for the open file: it suggests a name (the same name with ' copy' before the extension), copies the saved content to it, and opens the copy."
+   "summary": "Header gains a Dup button beside Copy File. It"
   },
   {
    "version": "2.02.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Summarize chat",
-   "summary": "Chat options gains Summarize chat: it sends a standing instruction through the normal send path and the model recaps the conversation in at most 5 bullets: the goal, the decisions, and what is still open."
+   "summary": "Chat options gains Summarize chat. It fills the"
   },
   {
    "version": "2.01.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Editor autosave",
-   "summary": "Settings gains an Autosave toggle: when on, a file with unsaved changes saves itself after about 3 seconds without typing, through the normal save path (trim-on-save and pair guards included). Off by default."
+   "summary": "Settings toggle (default off): a 1.5s poller"
   },
   {
    "version": "2.00.0",
-   "date": "Oct 20, 2026",
-   "goal": "Search all chats (v2.0)",
-   "summary": "GhostIDE 2.0: Tools gains Search all chats. One query scans every chat in the project and prints the matches in place, each with its chat name, who said it, and an excerpt around the match (capped at 12 so a common word cannot flood the chat)."
+   "date": "Oct 21, 2026",
+   "goal": "Search all chats",
+   "summary": "The 2.0 milestone: Tools gains Search all chats."
   },
   {
    "version": "1.99.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Chat text quick buttons",
-   "summary": "The chat header gains A- and A+ buttons that step the chat text size (12, 13, 15) without opening Settings. The Settings picker stays in sync."
+   "summary": "A- / A+ buttons in the chat panel header step"
   },
   {
    "version": "1.98.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Chat wrap toggle",
-   "summary": "Settings gains Wrap long lines in chat: long answers and code blocks wrap softly instead of scrolling sideways. Off by default, so nothing changes until you turn it on."
+   "summary": "Batch 5 opens with a Settings toggle: Wrap long"
   },
   {
    "version": "1.97.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "App info, batch 4 wrap",
-   "summary": "Settings tools gains an info line: the running version plus live counts of your chats, prompts, profiles and starred answers on this device. This build closes batch 4: file header actions, line operations, chat auto-name, starred sessions, What Ghost sees, starred answers, five more slash commands, retry last message, and the tabs pack."
+   "summary": "Settings tools gains an app info line: version"
   },
   {
    "version": "1.96.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Tabs pack",
-   "summary": "Two buttons join the tab bar: Close others and Close all tabs. Both ride the existing close logic, so a tab with unsaved changes still asks before it closes."
+   "summary": "Close others / Close all tabs buttons beside the"
   },
   {
    "version": "1.95.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Retry last message",
-   "summary": "Chat options gains Retry last message: when a send fails and your message is left unanswered at the end of the chat, one tap removes it and sends it again, with no duplicate in the history."
+   "summary": "Chat options gains Retry last message. It is"
   },
   {
    "version": "1.94.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Slash commands pack 2",
-   "summary": "Five more slash commands: /rename (with a name), /star, /scratch, /backup and /sees. The command list is now thirteen strong and /help shows them all."
+   "summary": "Five new local slash commands ride the existing"
   },
   {
    "version": "1.93.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Starred answers",
-   "summary": "Every answer gains a Star button. Starred answers are kept in one list (up to 50) and Tools gains a Starred answers entry that shows the ten most recent in the chat."
+   "summary": "Answers gain a Star toggle in their button row."
   },
   {
    "version": "1.92.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "What Ghost sees",
-   "summary": "Chat options gains a What Ghost sees button: the answer style, persona, your custom instructions, sampling settings and context budget that shape the next reply, shown as a plain system message. Display only, it never enters the conversation or the model's context."
+   "summary": "Chat options gains a What Ghost sees button: the"
   },
   {
    "version": "1.91.0",
-   "date": "Oct 20, 2026",
-   "goal": "Starred sessions, plus two fixes",
-   "summary": "Star chat pins a chat to the top of the picker with a star. Also fixed before it ever reached a phone: the v1.90 auto-name called session helpers that do not exist (it would have broken sending), and the v1.86 prompt export called a missing loader. Both now use the real plumbing, with a regression check that fails if the dead names come back."
+   "date": "Oct 21, 2026",
+   "goal": "Starred sessions + phantom fixes",
+   "summary": "Star chat button: stars the active session into a"
   },
   {
    "version": "1.90.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Chat auto-name",
-   "summary": "A chat that still has its default name renames itself from its first message (first 28 characters). Chats you renamed yourself are never touched."
+   "summary": "On a chat's first user message, if the session"
   },
   {
    "version": "1.89.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Line operations",
-   "summary": "The status bar gains line operations for the editor: duplicate line, move line up or down, delete line. Inside the editor, Alt+Up and Alt+Down move the line and Alt+D duplicates it."
+   "summary": "Status bar buttons + editor-only Alt keys for"
   },
   {
    "version": "1.88.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "File header actions",
-   "summary": "Two new header buttons for the open file: copy its path, or copy its full current content (unsaved edits included, since it copies the live editor buffer)."
+   "summary": "Batch 4 (Ryan: \"Continue Improving the app\")"
   },
   {
    "version": "1.87.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "What's new on update",
-   "summary": "After an update, the chat quietly shows one system message naming the newest change (this one, the first time you open the new build). First installs set the baseline silently, and only the single newest entry is ever shown."
+   "summary": "After an update, the chat shows one quiet system"
   },
   {
    "version": "1.86.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Export pack 2",
-   "summary": "Tools gains Export all chats: every chat in the project, each titled with its name, in one Markdown file. The prompt library gains an Export prompts button that downloads it as JSON."
+   "summary": "Tools gains Export all chats: saves the current"
   },
   {
    "version": "1.85.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Last run line",
-   "summary": "Chat options gains a Last run line: the latest answer's time, token and speed estimates plus the temperature and token cap that produced them. It persists across restarts instead of flashing in the context meter and vanishing."
+   "summary": "The completion stats (which used to flash in the"
   },
   {
    "version": "1.84.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Appearance pack 2",
-   "summary": "Settings gains a Compact density toggle (tighter buttons, messages and header across the UI) and a Chat font picker (Default, System sans, Monospace, Serif) applied through a CSS variable, like the chat text size."
+   "summary": "Compact density toggle: one body class tightens"
   },
   {
    "version": "1.83.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Scratchpad",
-   "summary": "Tools gains a Scratchpad: one persistent note that saves itself as you type on this device. Send to chat drops it into the message box, Save as file writes it to scratchpad.md in the workspace."
+   "summary": "Tools gains a Scratchpad panel (cloned from the"
   },
   {
    "version": "1.82.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Pinned files",
-   "summary": "Pin the open file from Chat options and it rides along on every send in that project (up to 3 pins, shown as chips, tap a chip to unpin). Pins are per project and join the same attached list as @mentions and the selection."
+   "summary": "Pin the open file from Chat options: up to 3"
   },
   {
    "version": "1.81.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Settings profiles",
-   "summary": "Save your whole setup as a named profile in Settings (style, accent, sounds, sizes, everything), then switch setups with Apply. Profiles are validated through the same strict sanitize as settings import, and applying one reloads the app with the new setup."
+   "summary": "Named profiles for the whole settings object:"
   },
   {
    "version": "1.80.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Sessions pack 2",
-   "summary": "Chats can be duplicated: a Duplicate button copies the current chat (history included) as a new chat named with copy appended, and switches to it. The chat picker now shows a message count next to each chat name."
+   "summary": "Duplicate button for chats: saves the current"
   },
   {
    "version": "1.79.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Insert answer",
-   "summary": "Answers gain an Insert button: the answer's code (or its full text when there is no code) lands in the editor at the cursor, replacing any selection. No file open, no insert - it tells you instead of failing."
+   "summary": "Answers gain an Insert button beside Save/Speak/"
   },
   {
    "version": "1.78.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Input history",
-   "summary": "The chat box remembers what you sent: press Up to recall previous messages (shell style), Down to walk back to your draft. The last 50 submissions are kept, de-duplicated, and survive restarts."
+   "summary": "Batch 3 (Ryan: \"More\") opens with shell-style"
   },
   {
    "version": "1.77.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Auto-scroll control",
-   "summary": "Settings gains an Auto-scroll toggle for the chat. On (the classic behavior) the chat always jumps to the newest message. Off, the view only follows when you are already near the bottom, so reading back through an answer is never interrupted while it streams."
+   "summary": "Settings gains an Auto-scroll toggle for the"
   },
   {
    "version": "1.76.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Full data backup",
-   "summary": "Settings gains Export all data and Import backup: one JSON file with everything the app keeps locally (settings, prompts, all chats and sessions, drafts, bookmarks). Import validates the file strictly before touching anything, asks first, then reloads."
+   "summary": "Settings gains Export all data / Import backup:"
   },
   {
    "version": "1.75.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Ping sounds",
-   "summary": "The completion ping gains a sound: Soft, Chime or Pop, synthesized in the app (no audio files), with a Test sound button in Settings. It only plays when the ping itself fires, and picking a sound previews it."
+   "summary": "The completion ping gains a synthesized sound"
   },
   {
    "version": "1.74.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Accent colors",
-   "summary": "Settings gains an Accent color picker: Green (the current default), Violet, Blue, Amber, Rose or Teal. It recolors the primary buttons and highlights through one CSS variable, applies instantly, and is kept as part of your settings."
+   "summary": "The primary green (#2c6e49 / hover #35855a, from"
   },
   {
    "version": "1.73.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Help pack",
-   "summary": "Tools gains Help & shortcuts: one tap prints a help card into the chat covering the answer styles, quick prompts, slash commands and keyboard shortcuts. It is assembled from the app's live tables, so it always matches what the app can actually do."
+   "summary": "Tools gains \"Help & shortcuts\": prints a help card"
   },
   {
    "version": "1.72.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Editor status pack",
-   "summary": "The status bar now shows the selection size (characters, plus lines when it spans several) and the current file's type (Python, JavaScript, Markdown and friends) next to the cursor position."
+   "summary": "The editor status bar learns two things: the"
   },
   {
    "version": "1.71.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Speak answer",
-   "summary": "Every answer gains a Speak button: the device reads it aloud with markdown flattened (code blocks become a spoken placeholder instead of symbols). Tap again to stop. If the device has no speech engine, the button says so instead of failing silently."
+   "summary": "Answers can be read aloud: a Speak button beside"
   },
   {
    "version": "1.70.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Keyboard shortcuts",
-   "summary": "Chat keyboard shortcuts: Ctrl+. jumps to the chat box from anywhere, Ctrl+/ toggles Chat options, Ctrl+L clears the chat (with the usual warning), and Ctrl+Shift+Up/Down moves between chats. They stay out of the code editor's way, and a Shortcuts button in Chat options lists them all."
+   "summary": "Ctrl+. focuses the chat box from anywhere;"
   },
   {
    "version": "1.69.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Find in chat",
-   "summary": "A Find in chat box in Chat options filters the visible messages as you type and counts the matches. It works on everything on screen (your messages, answers, system notes) and clears back to the full chat when emptied."
+   "summary": "Chat options gains a Find in chat filter: typing"
   },
   {
    "version": "1.68.0",
-   "date": "Oct 20, 2026",
+   "date": "Oct 21, 2026",
    "goal": "Message tools",
-   "summary": "Every Ghost answer gains two more buttons: Save writes it to a file in the workspace, and Code copies only its code blocks. Your own messages gain Edit & resend: rewind the chat to that message, fix it, and send again (everything after it is removed, with a warning first)."
+   "summary": "Batch 2 (Ryan: \"More\") opens with per-message"
   },
   {
    "version": "1.67.0",
    "date": "Oct 20, 2026",
    "goal": "Settings utilities",
-   "summary": "Settings gains a filter box (type to find a setting, sections hide when nothing matches), Export and Import for carrying your settings between devices as JSON (import only accepts known settings with the right types), and a Reset all settings button. Chats and files are never touched."
+   "summary": "The settings panel (much longer after ten rounds)"
   },
   {
    "version": "1.66.0",
    "date": "Oct 20, 2026",
    "goal": "Context control pack",
-   "summary": "Choose how much project context rides with each message: a context budget (Lean 3,000 to Huge 20,000 tokens, used by chat, slices, recall and convert alike), a switch for attaching the editor selection, and an opt-in switch that attaches the git diff of your uncommitted changes, capped so it cannot flood the model."
+   "summary": "The project slice budget is a setting now (Lean"
   },
   {
    "version": "1.65.0",
    "date": "Oct 20, 2026",
    "goal": "Chat display pack",
-   "summary": "Chat appearance settings: text size (Small, Default, Large), panel width on desktop (Slim to Extra wide), message bubbles, and a toggle for the You / Ghost labels. All apply live and combine with Compact chat."
+   "summary": "Chat appearance in Settings: text size (Small 12 /"
   },
   {
    "version": "1.64.0",
    "date": "Oct 20, 2026",
    "goal": "Slash commands",
-   "summary": "Type / in the chat box: /explain, /fix, /tests and /doc run the file quick actions (add a note after the command to steer it), /clear clears the chat, /export exports it, /regen repeats the last answer, and /help lists them all."
+   "summary": "A leading /word in the chat box runs a command"
   },
   {
    "version": "1.63.0",
    "date": "Oct 20, 2026",
    "goal": "Chat export pack",
-   "summary": "Export chat as Markdown, plain text, or a standalone web page (fully escaped, safe to share), copy the whole chat at once, and see a running count of messages, words and estimated tokens for the current chat in Chat options."
+   "summary": "Export grows up: Chat options gains a format"
   },
   {
    "version": "1.62.0",
    "date": "Oct 20, 2026",
    "goal": "Editor reading pack",
-   "summary": "Editor display settings: line spacing (Tight, Normal, Roomy, Loose), font ligatures on or off, line numbers on or off, and the current-line highlight on or off. All apply live and are remembered."
+   "summary": "Editor display settings in Settings: line spacing"
   },
   {
    "version": "1.61.0",
    "date": "Oct 20, 2026",
    "goal": "Sampling controls",
-   "summary": "Creativity (temperature) now lives in Chat options too, with one-tap Precise, Balanced and Creative presets in Settings; both sliders always agree. Answer length gains a Custom choice with your own token count, and after each answer the chat shows how long it took and its estimated speed."
+   "summary": "Temperature moves into Chat options as a slider"
   },
   {
    "version": "1.60.0",
    "date": "Oct 20, 2026",
    "goal": "Prompt library",
-   "summary": "Save the prompt in the chat box under a name, then reuse it in any project from Chat options: pick it, Insert, send. Prompts live on the device, can be replaced by saving the same name again, and can be deleted from the same row."
+   "summary": "Save the chat box text as a named prompt, insert"
   },
   {
    "version": "1.59.0",
    "date": "Oct 20, 2026",
    "goal": "Chat sessions",
-   "summary": "Every project can now hold several named chats. Switch between them in Chat options, start a new one, rename it, or delete it; each keeps its own history and its own unsent draft. Your existing chat stays as the first one, untouched."
+   "summary": "Several named chats per project: a session picker"
   },
   {
    "version": "1.58.0",
    "date": "Oct 20, 2026",
    "goal": "Chat composer pack",
-   "summary": "The chat box grows as you type and shows a live character and estimated-token counter. An unsent message is kept as a draft for the project and restored when you come back. Every Ghost answer gains a Copy button, and a Continue button in Chat options picks up a cut-off answer where it left off."
+   "summary": "Chat box grows as you type (up to 160px) with a"
   },
   {
    "version": "1.57.0",
    "date": "Oct 20, 2026",
    "goal": "Chat options + settings expansion",
-   "summary": "Chat gets an answer style picker (Balanced, Teacher, Code only, Reviewer, Rubber duck), an answer length picker, quick prompt chips, and Regenerate / Copy / Export buttons in the options fold. Settings is grouped into Chat, Editor and Interface, and gains custom instructions for every chat, a history window, a send-key choice, a completion ping toggle, message time stamps, an editor font picker, compact chat and reduce motion."
+   "summary": "Chat gains real options, all wired end to end in the"
   },
   {
    "version": "1.56.0",
    "date": "Oct 20, 2026",
    "goal": "GhostConvert export (Roadmap ECO E6)",
-   "summary": "The Context lab gains an Export section: the current slice is exported by GhostSlice itself into a bundle, then converted by the GhostConvert tool into AGENTS.md, Cursor rules, Copilot instructions, or a generic prompt - with every conversion loss named per format from the tool's own LOSSES.md, and the output verified by the tool before it is shown."
+   "summary": "The Context lab gains an Export section, backed by"
   },
   {
    "version": "1.55.0",

@@ -910,6 +910,27 @@ public class MainActivity extends Activity {
                 }
             });
         }
+
+        /* Mobile Cycle 1 (M5): hand a URL to the system
+           browser - the APK update check's Download
+           button. https only, and that is all it does:
+           the app itself never downloads or installs an
+           update; the user installs the APK the browser
+           fetched, over this build, themselves. */
+        @android.webkit.JavascriptInterface
+        public void openExternal(final String url) {
+            if (url == null || !url.startsWith("https://"))
+                return;
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    try {
+                        startActivity(new Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(url)));
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
     }
 
     private void postJobNotification(String title, String body) {
