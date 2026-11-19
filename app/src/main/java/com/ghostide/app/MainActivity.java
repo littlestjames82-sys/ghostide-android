@@ -96,6 +96,18 @@ public class MainActivity extends Activity {
     private IdeServer server;
     private WebView webView;
     private boolean inHelp = false;
+    /* Mobile Cycle 3 (M2): supervision state. The
+       activity tracks its own foreground state so the
+       approval notification is only posted when the
+       user is actually away, and a tap on that
+       notification leaves a flag the page picks up
+       through the bridge (takeApprovalOpen). Static,
+       because a notification tap can land on a fresh
+       instance while the flag's consumer is the page
+       in whichever instance hosts the WebView. */
+    private volatile boolean appForeground = false;
+    private static volatile boolean approvalOpenRequested =
+        false;
     private final Handler uiHandler = new Handler();
     private Runnable downloadPoll;
 
@@ -107,6 +119,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        noteApprovalIntent(getIntent());
         handleShareIntent(getIntent());
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
@@ -1025,7 +1038,34 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        noteApprovalIntent(intent);
         handleShareIntent(intent);
+    }
+
+    /* Mobile Cycle 3 (M2): lifecycle truth for the
+       supervision decisions, and the approval
+       notification's landing flag. onResume/onPause on
+       the activity are the honest "is the user looking
+       at this app" signal; the page's own visibility
+       is the bundle's half of the same decision. */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        appForeground = true;
+    }
+
+    @Override
+    protected void onPause() {
+        appForeground = false;
+        super.onPause();
+    }
+
+    private void noteApprovalIntent(Intent intent) {
+        if (intent != null && intent.getBooleanExtra(
+                Supervision.EXTRA_APPROVAL, false)) {
+            approvalOpenRequested = true;
+            intent.removeExtra(Supervision.EXTRA_APPROVAL);
+        }
     }
 
     private void handleShareIntent(Intent intent) {
@@ -1097,6 +1137,79 @@ public class MainActivity extends Activity {
                     postJobNotification(title, body);
                 }
             });
+        }
+
+        /* Mobile Cycle 3 (M2): supervision. The bundle
+           drives these around a phone agent run; every
+           decision word comes from Supervision (pure,
+           JVM-pinned). No method here can read run
+           content back: the bridge takes the task title
+           (the user's own one-line name for the work)
+           and returns only decision words. */
+
+        @android.webkit.JavascriptInterface
+        public void runStarted(final String taskTitle) {
+            RunService.start(MainActivity.this, taskTitle);
+        }
+
+        @android.webkit.JavascriptInterface
+        public void runEnded() {
+            RunService.stop(MainActivity.this);
+            try {
+                NotificationManager nm =
+                    (NotificationManager) getSystemService(
+                        NOTIFICATION_SERVICE);
+                if (nm != null)
+                    nm.cancel(Supervision.APPROVAL_ID);
+            } catch (Exception ignored) {}
+        }
+
+        @android.webkit.JavascriptInterface
+        public boolean notificationsGranted() {
+            boolean granted = true;
+            if (Build.VERSION.SDK_INT >= 33) {
+                granted = checkSelfPermission(
+                    "android.permission.POST_NOTIFICATIONS")
+                    == PackageManager.PERMISSION_GRANTED;
+            }
+            return Supervision.permissionGranted(
+                Build.VERSION.SDK_INT, granted);
+        }
+
+        /**
+         * An approval just started waiting. Returns the
+         * decision word: "posted" (the notification is
+         * up), "foreground" (the user is in the app;
+         * the approval is on their screen already) or
+         * "denied" (notifications are off, so nothing
+         * was posted; the run simply waits, as it did
+         * before M2).
+         */
+        @android.webkit.JavascriptInterface
+        public String approvalNeeded(final String taskTitle) {
+            if (appForeground) return "foreground";
+            if (!notificationsGranted()) return "denied";
+            if (!Supervision.shouldNotify(appForeground,
+                    true)) return "foreground";
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    postApprovalNotification(taskTitle);
+                }
+            });
+            return "posted";
+        }
+
+        /**
+         * True once per approval-notification tap: the
+         * page polls this at boot and when it becomes
+         * visible again, and focuses the waiting
+         * approval. Reading clears the flag.
+         */
+        @android.webkit.JavascriptInterface
+        public boolean takeApprovalOpen() {
+            boolean was = approvalOpenRequested;
+            approvalOpenRequested = false;
+            return was;
         }
 
         /* Mobile Cycle 2 (M4): git account tokens. The
@@ -1193,6 +1306,47 @@ public class MainActivity extends Activity {
                 .setContentIntent(pi)
                 .build();
             nm.notify(2201, n);
+        } catch (Exception ignored) {}
+    }
+
+    /* Mobile Cycle 3 (M2): the approval notification.
+       Title and body come from Supervision: the task's
+       own title and the fact that an approval waits,
+       never a command or file content. Tapping opens
+       the app with the approval extra set, which the
+       page turns into a focus of the waiting approval
+       (takeApprovalOpen). */
+    private void postApprovalNotification(String taskTitle) {
+        try {
+            NotificationManager nm = (NotificationManager)
+                getSystemService(NOTIFICATION_SERVICE);
+            if (nm == null) return;
+            if (nm.getNotificationChannel(
+                    Supervision.APPROVAL_CHANNEL) == null) {
+                NotificationChannel ch =
+                    new NotificationChannel(
+                        Supervision.APPROVAL_CHANNEL,
+                        Supervision.APPROVAL_CHANNEL_NAME,
+                        NotificationManager.IMPORTANCE_DEFAULT);
+                nm.createNotificationChannel(ch);
+            }
+            Intent open = new Intent(this, MainActivity.class);
+            open.putExtra(Supervision.EXTRA_APPROVAL, true);
+            PendingIntent pi = PendingIntent.getActivity(this,
+                Supervision.APPROVAL_ID, open,
+                PendingIntent.FLAG_UPDATE_CURRENT
+                    | PendingIntent.FLAG_IMMUTABLE);
+            Notification n = new Notification.Builder(this,
+                    Supervision.APPROVAL_CHANNEL)
+                .setSmallIcon(
+                    android.R.drawable.stat_notify_chat)
+                .setContentTitle(Supervision.approvalTitle())
+                .setContentText(
+                    Supervision.approvalBody(taskTitle))
+                .setAutoCancel(true)
+                .setContentIntent(pi)
+                .build();
+            nm.notify(Supervision.APPROVAL_ID, n);
         } catch (Exception ignored) {}
     }
 
