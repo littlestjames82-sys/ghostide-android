@@ -550,6 +550,7 @@ setTimeout(function () {
     <button id="toolQuote">QuoteShot</button>
     <button id="toolReplay">Session replay</button>
     <button id="toolTasks">Task records</button>
+    <button id="toolSupervision">Desktop supervision</button>
   </div>
 </div>
 
@@ -834,6 +835,13 @@ setTimeout(function () {
   <div id="tasksMsg" class="dim"></div>
   <div id="tasksList"></div>
   <div id="taskDetail" class="hidden"></div>
+</div>
+
+<div id="supervisionPanel" class="hidden">
+  <div class="panel-head"><h3>🖥 Desktop supervision</h3><button id="supervisionClose" aria-label="Close supervision">✕</button></div>
+  <p class="dim">Watch a paired desktop's agent work from this phone: its task records, the changes a run made, and its waiting approvals. Approving here records the decision on the desktop, and the desktop does the work. The phone never runs anything itself.</p>
+  <div id="supMsg" class="dim"></div>
+  <div id="supBody"></div>
 </div>
 
 <div id="snipPanel" class="hidden">

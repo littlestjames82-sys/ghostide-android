@@ -415,7 +415,8 @@ body.zen #files, body.zen #chat { display: none; }
 }
 
 /* Tools pack */
-#toolsPanel, #todoPanel, #snipPanel, #previewPanel, #tasksPanel {
+#toolsPanel, #todoPanel, #snipPanel, #previewPanel, #tasksPanel,
+#supervisionPanel {
   position: fixed; z-index: 70; top: 64px; right: 12px;
   width: min(430px, 94vw); background: var(--float); border: 1px solid var(--line);
   border-radius: 12px; padding: 14px; display: flex; flex-direction: column;
@@ -424,17 +425,40 @@ body.zen #files, body.zen #chat { display: none; }
 }
 #previewPanel { width: min(680px, 96vw); }
 #toolsPanel.hidden, #todoPanel.hidden, #snipPanel.hidden,
-#previewPanel.hidden, #tasksPanel.hidden { display: none; }
+#previewPanel.hidden, #tasksPanel.hidden,
+#supervisionPanel.hidden { display: none; }
 #toolsPanel h3, #todoPanel h3, #snipPanel h3, #previewPanel h3,
-#tasksPanel h3 {
+#tasksPanel h3, #supervisionPanel h3 {
   margin: 0; font-size: 14px;
 }
 #toolsPanel h4 { margin: 8px 0 2px; font-size: 12px; color: var(--ink-dim); }
 #toolsPanel .panel-head, #todoPanel .panel-head,
 #snipPanel .panel-head, #previewPanel .panel-head,
-#tasksPanel .panel-head {
+#tasksPanel .panel-head, #supervisionPanel .panel-head {
   display: flex; justify-content: space-between; align-items: center;
 }
+/* Mobile Cycle 3 (M10): the supervision client. The
+   panel is a phone-first stack: everything wraps,
+   diffs scroll inside their own box, and the pairing
+   form's fields are full-width so nothing crowds at
+   320px. */
+#supervisionPanel h4 { margin: 10px 0 2px; font-size: 12px; color: var(--ink-dim); }
+.supPairForm { display: flex; flex-direction: column; gap: 6px; }
+.supPairForm input { width: 100%; box-sizing: border-box; }
+.supLine { padding: 3px 0; overflow-wrap: anywhere; }
+.supApRow {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px; margin: 6px 0;
+}
+.supApAction { font-weight: 600; overflow-wrap: anywhere; }
+.supApBtns { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.supDiff {
+  margin: 4px 0 8px; overflow: auto; max-height: 220px;
+  font-size: 11.5px; white-space: pre;
+  border: 1px solid var(--line-soft); border-radius: 6px;
+  padding: 6px; background: var(--bg);
+}
+#supBody textarea { width: 100%; box-sizing: border-box; }
 /* S1: task records list + read-only detail. Rows wrap
    (never the no-wrap overflow the viewport gate hunts);
    the detail is plain stacked lines. */
@@ -1209,6 +1233,9 @@ input:focus, select:focus, textarea:focus {
   /* Mobile Cycle 3 (S1): the Tasks panel's own buttons
      (import, export, back) join the touch pass. */
   #tasksPanel button { min-height: 40px; }
+  /* Mobile Cycle 3 (M10): the supervision panel's
+     buttons join the same touch pass. */
+  #supervisionPanel button { min-height: 40px; }
   .taskRow { min-height: 40px; }
   .gitRow button, .hunkHead button,
   .conflictRow button { min-height: 40px; }

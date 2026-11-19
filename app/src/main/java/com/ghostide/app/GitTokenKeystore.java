@@ -23,8 +23,21 @@ final class GitTokenKeystore {
     private static final String ALIAS = "ghostide.gittoken.v1";
 
     static GitTokenStore forApp(Context ctx) {
+        return forFile(ctx, "git-tokens.dat");
+    }
+
+    /* Mobile Cycle 3 (M10): the pairing store. Same
+       key, same crypto, its own file, so a desktop
+       address can never collide with a git host key
+       and unpairing touches nothing else. */
+    static GitTokenStore forPairing(Context ctx) {
+        return forFile(ctx, "pair-tokens.dat");
+    }
+
+    private static GitTokenStore forFile(Context ctx,
+            String name) {
         return new GitTokenStore(
-            new File(ctx.getFilesDir(), "git-tokens.dat"),
+            new File(ctx.getFilesDir(), name),
             new GitTokenStore.KeySource() {
                 @Override public SecretKey key()
                         throws Exception {

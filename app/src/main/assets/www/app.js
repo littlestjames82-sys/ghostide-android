@@ -35167,7 +35167,8 @@
     "quickPanel",
     "keysPanel",
     "pluginPanel",
-    "tasksPanel"
+    "tasksPanel",
+    "supervisionPanel"
   ];
   function closeOverlayPanels(exceptId) {
     if (window.innerWidth > 900) return;
@@ -40334,6 +40335,12 @@
       hideTools();
       openTasksPanel();
     };
+  var toolSupervisionBtn = $("toolSupervision");
+  if (toolSupervisionBtn)
+    toolSupervisionBtn.onclick = () => {
+      hideTools();
+      openSupervisionPanel();
+    };
   var dataPanePath = "";
   async function maybeDataView(path, content2) {
     const pane = $("dataPane");
@@ -44629,6 +44636,7 @@
     { title: "View data packs", run: () => openPackListPanel() },
     { title: "Session replay", run: () => $("toolReplay").click() },
     { title: "Task records", run: () => $("toolTasks").click() },
+    { title: "Desktop supervision", run: () => $("toolSupervision").click() },
     { title: "Recipes shelf", run: () => $("toolRecipes").click() },
     { title: "Leads", run: () => $("toolLeads").click() },
     { title: "QuoteShot", run: () => $("toolQuote").click() },
@@ -46360,6 +46368,656 @@
     };
   } catch (e) {
   }
+  var SUP_TOKEN_HEADER = "X-Supervision-Token";
+  var SUP_REMOTE_FRESH_MS = 12e4;
+  var supMemTokens = {};
+  var supClientForce = null;
+  function supClientForced(v) {
+    supClientForce = v === null || v === void 0 ? null : !!v;
+  }
+  function supClientContext() {
+    if (supClientForce !== null) return supClientForce;
+    try {
+      if (!window.GhostNative) return false;
+      const h = location.hostname;
+      return h !== "127.0.0.1" && h !== "localhost" && h !== "::1" && h !== "";
+    } catch (e) {
+      return false;
+    }
+  }
+  function supHasNativeStore() {
+    try {
+      return !!(window.GhostNative && window.GhostNative.savePairToken && window.GhostNative.pairToken);
+    } catch (e) {
+      return false;
+    }
+  }
+  function supStoredToken(host) {
+    if (supHasNativeStore()) {
+      try {
+        return window.GhostNative.pairToken(host) || "";
+      } catch (e) {
+        return "";
+      }
+    }
+    return supMemTokens[host] || "";
+  }
+  function supStoreToken(host, tok) {
+    if (supHasNativeStore()) {
+      try {
+        window.GhostNative.savePairToken(host, tok);
+        return "keystore";
+      } catch (e) {
+      }
+    }
+    supMemTokens[host] = tok;
+    return "memory";
+  }
+  function supClearToken(host) {
+    try {
+      if (window.GhostNative && window.GhostNative.removePairToken)
+        window.GhostNative.removePairToken(host);
+    } catch (e) {
+    }
+    delete supMemTokens[host];
+  }
+  async function supHttp(path, opts) {
+    const o = opts || {};
+    const headers = Object.assign(
+      {},
+      o.headers || {},
+      { "Content-Type": "application/json" }
+    );
+    const tok = supStoredToken(location.host);
+    if (tok) headers[SUP_TOKEN_HEADER] = tok;
+    const r = await _rawFetch(path, {
+      method: o.method || "GET",
+      headers,
+      body: o.body === void 0 ? void 0 : JSON.stringify(o.body)
+    });
+    let data2 = null;
+    try {
+      data2 = await r.json();
+    } catch (e) {
+    }
+    return { status: r.status, ok: r.ok, data: data2 };
+  }
+  function supIsTailscaleHost(h) {
+    const m = /^100\.(\d{1,3})\./.exec(String(h || ""));
+    if (!m) return false;
+    const n = Number(m[1]);
+    return n >= 64 && n <= 127;
+  }
+  function supTransportLine(o) {
+    if (o.protocol === "https:")
+      return "Protected by HTTPS with the desktop's own certificate, plus your pairing token. The desktop's Pair panel shows the certificate fingerprint.";
+    if (supIsTailscaleHost(o.hostname))
+      return "Protected by Tailscale, which encrypts the path between your two devices itself, plus your pairing token. The desktop is serving plain HTTP, which is safe on this path because Tailscale carries it.";
+    return "Protected by your pairing token only. This is plain HTTP on your own network, so anyone on this network could watch the traffic. Prefer the desktop's HTTPS address or a Tailscale address for anything sensitive.";
+  }
+  function remoteTaskDisplayState(rec, nowMs) {
+    const stored = rec && rec.status;
+    if (stored === "running" || stored === "waiting-approval") {
+      const upd = Date.parse(rec.updatedAt || "");
+      const fresh = isFinite(upd) && nowMs - upd < SUP_REMOTE_FRESH_MS;
+      if (!fresh)
+        return {
+          word: "interrupted",
+          live: false,
+          wasWaiting: stored === "waiting-approval"
+        };
+      return {
+        word: stored === "running" ? "running" : "waiting for approval",
+        live: true,
+        wasWaiting: stored === "waiting-approval"
+      };
+    }
+    return {
+      word: String(stored || "unknown"),
+      live: false,
+      wasWaiting: false
+    };
+  }
+  function supValidCode(v) {
+    return /^\d{6}$/.test(String(v || "").trim());
+  }
+  function supCleanFollowup(v) {
+    return String(v || "").replace(/\s+/g, " ").trim().slice(0, 2e3);
+  }
+  function supFmtTime(iso) {
+    const d = new Date(iso || "");
+    if (isNaN(d.getTime())) return String(iso || "");
+    try {
+      return d.toLocaleString();
+    } catch (e) {
+      return String(iso || "");
+    }
+  }
+  function supEl(tag, cls, text) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== void 0) el.textContent = text;
+    return el;
+  }
+  async function openSupervisionPanel() {
+    hideTools();
+    const detail = $("supBody");
+    detail.textContent = "";
+    $("supMsg").textContent = "";
+    $("supervisionPanel").classList.remove("hidden");
+    await renderSupClient();
+  }
+  async function renderSupClient() {
+    const box = $("supBody");
+    const msg = $("supMsg");
+    box.textContent = "";
+    if (!supClientContext()) {
+      box.appendChild(supEl(
+        "div",
+        "dim",
+        "Nothing to supervise from here: this page is running on the device itself. Supervision starts on a phone that opened a desktop in pair mode. On the desktop, the Pair panel holds the Allow phone pairing switch."
+      ));
+      return;
+    }
+    box.appendChild(supEl(
+      "div",
+      "dim",
+      "Desktop: " + location.host
+    ));
+    box.appendChild(supEl(
+      "div",
+      "dim",
+      supTransportLine({
+        protocol: location.protocol,
+        hostname: location.hostname
+      })
+    ));
+    if (!supStoredToken(location.host)) {
+      renderSupPairForm(box);
+      return;
+    }
+    const probe = await supHttp("/api/tasks");
+    if (!probe.ok) {
+      supClearToken(location.host);
+      msg.textContent = "This phone is not paired with this desktop anymore (the pairing was revoked, or phone pairing is off there).";
+      renderSupPairForm(box);
+      return;
+    }
+    let asName = "";
+    try {
+      const st = await supHttp(
+        "/api/supervision/status"
+      );
+      if (st.ok && st.data && st.data.paired)
+        asName = st.data.device.name || "";
+    } catch (e) {
+    }
+    msg.textContent = "Paired" + (asName ? " as " + asName : "") + ".";
+    await renderSupPaired(box, probe.data);
+  }
+  function renderSupPairForm(box) {
+    const form = supEl("div", "supPairForm");
+    form.appendChild(supEl(
+      "div",
+      "dim",
+      "Pair this phone: on the desktop, open the Pair panel, turn on Allow phone pairing, and show a pairing code. Type that code here. It works once and lives for five minutes."
+    ));
+    const name2 = document.createElement("input");
+    name2.id = "supPairName";
+    name2.type = "text";
+    name2.value = "Phone";
+    name2.maxLength = 60;
+    name2.placeholder = "This phone's name";
+    form.appendChild(name2);
+    const code2 = document.createElement("input");
+    code2.id = "supPairCode";
+    code2.type = "text";
+    code2.inputMode = "numeric";
+    code2.maxLength = 6;
+    code2.placeholder = "6-digit pairing code";
+    form.appendChild(code2);
+    const err = supEl("div", "dim");
+    err.id = "supPairErr";
+    form.appendChild(err);
+    const btn = document.createElement("button");
+    btn.id = "supPairBtn";
+    btn.textContent = "Pair this phone";
+    btn.onclick = async () => {
+      const v = code2.value.trim();
+      if (!supValidCode(v)) {
+        err.textContent = "The code is six digits, as shown on the desktop.";
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const r = await supHttp(
+          "/api/supervision/join",
+          {
+            method: "POST",
+            body: {
+              code: v,
+              name: name2.value.trim() || "Phone"
+            }
+          }
+        );
+        if (!r.ok || !r.data || !r.data.token) {
+          err.textContent = r.data && r.data.error || "Pairing failed.";
+          btn.disabled = false;
+          return;
+        }
+        const where = supStoreToken(
+          location.host,
+          r.data.token
+        );
+        $("supMsg").textContent = where === "keystore" ? "Paired. The pairing token is stored in this phone's secure store." : "Paired. This browser has no secure store for the token, so the pairing lasts only until this tab closes.";
+        await renderSupClient();
+      } catch (e) {
+        err.textContent = "Could not reach the desktop. Check the address and the network, then try again.";
+        btn.disabled = false;
+      }
+    };
+    form.appendChild(btn);
+    box.appendChild(form);
+  }
+  async function renderSupPaired(box, tasksData) {
+    const refresh = document.createElement("button");
+    refresh.id = "supRefreshBtn";
+    refresh.textContent = "\u21BB Refresh";
+    refresh.onclick = () => renderSupClient();
+    box.appendChild(refresh);
+    const unpair = document.createElement("button");
+    unpair.id = "supUnpairBtn";
+    unpair.textContent = "Unpair this phone";
+    unpair.onclick = async () => {
+      try {
+        await supHttp(
+          "/api/supervision/unpair",
+          { method: "POST", body: {} }
+        );
+      } catch (e) {
+      }
+      supClearToken(location.host);
+      $("supMsg").textContent = "Unpaired. The desktop has revoked this phone's token.";
+      await renderSupClient();
+    };
+    box.appendChild(unpair);
+    const apHead = supEl(
+      "h4",
+      null,
+      "Approvals waiting on the desktop"
+    );
+    box.appendChild(apHead);
+    const apBox = supEl("div", "supApprovals");
+    apBox.appendChild(supEl("div", "dim", "Loading\u2026"));
+    box.appendChild(apBox);
+    const tHead = supEl("h4", null, "Desktop tasks");
+    box.appendChild(tHead);
+    const tBox = supEl("div", "supTasks");
+    tBox.appendChild(supEl("div", "dim", "Loading\u2026"));
+    box.appendChild(tBox);
+    try {
+      const ap = await supHttp("/api/approve/list");
+      apBox.textContent = "";
+      const items = ap.data && ap.data.items || [];
+      if (!items.length)
+        apBox.appendChild(supEl(
+          "div",
+          "dim",
+          "Nothing is waiting."
+        ));
+      for (const it of items)
+        apBox.appendChild(supApprovalRow(it));
+      const results = ap.data && ap.data.results || [];
+      for (const r of results.slice(-3).reverse()) {
+        apBox.appendChild(supEl(
+          "div",
+          "dim",
+          "Decided: " + r.decision + " \xB7 " + (r.executed ? "the desktop ran it" : "nothing ran")
+        ));
+      }
+    } catch (e) {
+      apBox.textContent = "";
+      apBox.appendChild(supEl(
+        "div",
+        "dim",
+        "Could not load the approval queue."
+      ));
+    }
+    try {
+      const t2 = tasksData ? { ok: true, data: tasksData } : await supHttp("/api/tasks");
+      tBox.textContent = "";
+      const tasks = t2.data && t2.data.tasks || [];
+      if (!tasks.length)
+        tBox.appendChild(supEl(
+          "div",
+          "dim",
+          "No task records on this desktop yet."
+        ));
+      for (const s of tasks)
+        tBox.appendChild(supTaskRow(s));
+    } catch (e) {
+      tBox.textContent = "";
+      tBox.appendChild(supEl(
+        "div",
+        "dim",
+        "Could not load the desktop's tasks."
+      ));
+    }
+  }
+  function supApprovalRow(it) {
+    const row = supEl("div", "supApRow");
+    row.appendChild(supEl(
+      "div",
+      "supApAction",
+      it.action || it.summary || "Approval"
+    ));
+    if (it.summary && it.summary !== it.action)
+      row.appendChild(supEl("div", "dim", it.summary));
+    const btns = supEl("div", "supApBtns");
+    const mk = (label, decision) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.onclick = async () => {
+        b.disabled = true;
+        try {
+          const r = await supHttp(
+            "/api/approve/decide",
+            {
+              method: "POST",
+              body: { id: it.id, decision }
+            }
+          );
+          if (r.ok && r.data) {
+            $("supMsg").textContent = decision === "approve" ? "Approved on the desktop." + (r.data.executed ? " It ran there: " + String(r.data.output || "").slice(0, 200) : "") : "Denied on the desktop. Nothing ran.";
+          } else {
+            $("supMsg").textContent = r.data && r.data.error || "The desktop refused that decision.";
+          }
+        } catch (e) {
+          $("supMsg").textContent = "Could not reach the desktop to record the decision.";
+        }
+        await renderSupClient();
+      };
+      return b;
+    };
+    btns.appendChild(mk("\u2713 Approve", "approve"));
+    btns.appendChild(mk("\u2715 Deny", "deny"));
+    row.appendChild(btns);
+    return row;
+  }
+  function supTaskRow(s) {
+    const row = supEl("div", "taskRow");
+    const disp = remoteTaskDisplayState(s, Date.now());
+    row.appendChild(supEl(
+      "span",
+      "taskRowTitle",
+      s.title || s.id
+    ));
+    row.appendChild(supEl(
+      "span",
+      "taskRowState",
+      " " + disp.word + " \xB7 updated " + supFmtTime(s.updatedAt)
+    ));
+    row.onclick = () => renderSupTaskDetail(s);
+    return row;
+  }
+  async function renderSupTaskDetail(s) {
+    const box = $("supBody");
+    box.textContent = "";
+    const back = document.createElement("button");
+    back.textContent = "\u2190 All tasks";
+    back.onclick = () => renderSupClient();
+    box.appendChild(back);
+    box.appendChild(supEl(
+      "h4",
+      null,
+      s.title || s.id
+    ));
+    const [one, rev] = await Promise.all([
+      supHttp("/api/tasks?id=" + encodeURIComponent(s.id)).catch(() => null),
+      supHttp("/api/supervision/review?taskId=" + encodeURIComponent(s.id)).catch(() => null)
+    ]);
+    const rec = one && one.data && one.data.record || s;
+    const disp = remoteTaskDisplayState(
+      rec,
+      Date.now()
+    );
+    const lines = [
+      ["Status", disp.word + (disp.live ? " (the run is live on the desktop)" : "")],
+      ["Updated", supFmtTime(rec.updatedAt)],
+      ["Goal", rec.goal || ""],
+      ["Steps", String((rec.steps || {}).count || 0) + ((rec.steps || {}).lastLabel ? " \xB7 last: " + rec.steps.lastLabel : "")],
+      ["Approvals", "asked " + ((rec.approvals || {}).asked || 0) + " \xB7 allowed " + ((rec.approvals || {}).allowed || 0) + " \xB7 denied " + ((rec.approvals || {}).denied || 0)]
+    ];
+    for (const [k, v] of lines) {
+      const d = supEl("div", "supLine");
+      d.appendChild(supEl("span", "dim", k + ": "));
+      d.appendChild(document.createTextNode(v));
+      box.appendChild(d);
+    }
+    const files = rev && rev.data && rev.data.files || [];
+    box.appendChild(supEl("h4", null, "Changes"));
+    if (rev && rev.data && rev.data.run && rev.data.run.summary)
+      box.appendChild(supEl(
+        "div",
+        "dim",
+        rev.data.run.summary
+      ));
+    if (!files.length) {
+      const kept = rec.payload && rec.payload.filesChanged || [];
+      if (kept.length)
+        for (const f of kept)
+          box.appendChild(supEl(
+            "div",
+            "supLine",
+            (f.kind || "changed") + " \xB7 " + (f.path || "")
+          ));
+      else
+        box.appendChild(supEl(
+          "div",
+          "dim",
+          "No changes recorded for this task."
+        ));
+    }
+    for (const f of files) {
+      box.appendChild(supEl(
+        "div",
+        "supLine",
+        (f.kind || "changed") + " \xB7 " + (f.path || "")
+      ));
+      if (f.diff) {
+        const pre = supEl("pre", "supDiff", f.diff);
+        box.appendChild(pre);
+      } else {
+        box.appendChild(supEl(
+          "div",
+          "dim",
+          "No before-copy was kept for this file, so there is no diff to show."
+        ));
+      }
+    }
+    const fus = rec.payload && rec.payload.followups || [];
+    box.appendChild(supEl("h4", null, "Follow-ups"));
+    const fuBox = supEl("div", "supFollowups");
+    if (!fus.length)
+      fuBox.appendChild(supEl(
+        "div",
+        "dim",
+        "None yet."
+      ));
+    for (const fu of fus) {
+      fuBox.appendChild(supEl(
+        "div",
+        "supLine",
+        supFmtTime(fu.at) + " \xB7 " + (fu.from || "") + ": " + (fu.text || "")
+      ));
+    }
+    box.appendChild(fuBox);
+    const ta = document.createElement("textarea");
+    ta.id = "supFollowupText";
+    ta.rows = 3;
+    ta.placeholder = "Leave a follow-up for this task. If its run is live on the desktop, the run reads it at its next step.";
+    box.appendChild(ta);
+    const send = document.createElement("button");
+    send.id = "supFollowupBtn";
+    send.textContent = "Send follow-up";
+    send.onclick = async () => {
+      const text = supCleanFollowup(ta.value);
+      if (!text) {
+        $("supMsg").textContent = "Write the follow-up first.";
+        return;
+      }
+      send.disabled = true;
+      try {
+        const r = await supHttp(
+          "/api/supervision/followup",
+          {
+            method: "POST",
+            body: { taskId: rec.id, text }
+          }
+        );
+        if (r.ok) {
+          $("supMsg").textContent = "Follow-up saved on the task record.";
+          await renderSupTaskDetail(
+            Object.assign(
+              {},
+              s,
+              { updatedAt: (/* @__PURE__ */ new Date()).toISOString() }
+            )
+          );
+        } else {
+          $("supMsg").textContent = r.data && r.data.error || "The desktop refused the follow-up.";
+          send.disabled = false;
+        }
+      } catch (e) {
+        $("supMsg").textContent = "Could not reach the desktop.";
+        send.disabled = false;
+      }
+    };
+    box.appendChild(send);
+  }
+  async function renderSupPairSection(box) {
+    const head = supEl(
+      "div",
+      "dim",
+      "Phone supervision: a paired phone can watch this desktop's tasks, review what a run changed, decide its waiting approvals (this desktop does the work), and leave follow-ups on tasks. It opens nothing else in the IDE."
+    );
+    box.appendChild(head);
+    const body = supEl("div", "supPairSection");
+    box.appendChild(body);
+    let st = null;
+    try {
+      const r = await _rawFetch(
+        "/api/supervision/status"
+      );
+      if (r.ok) st = await r.json();
+    } catch (e) {
+    }
+    if (!st) {
+      body.appendChild(supEl(
+        "div",
+        "dim",
+        "Phone supervision is set up on the desktop itself; this device is a guest here."
+      ));
+      return;
+    }
+    const tgl = supEl(
+      "div",
+      "findRow",
+      (st.enabled ? "\u23F8 Allow phone pairing: ON" : "\u25B6 Allow phone pairing: OFF") + " - tap to switch"
+    );
+    tgl.onclick = async () => {
+      await supHttp(
+        "/api/supervision/enable",
+        {
+          method: "POST",
+          body: { enabled: !st.enabled }
+        }
+      );
+      openPair();
+    };
+    body.appendChild(tgl);
+    body.appendChild(supEl(
+      "div",
+      "dim",
+      st.tls ? "This desktop serves its network addresses over HTTPS with its own certificate, so supervision traffic is encrypted on the network. A Tailscale address encrypts the path itself too." : "This desktop is serving plain HTTP right now. On your own LAN that means trusting the network; a Tailscale address encrypts the path between the two devices itself."
+    ));
+    body.appendChild(supEl(
+      "div",
+      "dim",
+      "Nothing leaves your two devices: no account, no cloud relay."
+    ));
+    if (st.enabled) {
+      const codeRow = supEl(
+        "div",
+        "findRow",
+        "Show a one-time pairing code"
+      );
+      const codeOut = supEl("div", "dim");
+      codeRow.onclick = async () => {
+        const r = await supHttp(
+          "/api/supervision/code",
+          { method: "POST", body: {} }
+        );
+        codeOut.textContent = r.ok && r.data ? "Pairing code: " + r.data.code + " - type it on the phone in Tools, Desktop supervision. It works once, for the next five minutes, and five wrong tries end it." : "Could not make a code: " + (r.data && r.data.error || "unknown");
+      };
+      body.appendChild(codeRow);
+      body.appendChild(codeOut);
+    }
+    for (const d of st.devices || []) {
+      body.appendChild(supEl(
+        "div",
+        "dim",
+        "\u{1F4F1} " + (d.name || "Phone") + " \xB7 paired " + supFmtTime(d.pairedAt) + " \xB7 last seen " + supFmtTime(d.lastSeen)
+      ));
+      const un = supEl(
+        "div",
+        "findRow",
+        "Unpair " + (d.name || "Phone")
+      );
+      un.onclick = async () => {
+        await supHttp(
+          "/api/supervision/unpair",
+          {
+            method: "POST",
+            body: { deviceId: d.id }
+          }
+        );
+        openPair();
+      };
+      body.appendChild(un);
+    }
+    if ((st.devices || []).length) {
+      const all = supEl(
+        "div",
+        "findRow",
+        "Unpair all phones"
+      );
+      all.onclick = async () => {
+        await supHttp(
+          "/api/supervision/unpair",
+          { method: "POST", body: { all: true } }
+        );
+        openPair();
+      };
+      body.appendChild(all);
+    }
+  }
+  try {
+    window.__ghostSupervisionClient = {
+      supClientContext,
+      supClientForced,
+      supTransportLine,
+      supIsTailscaleHost,
+      remoteTaskDisplayState,
+      supValidCode,
+      supCleanFollowup,
+      supStoredToken,
+      supStoreToken,
+      supClearToken,
+      SUP_REMOTE_FRESH_MS
+    };
+  } catch (e) {
+  }
   var agentApprovalEl = null;
   function focusPendingApproval() {
     if (!agentApprovalEl) return;
@@ -46519,6 +47177,14 @@
         "History",
         arc.map((e) => e.status).join(" \u2192 ")
       );
+    const fus = rec.payload && rec.payload.followups;
+    if (Array.isArray(fus) && fus.length)
+      for (const fu of fus)
+        taskDetailLine(
+          detail,
+          "Follow-up",
+          supFmtTime(fu.at) + " \xB7 " + (fu.from || "") + ": " + (fu.text || "")
+        );
     const btns = document.createElement("div");
     if (disp.interrupted) {
       const note = document.createElement("div");
@@ -46605,6 +47271,7 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
   }
   $("tasksClose").onclick = () => $("tasksPanel").classList.add("hidden");
+  $("supervisionClose").onclick = () => $("supervisionPanel").classList.add("hidden");
   $("taskImportBtn").onclick = () => $("taskImportFile").click();
   $("taskImportFile").onchange = async (ev) => {
     const f = ev.target.files && ev.target.files[0];
@@ -47488,6 +48155,92 @@
       if (!sup.granted)
         addMsg("SYSTEM", "Note: notifications are off for GhostIDE, so if an approval is needed while you are in another app, the run will wait without notifying you.");
     }
+    let pairRec = null;
+    if (!sup) {
+      pairRec = {
+        rec: null,
+        chain: Promise.resolve(),
+        seen: 0,
+        init: null
+      };
+      pairRec.init = (async () => {
+        try {
+          const r = await _rawFetch(
+            "/api/supervision/status"
+          );
+          if (!r.ok) {
+            pairRec = null;
+            return;
+          }
+          const st = await r.json();
+          if (!st || !st.enabled || st.paired) {
+            pairRec = null;
+            return;
+          }
+          pairRec.rec = supNewRecord({
+            id: makeTaskId(
+              /* @__PURE__ */ new Date(),
+              Math.random().toString(36).slice(2, 8)
+            ),
+            task,
+            stepCap,
+            workspace: historyScope || "desktop",
+            platform: "desktop",
+            planPath: opts.planPath || null,
+            runId,
+            at: (/* @__PURE__ */ new Date()).toISOString()
+          });
+          pairRec.chain = pairRec.chain.then(() => taskRecordCreate(pairRec.rec));
+          addMsg("SYSTEM", "\u{1F4F1} Phone pairing is on: this run's progress is saved to its task record as it goes, and a paired phone can watch it and leave follow-ups.");
+        } catch (e) {
+          pairRec = null;
+        }
+      })();
+    }
+    function pairSync(status) {
+      if (!pairRec || !pairRec.rec)
+        return Promise.resolve();
+      pairRec.chain = pairRec.chain.then(async () => {
+        try {
+          const got = await getJson("/api/tasks?id=" + encodeURIComponent(pairRec.rec.id));
+          const srv = got && got.record;
+          if (srv && srv.payload && Array.isArray(srv.payload.followups)) {
+            const fus = srv.payload.followups;
+            if (fus.length > pairRec.seen) {
+              for (const fu of fus.slice(pairRec.seen)) {
+                messages.push({
+                  role: "user",
+                  content: "Note from your paired phone (" + (fu.from || "phone") + ", " + (fu.at || "") + "): " + (fu.text || "")
+                });
+                addMsg("SYSTEM", "\u{1F4F1} Follow-up from your phone: " + (fu.text || ""));
+              }
+              pairRec.seen = fus.length;
+            }
+            pairRec.rec.payload.followups = fus;
+          }
+          const lastT = trail.length ? trail[trail.length - 1] : null;
+          let rec = supApplyStep(pairRec.rec, {
+            count: trail.filter((t2) => t2.step > 0).length,
+            lastLabel: lastT ? (String(lastT.type || "") + " " + String(lastT.target || "")).trim() : "",
+            approvals: taskApprovalsSummary(
+              runApprovals
+            ),
+            checkpoint: runCkptPath || null,
+            at: (/* @__PURE__ */ new Date()).toISOString()
+          });
+          if (status)
+            rec = supSetStatus(
+              rec,
+              status,
+              (/* @__PURE__ */ new Date()).toISOString()
+            );
+          pairRec.rec = rec;
+          await taskRecordUpdate(rec);
+        } catch (e) {
+        }
+      });
+      return pairRec.chain;
+    }
     function supSync(status) {
       if (!sup) return;
       sup.chain = sup.chain.then(async () => {
@@ -47562,6 +48315,7 @@
     }
     for (let step = stepOffset + 1; step <= stepCap; step++) {
       if (sup) supSync();
+      if (pairRec) await pairSync();
       if (thermalWatchdog() === "stop") {
         addMsg("SYSTEM", "\u{1F321} Agent stopped: the device reached severe heat. (Thermal guard.)");
         agentStop = true;
@@ -47700,8 +48454,10 @@
         let verdict = "all";
         if (!runAllowAll) {
           if (sup) await supApprovalBegin();
+          if (pairRec) await pairSync("waiting-approval");
           verdict = await agentApproveRunUi(act.command);
           if (sup) supApprovalEnd();
+          if (pairRec) pairSync("running");
         }
         if (verdict === "all") runAllowAll = true;
         if (agentStop) {
@@ -47827,8 +48583,10 @@
           }
         } else if (!runAllowAll) {
           if (sup) await supApprovalBegin();
+          if (pairRec) await pairSync("waiting-approval");
           const verdict = await agentApproveRunUi("MCP " + act.server + "." + act.tool + " " + JSON.stringify(act.args || {}).slice(0, 300));
           if (sup) supApprovalEnd();
+          if (pairRec) pairSync("running");
           if (verdict === "all") runAllowAll = true;
           if (agentStop) {
             outcome = "stopped";
@@ -47926,6 +48684,20 @@
         (/* @__PURE__ */ new Date()).toISOString()
       );
     }
+    if (pairRec) {
+      await pairRec.init;
+      if (pairRec) {
+        await pairSync();
+        await pairRec.chain;
+        if (pairRec.rec)
+          pairRec.rec = supSetStatus(
+            pairRec.rec,
+            taskStatusFromOutcome(outcome),
+            (/* @__PURE__ */ new Date()).toISOString()
+          );
+      }
+    }
+    const liveRec = sup ? sup.rec : pairRec && pairRec.rec || null;
     postRunRecord({
       id: runId,
       mode: "act",
@@ -47942,15 +48714,21 @@
       skipped: runSkipped,
       /* M2: a supervised run finishes the record it
          started, under its own id, createdAt and cap,
-         with the arc complete and the context closed. */
-      taskId: sup ? sup.rec.id : void 0,
-      taskCreatedAt: sup ? sup.rec.createdAt : void 0,
-      taskStepCap: sup ? stepCap : void 0,
-      taskPayloadExtra: sup ? {
-        segments: sup.rec.payload.segments,
-        arc: sup.rec.payload.arc,
-        contextPath: null
-      } : void 0
+         with the arc complete and the context closed.
+         M10: a pairing-supervised desktop run finishes
+         its live record the same way, follow-ups
+         included. */
+      taskId: liveRec ? liveRec.id : void 0,
+      taskCreatedAt: liveRec ? liveRec.createdAt : void 0,
+      taskStepCap: liveRec ? stepCap : void 0,
+      taskPayloadExtra: liveRec ? Object.assign(
+        {
+          segments: liveRec.payload.segments,
+          arc: liveRec.payload.arc,
+          contextPath: null
+        },
+        liveRec.payload.followups && liveRec.payload.followups.length ? { followups: liveRec.payload.followups } : {}
+      ) : void 0
     });
     if (sup) {
       const doneContextPath = sup.rec.payload.contextPath;
@@ -52308,6 +53086,7 @@
         box.appendChild(row);
       }
     }
+    renderSupPairSection(box);
   }
   $("toolPair").onclick = openPair;
   async function openBackup() {

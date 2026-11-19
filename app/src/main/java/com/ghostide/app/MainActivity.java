@@ -1252,6 +1252,72 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
 
+        /* Mobile Cycle 3 (M10): the supervision
+           pairing token. Unlike the git trio above,
+           this bridge HAS a getter, by design: the
+           page itself presents the token to the
+           DESKTOP (in the X-Supervision-Token
+           header) when it calls the supervision
+           surface. The token is scoped to that
+           surface only (task records, run review,
+           the approval queue, follow-ups); it cannot
+           open the IDE API, and it is stored with
+           the same Keystore encryption as the git
+           tokens, in its own file. The address is
+           normalized through Pairing.storeKey, so
+           the address the user paired with and the
+           origin the page runs on are one key. */
+        @android.webkit.JavascriptInterface
+        public boolean savePairToken(final String address,
+                final String token) {
+            String key = Pairing.storeKey(address);
+            if (key == null || token == null
+                    || token.isEmpty()) return false;
+            try {
+                GitTokenKeystore.forPairing(
+                    getApplicationContext())
+                    .put(key, token);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public String pairToken(final String address) {
+            String key = Pairing.storeKey(address);
+            if (key == null) return null;
+            try {
+                return GitTokenKeystore.forPairing(
+                    getApplicationContext())
+                    .tokenFor(key);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public boolean hasPairToken(final String address) {
+            String key = Pairing.storeKey(address);
+            if (key == null) return false;
+            try {
+                return GitTokenKeystore.forPairing(
+                    getApplicationContext()).has(key);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public void removePairToken(final String address) {
+            String key = Pairing.storeKey(address);
+            if (key == null) return;
+            try {
+                GitTokenKeystore.forPairing(
+                    getApplicationContext()).remove(key);
+            } catch (Exception ignored) {}
+        }
+
         /* Mobile Cycle 1 (M5): hand a URL to the system
            browser - the APK update check's Download
            button. https only, and that is all it does:
