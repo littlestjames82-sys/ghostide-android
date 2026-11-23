@@ -104,6 +104,9 @@ if missing:
 PYEOF
 ls -lh "$SRC/assets/eco.zip"
 
+echo '[0.95/8] staging signed provenance record (studio key, local builds only)'
+python3 $WS/ghostide-apk-build/tools/make_provenance.py
+
 echo '[1/8] compiling resources'
 "$BT/aapt2" compile --dir "$SRC/res" -o "$OUT/compiled_res.zip"
 
