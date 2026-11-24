@@ -24,11 +24,11 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: littlestjames82-sys/ghost-ide
           path: ghost-ide
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: littlestjames82-sys/ghostide-android
           path: ghostide-android
@@ -75,13 +75,13 @@ jobs:
   jvm-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # TkTest consumes the shared task-record fixture
       # from the ghost-ide tree (the same fixture the
       # Python and JS suites validate against); without
       # this checkout it fails with NoSuchFileException
       # on tests/fixtures/task_record_v1.json.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: littlestjames82-sys/ghost-ide
           path: ghost-ide
@@ -94,7 +94,7 @@ jobs:
   java-compile:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -125,7 +125,7 @@ jobs:
   probes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: littlestjames82-sys/ghost-ide
           path: ghost-ide
