@@ -1,6 +1,6 @@
-![GhostIDE — a circuit-trace ghost over a phone running a code editor](docs/images/banner.png)
-
 # GhostIDE for Android 👻
+
+GhostIDE is a free, offline AI code editor for Android by Ghost Developer Studio (https://ghostdeveloperstudio.com/ghost-ide/android/). The model runs on the device; code never leaves it.
 
 [![CI](https://github.com/littlestjames82-sys/ghostide-android/actions/workflows/ci.yml/badge.svg)](https://github.com/littlestjames82-sys/ghostide-android/actions/workflows/ci.yml)
 
